@@ -1,0 +1,15 @@
+# 默认忽略的文件
+/shelf/
+/workspace.xml
+# Rider 忽略的文件
+/.idea.XFramework.iml
+/modules.xml
+/contentModel.xml
+/projectSettingsUpdater.xml
+# 已忽略包含查询文件的默认文件夹
+/queries/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+# 基于编辑器的 HTTP 客户端请求
+/httpRequests/

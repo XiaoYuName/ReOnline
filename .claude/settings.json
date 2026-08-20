@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File \".claude/hooks/ensure-ps1-bom.ps1\"",
+            "statusMessage": "Checking .ps1 encoding"
+          }
+        ]
+      }
+    ]
+  }
+}

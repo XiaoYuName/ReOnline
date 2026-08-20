@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(\"--- Scripts ---\")",
+      "PowerShell(\"--- claude dir ---\")",
+      "PowerShell(\"--- UnityCIL/MCP packages ---\")"
+    ]
+  }
+}

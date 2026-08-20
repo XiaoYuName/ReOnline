@@ -1,0 +1,8 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Addressables 配置:group / settings / schema 都是 YAML 文本,冲突几乎都是
+# 各自往列表尾部追加条目。用 union 合并让两边新增自动保留,不再弹冲突标记。
+# 注意:极少数两人改同一条目时可能产生重复行,重跑一次自动打包按钮或手删即可。
+Assets/AddressableAssetsData/**/*.asset merge=union
+Assets/AddressableAssetsData/*.asset merge=union

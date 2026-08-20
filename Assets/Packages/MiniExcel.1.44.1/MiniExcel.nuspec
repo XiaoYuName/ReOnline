@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>MiniExcel</id>
+    <version>1.44.1</version>
+    <title>MiniExcel</title>
+    <authors>Wei Lin, Michele Bastione, PING-HSIU SHIH, Amos(izanhzh), eynarhaji, Mini-Software team</authors>
+    <license type="expression">Apache-2.0</license>
+    <licenseUrl>https://licenses.nuget.org/Apache-2.0</licenseUrl>
+    <icon>icon.png</icon>
+    <readme>README.md</readme>
+    <projectUrl>https://github.com/mini-software/MiniExcel</projectUrl>
+    <description>Fast, Low-Memory, Easy Excel .NET helper to import/export/template spreadsheet
+Github : https://github.com/mini-software/MiniExcel
+Gitee : https://gitee.com/dotnetchina/MiniExcel
+Issues : https://github.com/mini-software/MiniExcel/issues
+Todo : https://github.com/mini-software/MiniExcel/projects/1?fullscreen=true</description>
+    <releaseNotes>https://github.com/mini-software/MiniExcel/tree/master/docs</releaseNotes>
+    <copyright>Wei Lin, 2021 onwards</copyright>
+    <tags>excel xlsx csv micro-helper mini openxml helper</tags>
+    <repository type="Github" url="https://github.com/mini-software/MiniExcel" branch="refs/heads/v1.x-maintenance" commit="1894f4b6e385631097eaaf8c55c34447ca707507" />
+    <dependencies>
+      <group targetFramework="net10.0" />
+      <group targetFramework=".NETFramework4.5" />
+      <group targetFramework="net8.0" />
+      <group targetFramework="net9.0" />
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Microsoft.Bcl.AsyncInterfaces" version="10.0.0" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+    <frameworkAssemblies>
+      <frameworkAssembly assemblyName="System.IO.Compression" targetFramework=".NETFramework4.5" />
+    </frameworkAssemblies>
+  </metadata>
+</package>

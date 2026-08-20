@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ce09f8dfa922e0469a2c6e2d72daff9, type: 3}
+  m_Name: PlayerBuildConfig
+  m_EditorClassIdentifier: Assembly-CSharp-Editor::XFramework.PlayerBuildConfig
+  serializationData:
+    SerializedFormat: 2
+    SerializedBytes: 
+    ReferencedUnityObjects: []
+    SerializedBytesString: 
+    Prefab: {fileID: 0}
+    PrefabModificationsReferencedUnityObjects: []
+    PrefabModifications: []
+    SerializationNodes: []
+  ProductName: "\u5267\u60C5\u6E38\u620F"
+  CompanyName: com.LuminoInc.AFramework
+  BundleIdentifier: com.LuminoInc.AFramework
+  Channel: 0
+  Version: 0.1
+  VersionCode: 2
+  AutoIncreaseVersionCode: 1
+  UseEditorBuildSettingsScenes: 1
+  Scenes: []
+  ScriptingBackend: 1
+  Il2CppConfiguration: 1
+  Il2CppStripping: 1
+  MonoStripping: 0
+  AppendChannelDefine: 0
+  ExtraDefineSymbols: []
+  DevelopmentBuild: 0
+  AllowDebugging: 0
+  ConnectProfiler: 0
+  DeepProfiling: 0
+  Compression: 1
+  FullScreenMode: 1
+  DefaultResolution: {x: 1920, y: 1080}
+  CleanBuildCache: 1
+  SaveAssetsBeforeBuild: 1
+  MarkAddressables: 1
+  AddressableMarkConfig: {fileID: 11400000, guid: 85ea6719a82818b45b714ad15e928af2, type: 2}
+  BuildAddressableContent: 1
+  CleanAddressableBuildCache: 1
+  AddressableProfileName: 
+  RemoteLoadUrl: 
+  OutputRoot: Build
+  FileNameFormat: '{product}_{channel}_v{version}.{code}_{date}'
+  ExecutableName: 
+  GenerateVersionFile: 1
+  DeleteDebugFolders: 1
+  RevealInExplorer: 1
+  RunAfterBuild: 0

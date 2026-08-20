@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Root/Root.unity
+    guid: 8c9cfa26abfee488c85f1582747f6a02
+  m_configObjects:
+    com.unity.addressableassets: {fileID: 11400000, guid: e9e74aeecdb9d764d890f8ed9d7acbd7, type: 2}
+    com.unity.dt.app-ui: {fileID: 11400000, guid: 99f9c9493070a9d4c979a8fec7c5a8d3, type: 2}
+    com.unity.input.settings: {fileID: 11400000, guid: 2a19880a9891fc8469c8930ba9bf478f, type: 2}
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 270fa6724e059f14f88d8235627c9b02, type: 3}
+    com.unity.localization.addressable-group-rules: {fileID: 11400000, guid: 4b951d3ac93fead49a388a249e95043d, type: 2}
+    com.unity.localization.settings: {fileID: 11400000, guid: 77aa4df6cd2a1fb4da4ae576a36e139c, type: 2}

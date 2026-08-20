@@ -1,0 +1,1209 @@
+﻿Updated: 2021 / 01 / 19
+Current Asset Version: 2021.1.1
+Latest Documentation: Link
+Roadmap: Link
+Discord Support: Link
+
+
+User Manual Sections
+
+
+
+
+
+
+
+
+Component Reference
+Description of each component of Slicer 2D
+	
+
+	
+
+
+
+
+
+
+
+
+
+Soon - How to Start?
+
+
+	
+
+	
+
+	
+
+	
+
+
+
+
+
+
+
+Soon - Event Handling
+	
+
+	
+
+
+
+
+
+
+
+Soon - Custom Controller
+	
+
+	
+
+	
+
+	Soon - Slicing Objects
+	
+
+	Soon - Center of Slice
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* Slicer2D Components
+   * Components
+   * Component Reference
+   * Bonus Components
+
+
+*  Slicer2D Main Scripting API
+This API is used to interact with existing game objects that got Slicer2D component attached
+   * Static Methods
+   * Static Methods Reference
+   * Slice2D & Slice Result 
+
+
+         * Slicer2D Events Handling
+            * AddEvent
+            * AddResultEvent
+            * Anchors - AddResultEvent
+
+
+*  Slicer2D Low Level Scripting API
+This API is used to create your own custom slicer controllers and unique behaviour
+   * Static Functions
+   * Static Functions Reference
+
+
+Math2D Scripting API | Polygon2D Scripting API  | Vector2D Scripting API
+ Controller Features | Event Handling Sample Scripts
+
+
+
+
+Forum Discussion
+Contact: simonas@kuzmickas.lt 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Slicer2D Components
+Components
+Slicer2D
+	Physics component for slicing sprites & meshes (Require Collider2D)
+	Slicer2DController
+	Mainly for mouse input which is used to slice or affect sliceable objects
+	Slicer2DParticles
+	Adding particles effect for sliceable game object
+	Slicer2DSound
+	Adding sound effect for sliceable game object
+	Slicer2DLinearController
+	Simplified version of Slicer2DController for linear mode slicing only
+	Slicer2DComplexController
+	Simplified version of Slicer2DController for complex mode slicing only
+	Bonus Components
+Mesh2D
+	Creates a mesh from attached Collider2D
+	ColliderLineRenderer2D
+	Draw lines for the attached Collider2D
+	JointRenderer2D
+	Draws lines for the attached joint components
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Component Reference
+Slicer2D
+	appearance
+	  
+
+	description
+	Physics component for Slicing sprites & meshes 
+	information
+	Parameters:
+* Texture Type
+   * Sprite
+   * Mesh
+   * None
+* Slicing Layer
+   * 8 layers
+* Slicing Limit
+   * Optionable (after 1-10 slices object won’t be sliceable)
+* Recalcuate Mass
+	Slicer2DController
+	appearance
+	  
+
+	description
+	Mainly for mouse input which is used to slice or affect sliceable objects
+	information
+	Parameters:
+* Slicer Type
+   * Linear
+   * Linear Cut
+   * Linear Tracked
+   * Complex
+   * Complex Cut
+   * Complex Tracked
+   * Complex Point
+   * Point
+   * Polygon
+   * Explode
+   * Explode By Point
+   * Creator
+   * Linear Trail
+   * Complex Trail
+* Slicer Layer:
+   * All
+   * Selected (checkbox list for 8 layers)
+	
+
+Mesh2D
+	appearance
+	  
+
+	description
+	Creates a mesh from already attached Collider2D
+	information
+	Parameters:
+* Triangulation
+   * Advanced
+   * Legacy
+* Material
+	
+
+ColliderLineRenderer2D
+	appearance
+	  
+
+	description
+	Draws lines for attached Collider2D
+	information
+	Parameters:
+* Color
+* Line Width
+* Order in Layer
+	Slice2D & Slice Result
+This object is used to return results and other additional information after slicing bodies
+
+
+Slice2D
+	object fields
+	* Slice2D
+   * polygons                List <Polygon2D>
+   * gameObjects                List <GameObject>  
+   * collisions                List<Vector2D> 
+   * slice                        List<Vector2D>
+   * slices                        List<List<Vector2D>>
+	description
+	Contain information about the slice.
+Used in scripting Slicer2D API and events handling system.
+	Sample 1
+Prints all information about the slice into console
+	  
+
+	Sample 2
+Uses event system to add Rigidbody2D component after slicing the GameObject
+	  
+
+	
+
+Slicer2D Main Scripting API
+This API is used to interact with existing game objects that are having Slicer2D component attached
+Static Methods
+LinearSliceAll
+	Slice all objects linearly using a line by 2 given points
+	LinearCutSliceAll
+	Slice all objects linearly using a line by 2 given points & width
+	ComplexSliceAll
+	Slice all objects non-linearly by given points list
+	ComplexCutSliceAll
+	Slice all objects non-linearly by given points list & width
+	PointSliceAll
+	Slice all objects linearly by a point and given rotation
+	PolygonSliceAll
+	Slice a piece of area from a polygon - using polygon as a parameter
+	ExplodeByPointAll
+	Explode a polygon by a given point
+	ExplodeSliceAll
+	Explode all objects
+	GetList
+	Get List of Slicer2D components in the scene
+	GetListLayer
+	Get List of Slicer2D components with specific layer in the scene
+	
+
+
+
+
+
+
+
+Static Methods Reference
+Static List <Slice2D> Slicer2D.LinearSliceAll ( Pair2D slice, Slice2DLayer layer = ALL)
+	returns
+	List of Slice2D objects list
+	description
+	Slice all GameObjects in the scene with Slicer2D component attached.
+Slices linearly using a line by 2 given points
+	information
+	<not documented yet>
+	Static List <Slice2D> Slicer2D.LinearCutSliceAll ( LinearCut slice, Slice2DLayer layer = ALL)
+	returns
+	List of Slice2D objects list
+	description
+	Slice all GameObjects in the scene with Slicer2D component attached.
+Slices linearly using a line by 2 given points & width
+	information
+	<not documented yet>
+	Static List <Slice2D> Slicer2D.PointSliceAll ( Vector2D position, Vector2D rotation)
+	returns
+	List of Slice2D objects
+	description
+	Slice all GameObjects in the scene with Slicer2D component attached.
+Slice linearly by a point and given rotation
+	information
+	<not documented yet>
+	Static List <Slice2D> Slicer2D.ComplexSliceAll ( List<Vector2D> slice,  Slice2DLayer layer = ALL)
+	returns
+	List of Slice2D objects list
+	description
+	Slice all GameObjects in the scene with Slicer2D component attached.
+Slice an object non-linearly by given points list
+	information
+	<not documented yet>
+	Static List <Slice2D> Slicer2D.PolygonSliceAll ( Polygon2D polygon, Slice2DLayer layer = ALL)
+	returns
+	List of Slice2D objects list
+	description
+	Slice all GameObjects in the scene with Slicer2D component attached.
+Slice a piece of area from a polygon - using polygon as a parameter
+	information
+	<not documented yet>
+	Static List <Slice2D> Slicer2D.ExplodingSliceAll ( Vector2D point, Slice2DLayer layer = ALL)
+	returns
+	List of Slice2D objects list
+	description
+	Explode all GameObjects in the scene with Slicer2D component attached.
+Explode a polygon by a given point
+	information
+	<not documented yet>
+	Static List <Slice2D> Slicer2D.ExplodeSliceAll ( Slice2DLayer layer = ALL)
+	returns
+	List of Slice2D objects
+	description
+	Explode all GameObjects in the scene with Slicer2D component attached.
+Explode all objects
+	information
+	<not documented yet>
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+Slicer2D Events Handling
+
+
+Public Methods
+AddEvent
+	Attach event script to sliceable object
+triggered before slice
+	AddResultEvent
+	Attach event script to sliceable object
+triggered after slice
+	AddAnchorEvent
+	Attach event script to sliceable object
+triggered before slice
+returns objects that were detached from anchors
+	AddAnchorResultEvent
+	Attach event script to sliceable object
+triggered after slice
+returns objects that were detached from anchors
+	
+
+Static Methods
+AddGlobalEvent
+	
+
+	AddGlobalResultEvent
+	
+
+	AddGlobalAnchorEvent
+	
+
+	AddGlobalAnchorResultEvent
+	
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+AddEvent
+	description
+	This event is applied before new sliced objects are created.
+
+If this event method
+* Returns “false” - the slice will be canceled
+* Returns “true” - the slice will be performed
+
+
+Slice2D object contains fields:
+* Polygons
+* Slice Type
+* Collisions
+* Slice
+* Slices
+	Sample 1
+  
+
+Removes smallest slice from result
+Smallest new polygon won’t be created
+	
+
+
+
+
+
+
+
+
+
+
+
+	Sample 2
+  
+
+This sample canceles the slice if it creates more than 2 new objects
+	
+
+	
+
+AddResultEvent
+	description
+	This event is applied after new sliced objects are created.
+This event method cannot cancel slice.
+
+Slice2D object contains fields:
+* Game Objects
+* Slice Type
+* Polygons
+* Collisions
+* Slice
+* Slices
+
+
+	Sample 1
+  
+
+This sample attaches  a rigidbody for every new slice of the object
+	
+
+	
+
+
+
+AddAnchorResultEvent
+
+
+More Info: https://discord.gg/AktrfBe
+	description
+	This event is applied after new sliced objects are created. 
+This event method cannot cancel slice
+This event returns all new game objects that were cut off from the original object..
+
+Slice2D object contains fields:
+* Game Objects
+* Slice Type
+
+
+	Sample 1
+(this was changed in recent updates, now this method is in Slicer2D component)
+
+
+This sample destroy all objects that were sliced from the original game object
+	
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Slicer2D.API Low Level Scripting API
+This API is used to create your own custom slicer controllers and unique behaviour
+
+
+Functions
+LinearSlice
+	Slice an object linearly using a line by 2 given points
+	LinearCutSlice
+	Slice an object linearly using a line by 2 given points & width
+	ComplexSlice
+	Slice an object non-linearly by given points list
+	ComplexCutSlice
+	Slice an object non-linearly by given points list & width
+	PointSlice
+	Slice an object linearly by a point and given rotation
+	PolygonSlice
+	Slice a piece of area from a polygon - using polygon as a parameter
+	ExplodeInPoint
+	
+
+	ExplodeByPoint
+	Explode a polygon by a given point
+	Explode
+	Explode a polygon
+	CreatorSlice
+	Convert a slice (points list)  into a polygon
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Function Reference
+Static Slice2D Slicer2D.API.LinearSlice ( Polygon2D polygon, Pair2D slice)
+	returns
+	Slice2D object
+	description
+	Slice an object linearly using a line by 2 given points
+	information
+	<not documented yet>
+	Static Slice2D Slicer2D.API.LinearCutSlice ( Polygon2D polygon, LinearCut slice)
+	returns
+	Slice2D object
+	description
+	Slice an object linearly using a line by 2 given points & width
+	information
+	<not documented yet>
+	Static Slice2D Slicer2D.API.PointSlice ( Polygon2D polygon, Vector2D point,  float rotation)
+	returns
+	Slice2D object
+	description
+	Slice an object linearly by a point and given rotation
+	information
+	<not documented yet>
+	Static Slice2D Slicer2D.API.ComplexSlice ( Polygon2D polygon, List<Vector2D> slicePoints)
+	returns
+	Slice2D Object
+	description
+	Slice an object non-linearly by given points list
+	information
+	<not documented yet>
+	
+
+Static Slice2D Slicer2D.API.PolygonSlice ( Polygon2D polygon, Polygon2D slicePolygon)
+	returns
+	Slice2D object
+	description
+	Slice a piece of area from a polygon - using polygon as a parameter
+	information
+	<not documented yet>
+	
+
+
+
+
+
+
+
+
+
+Static Slice2D Slicer2D.API.ExplodeByPoint ( Polygon2D polygon, Vector2D point)
+	returns
+	Slice2D object
+	description
+	Explode a polygon by a given point
+	information
+	<not documented yet>
+	
+
+Static Slice2D Slicer2D.API.Explode( Polygon2D polygon)
+	returns
+	Slice2D object
+	description
+	Explode a polygon
+	information
+	<not documented yet>
+	
+
+Static Slice2D Slicer2D.API.CreatorSlice ( List<Vector2D> pointsList)
+	returns
+	Slice2D object
+	description
+	Convert a slice (points list) into a polygon
+	information
+	<not documented yet>
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Math2D Scripting API
+Functions
+PointInPoly
+	<not documented yet>
+	PolyInPoly
+	<not documented yet>
+	PolyIntersectPoly
+	<not documented yet>
+	SliceIntersectPoly
+	<not documented yet>
+	LineIntersectPoly
+	<not documented yet>
+	LineIntersectLine
+	<not documented yet>
+	LineIntersectCircle
+	<not documented yet>
+	GetPointLineIntersectLine
+	<not documented yet>
+	GetListLineIntersectPoly
+	<not documented yet>
+	GetListPolyIntersectSlice
+	<not documented yet>
+	GetListLineIntersectSlice
+	<not documented yet>
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Polygon2D Scripting API
+Public Methods
+AddHole
+	<not documented yet>
+	AddPoint
+	<not documented yet>
+	PolyInPoly
+	<not documented yet>
+	PointInPoly
+	<not documented yet>
+	PointInHole
+	<not documented yet>
+	ToLocalSpace
+	<not documented yet>
+	ToWorldSpace
+	<not documented yet>
+	ToOffset
+	<not documented yet>
+	ToScale
+	<not documented yet>
+	ToRotation
+	<not documented yet>
+	Normalize
+	<not documented yet>
+	GetArea
+	<not documented yet>
+	GetBounds
+	<not documented yet>
+	LineIntersectHoles
+	<not documented yet>
+	SliceIntersectPoly
+	<not documented yet>
+	SliceIntersectHoles
+	<not documented yet>
+	GetListSliceIntersectPoly
+	<not documented yet>
+	Polygon2DList.CreateFromCollider
+	<not documented yet>
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Vector2D Scripting API
+Public Methods
+Set
+	<not documented yet>
+	Push
+	<not documented yet>
+	Inc
+	<not documented yet>
+	Dec
+	<not documented yet>
+	Distance
+	<not documented yet>
+	 Atan2
+	<not documented yet>
+	
+
+
+
+FAQ
+
+
+* Can I calculate slice's area using your utils library?
+
+
+   * Polygon2D.GetArea()
+
+
+* Which is the best method to access the the properties of the objects that were created after the slice?
+
+
+   * Slicer2D Event
+   * Slicer2D Anchors Event
+
+
+* Is it possible to have 2 joints attached to the same object, slice it, and have 2 slices appear each with their respective joint still attached?
+
+
+   * Demo7 - Joints Scene
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Default Slicer Controller Features
+
+
+Slicing Type
+	Force
+	Events
+	Auto
+Start & End
+	Display Collisions
+	Multi
+Touch
+	Autocomplete
+	Slice
+Joints
+	Linear
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Complex
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Linear Trail
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Complex Trail
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Linear Cut
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Complex Cut
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Linear Tracked
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Complex Tracked
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Complex Click
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Explode 
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Point
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Polygon
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Create 
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	
+
+	Event Handling Sample Scripts
+File
+	Description
+	Link
+	DestroySmallestPolygons.cs
+	Destroys smallest polygons instantly on slice.
+
+Script should be attached once in the scene like a game manager.
+	https://pastebin.com/Z70S3FjM
+	DestroySmallestGameObject.cs
+	Destroys smallest game object after slice.
+
+Script should be attached to the sliceable game object
+	https://pastebin.com/cb9c4K7w
+	Explodable.cs
+	Explodes object after the slice.
+
+Script should be attached to the objects with a Slicer2D component.
+	https://pastebin.com/5t3rgJRK
+	SliceHandling.cs
+	Placeholder script for Slicer Game manager.
+	https://pastebin.com/uXn27pXQ
+	InputControllerSample.cs
+	How to control the slicer controller movement with the code.
+	https://pastebin.com/L1SDaUtX
+	AnchorCancel.cs
+	Cancel Slice if it intersects with the anchor.
+	https://pastebin.com/jmZakPrJ
+	Functions
+	Complex Slicer Helper - check if slice is possible by given points list
+	https://pastebin.com/20GNEJ99
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Incorrect Slicing: Case 1
