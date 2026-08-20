@@ -1,0 +1,12 @@
+{
+  "database": "rediv",
+  "module-path": "./spacetimedb",
+  "server": "http://127.0.0.1:2383",
+  "generate": [
+    {
+      "language": "csharp",
+      "out-dir": "../ReDiv_Online/Assets/Scripts/Net/ModuleBindings",
+      "namespace": "ReDiv.Net.Bindings"
+    }
+  ]
+}
