@@ -7,7 +7,7 @@ using UnityEngine.Windows;
 
 public  class SaveToolEditor: Editor
 {
-    [MenuItem("Tool/1.打开Addressables保存路径")]
+    [MenuItem("Tools/XFramework/实用工具/打开 Addressables 保存路径", false, 420)]
     public static void OpenUserPath()
     {
         string path = Application.persistentDataPath;
@@ -22,17 +22,17 @@ public  class SaveToolEditor: Editor
     }
 
     
-    [MenuItem("Tool/2.打开UnityAPI")]
+    [MenuItem("Tools/XFramework/实用工具/打开 UnityAPI", false, 421)]
     public static void OpenUnityUrl()
     {
         Application.OpenURL("https://docs.unity3d.com/cn/2020.2/ScriptReference/index.html");
     }
-    [MenuItem("Tool/2.打开C# API")]
+    [MenuItem("Tools/XFramework/实用工具/打开 C# API", false, 422)]
     public static void OpenNETUrl()
     {
         Application.OpenURL("https://learn.microsoft.com/zh-cn/dotnet/api/");
     }
-    [MenuItem("Tool/3.打开BilBil")]
+    [MenuItem("Tools/XFramework/实用工具/打开 BilBil", false, 423)]
     public static void OpenBilBil()
     {
         Application.OpenURL("https://www.bilibili.com");

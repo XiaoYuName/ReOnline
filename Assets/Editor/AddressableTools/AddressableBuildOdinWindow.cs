@@ -112,7 +112,7 @@ namespace XFramework
         [SerializeField]
         private List<AddressableBuildPreviewItem> previewItems = new List<AddressableBuildPreviewItem>();
 
-        [MenuItem("Tools/XFramework/Addressable 一键打包")]
+        [MenuItem("Tools/XFramework/打包/Addressable 一键打包", false, 100)]
         private static void Open()
         {
             AddressableBuildOdinWindow window = GetWindow<AddressableBuildOdinWindow>();

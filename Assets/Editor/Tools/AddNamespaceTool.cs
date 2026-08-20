@@ -12,7 +12,7 @@ using UnityEngine;
 /// </summary>
 public class AddNamespaceTool
 {
-    [MenuItem("Tool/命名空间/批量添加 XFramework 命名空间...")]
+    [MenuItem("Tools/XFramework/实用工具/批量添加 XFramework 命名空间...", false, 400)]
     public static void AddXFrameworkNamespaceToFolder()
     {
         string folder = EditorUtility.OpenFolderPanel("选择要处理的文件夹", Application.dataPath, "");

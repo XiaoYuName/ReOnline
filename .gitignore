@@ -30,6 +30,11 @@
 # Visual Studio cache directory
 .vs/
 
+# JetBrains Rider 会按解决方案名建 .idea/.idea.<SlnName>/。
+# 工程改名过几次，历史上留下了 .idea.AFramework / .idea.RAFramework / .idea.XFramework
+# 三份陈旧目录并且被提交了进来，所以整个忽略掉。
+.idea/
+
 # Gradle cache directory
 .gradle/
 
@@ -60,6 +65,8 @@ ExportedObj/
 sysinfo.txt
 
 # Builds
+/StandaloneWindows64/
+/screenshots/
 *.apk
 *.aab
 *.unitypackage

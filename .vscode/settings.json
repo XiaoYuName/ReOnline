@@ -67,6 +67,6 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "AFramework.slnx",
+    "dotnet.defaultSolution": "ReDiv_Online.sln",
     "dotnet.enableWorkspaceBasedDevelopment": false
 }

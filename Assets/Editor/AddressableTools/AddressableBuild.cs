@@ -18,7 +18,7 @@ namespace XFramework
     {
         public const string ConfigPath = "Assets/Editor/AddressableTools/BuildConfiguration.asset";
 
-        [MenuItem("Tools/4.自动打包Addressable")]
+        [MenuItem("Tools/XFramework/打包/自动打包 Addressable", false, 120)]
         public static void Build()
         {
             AddressableBuildReport report = BuildWithDefaultConfig();
@@ -177,7 +177,7 @@ namespace XFramework
             return removedCount;
         }
 
-        [MenuItem("Tools/6.清空Addressable标签内容")]
+        [MenuItem("Tools/XFramework/打包/清空 Addressable 标签内容", false, 121)]
         public static void ClearBuild()
         {
             if (!EditorUtility.DisplayDialog("清空 Addressable 标签", "该操作会清空所有 Addressable Group 中的 Entry，是否继续？", "清空", "取消"))

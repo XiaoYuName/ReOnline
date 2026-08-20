@@ -39,7 +39,7 @@
 * 到 https://platform.deepseek.com/api_keys 获取你的 API Key。
 
 ## 使用方法
-在 Unity 打开菜单 `Tools > GPT Localization`, 打开 GPT Localization 窗口。
+在 Unity 打开菜单 `Tools > XFramework > 配置 > GPT Localization`, 打开 GPT Localization 窗口。
 
 ![Screenshot](Screenshot.png)
 

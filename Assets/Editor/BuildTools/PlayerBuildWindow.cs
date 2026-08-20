@@ -165,7 +165,7 @@ namespace XFramework
         [SerializeField]
         private PlayerBuildConfig config;
 
-        [MenuItem("Tools/XFramework/Windows 一键出包")]
+        [MenuItem("Tools/XFramework/打包/Windows 一键出包", false, 101)]
         private static void Open()
         {
             PlayerBuildWindow window = GetWindow<PlayerBuildWindow>();

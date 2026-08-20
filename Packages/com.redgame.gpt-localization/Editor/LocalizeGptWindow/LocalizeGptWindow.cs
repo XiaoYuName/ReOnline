@@ -44,7 +44,7 @@ namespace RedGame.Framework.EditorTools
             s_validModels = s_validModels.Append(modelName).ToArray();
         }
         
-        [MenuItem("Tools/GPT Localization")]
+        [MenuItem("Tools/XFramework/配置/GPT Localization", false, 201)]
         private static void ShowWindow()
         {
             var window = GetWindow<LocalizeGptWindow>();

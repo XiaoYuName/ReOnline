@@ -20,7 +20,7 @@ namespace XFramework
         private const string ClassName = "UIKeys";
         private const string NamespaceName = "XFramework";
 
-        [MenuItem("XFramework/UI/生成 UIKeys")]
+        [MenuItem("Tools/XFramework/UI/生成 UIKeys", false, 300)]
         private static void GenerateMenuItem()
         {
             Generate();

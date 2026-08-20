@@ -265,7 +265,7 @@ public class ConfigTools : OdinEditorWindow
         RefreshExcelInfo();
     }
 
-    [MenuItem("Tools/LuaConfig _F6")]
+    [MenuItem("Tools/XFramework/配置/LuaConfig _F6", false, 200)]
     private static void Init()
     {
         var window = GetWindow<ConfigTools>();

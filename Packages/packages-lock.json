@@ -1,11 +1,10 @@
 {
   "dependencies": {
     "com.clockworklabs.spacetimedbsdk": {
-      "version": "https://github.com/clockworklabs/com.clockworklabs.spacetimedbsdk.git",
+      "version": "file:com.clockworklabs.spacetimedbsdk",
       "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "ab7646ad9861f55fead4712129f8ac9960d2c83b"
+      "source": "embedded",
+      "dependencies": {}
     },
     "com.code-philosophy.luban": {
       "version": "https://github.com/focus-creative-games/luban_unity.git",
@@ -83,13 +82,6 @@
       "source": "git",
       "dependencies": {},
       "hash": "acc1c7bc9ea34c33b830e40316fca52553878d29"
-    },
-    "com.lumino.drama.runtime": {
-      "version": "0.3.4",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {},
-      "url": "http://192.168.10.226:4873"
     },
     "com.redgame.gpt-localization": {
       "version": "file:com.redgame.gpt-localization",
@@ -244,7 +236,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.cinemachine": {
-      "version": "3.1.6",
+      "version": "3.1.7",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -307,15 +299,6 @@
       "source": "registry",
       "dependencies": {
         "com.unity.ext.nunit": "1.0.6"
-      },
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.ide.visualstudio": {
-      "version": "2.0.27",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.test-framework": "1.1.33"
       },
       "url": "https://packages.unity.com"
     },

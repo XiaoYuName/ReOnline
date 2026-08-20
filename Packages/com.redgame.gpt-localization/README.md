@@ -42,7 +42,7 @@ For DeepSeek, set the base URL to `https://api.deepseek.com` and select model to
 * Go to https://platform.deepseek.com/api_keys to get your API Key.
 
 ## How to Use
-Open the `Tools > GPT Localization` menu in Unity to open the GPT Localization window.
+Open the `Tools > XFramework > 配置 > GPT Localization` menu in Unity to open the GPT Localization window.
 
 ![Screenshot](Screenshot.png)
 
