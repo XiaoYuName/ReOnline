@@ -104,13 +104,28 @@ Excel 源表在 `ExcelTool/LubanTools/DataTables/Datas/*.xlsx`，生成的 C# �
 
 ### 编辑器菜单约定
 
-项目自己的编辑器工具**全部**挂在 `Tools > XFramework/` 下，分四个子菜单：
-`打包/`、`配置/`、`UI/`、`实用工具/`。排序靠 `[MenuItem(path, false, priority)]` 的
-priority 显式指定（不要再用 "1." "2." 这种字符串前缀）：
-打包 100~121、配置 200~201、UI 300、实用工具 400~423。相邻 priority 差 >10 时 Unity
-会自动插分隔线。
+项目自己的编辑器工具**全部**挂在 `Tools > XFramework/` 下，分五个子菜单：
+`打包/`、`服务端/`、`配置/`、`UI/`、`实用工具/`。排序靠 `[MenuItem(path, false, priority)]`
+的 priority 显式指定（不要再用 "1." "2." 这种字符串前缀）：
+打包 100~121、服务端 150、配置 200~201、UI 300、实用工具 400~423。
+相邻 priority 差 >10 时 Unity 会自动插分隔线。
 
 新加编辑器工具请遵守这个约定，不要再开新的顶层菜单。
+
+### 所有编辑器窗口一律用 Odin
+
+不要写原生 `EditorWindow` + `EditorGUILayout`。约定：
+
+- 窗口继承 `OdinEditorWindow`，配置资源继承 `SerializedScriptableObject`
+- 每个暴露字段加 `[LabelText("中文名")]`
+- 分组用 `[TitleGroup]` / `[BoxGroup("父/子")]` / `[HorizontalGroup]` / `[FoldoutGroup]`
+- 按钮用 `[Button("中文名", ButtonSizes.Large)]` + `[GUIColor(...)]`
+- 说明用 `[InfoBox("...")]`，只读展示用 `[ShowInInspector] [ReadOnly]`
+- 危险操作 `[GUIColor(0.95f, 0.35f, 0.35f)]` 标红 + `EditorUtility.DisplayDialog` 二次确认
+- 忙碌时禁用按钮用 `[DisableIf(nameof(IsBusy))]`
+
+参考实现：`Assets/Editor/ServerTools/SpacetimeServerWindow.cs`、
+`Assets/Editor/AddressableTools/AddressableBuildOdinWindow.cs`。
 
 ---
 
@@ -139,9 +154,29 @@ Assets/Scripts/Net/
 [Stdb] 订阅已生效
 ```
 
-### 生成绑定
+### 服务端操作面板
 
-在服务端目录跑（会覆盖写入本工程）：
+**`Tools > XFramework > 服务端 > SpacetimeDB 控制台`** —— 一站式：发布模块、生成绑定、
+清库重发、看日志（含实时）、跑 SQL、调 Reducer、启停 Docker 容器。
+发布完会自动 `AssetDatabase.Refresh()` 并请求重编译。
+
+实现在 `Assets/Editor/ServerTools/`：
+
+| 文件 | 职责 |
+|---|---|
+| `SpacetimeServerConfig.cs` | 配置（`SerializedScriptableObject`），资源在同目录 `.asset` |
+| `SpacetimeCli.cs` | 外部命令串行执行器 |
+| `SpacetimeServerWindow.cs` | Odin 窗口 |
+
+命令执行器里有三个不能省的处理，改之前先看注释：
+Process 输出在**后台线程**触发（要经 `ConcurrentQueue` + `EditorApplication.update`
+回主线程）、CLI 输出带 **ANSI 颜色转义**（要剥掉，否则 Unity GUI 显示成乱码）、
+中文输出要显式指定 **UTF8 编码**。
+
+所有命令都在服务端工程目录下执行，服务器地址和数据库名由那边的 `spacetime.json` 决定，
+窗口**不**额外传 `--server` / `--database`，避免和配置文件打架。
+
+### 命令行生成绑定
 
 ```bash
 cd ../ReDiv_Server && spacetime generate
