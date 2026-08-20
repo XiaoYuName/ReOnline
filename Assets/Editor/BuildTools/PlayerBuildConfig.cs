@@ -26,7 +26,7 @@ namespace XFramework
         [BoxGroup("Build/基础信息/产品")]
         [LabelText("产品名称")]
         [Required]
-        public string ProductName = "剧情游戏";
+        public string ProductName = "ReDiv";
 
         [BoxGroup("Build/基础信息/产品")]
         [LabelText("公司名称")]
@@ -35,7 +35,7 @@ namespace XFramework
         [BoxGroup("Build/基础信息/产品")]
         [LabelText("包名")]
         [Required]
-        public string BundleIdentifier = "com.LuminoInc.AFramework";
+        public string BundleIdentifier = "com.LuminoInc.ReDiv";
 
         [BoxGroup("Build/基础信息/产品")]
         [LabelText("渠道/环境")]

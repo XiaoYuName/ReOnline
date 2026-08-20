@@ -18,9 +18,8 @@ Unity 客户端。服务端在 `../ReDiv_Server`（SpacetimeDB 模块）。
 | 补间动画 | **DOTween Pro**（`Assets/Plugins/Demigiant/`） |
 | 网络 | SpacetimeDB C# SDK 2.8.2（**内嵌**在 `Packages/` 下） |
 
-> ⚠️ `.claude/skills/primetween/` 是**遗留的、已失效的** skill。PrimeTween 包已经不在
-> manifest 里，工程里也没有任何代码用它。补间统一用 DOTween Pro。
-> 那个 skill 建议删掉，它会误导 AI 去写不存在的 API。
+> ⚠️ 补间只用 DOTween Pro。PrimeTween 包不在 manifest 里，工程里也没任何代码用它，
+> 那份遗留的 `.claude/skills/primetween/` 已于 2026-08-20 删除。
 
 ---
 
@@ -224,17 +223,36 @@ Febucci Text Animator、DamageNumbersPro、PathologicalGames
 
 ---
 
-## 8. 已知待办
+## 8. 工程标识（companyName / productName / 包名）
 
-- **`companyName` / `productName` 还是旧工程的值**，需要决定新值：
-  - `ProjectSettings/ProjectSettings.asset`：`companyName: com.LuminoInc.AFramework`、
-    `productName: 剧情游戏`
-  - `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 与 `.cs:38`：同一个串
-  - `Assets/Settings/Build Profiles/PC.asset` 里有 PlayerSettings 文本快照，
-    改完 ProjectSettings 后要在 Build Profile 窗口重新生成，手改无效
-  - 注意：这两个值决定 `persistentDataPath`、`Player.log` 路径和 PlayerPrefs 存储位置。
-    改了之后已存的 PlayerPrefs 读不到，**包括 SpacetimeDB SDK 存的 auth token**
-    （下次连接会拿到新 identity）
-  - 另外 `companyName` 写成 `com.LuminoInc.AFramework` 这种反域名格式本身不对，
-    那是给 `applicationIdentifier` 用的，而 `applicationIdentifier` 现在是空的
-- `.claude/skills/primetween/` 是失效 skill，建议删（见第 1 节）
+2026-08-20 从旧工程的值改成了现在这套（旧值：`com.LuminoInc.AFramework` / `剧情游戏`
+/ `com.DefaultCompany.*`）：
+
+| 项 | 值 |
+|---|---|
+| `companyName` | `LuminoInc` |
+| `productName` | `ReDiv` |
+| `applicationIdentifier`（Standalone 与 Android） | `com.LuminoInc.ReDiv` |
+
+这四处必须同时保持一致，改一处不够：
+
+1. `ProjectSettings/ProjectSettings.asset` —— 全局值
+2. `Assets/Settings/Build Profiles/PC.asset` —— 这个 profile **自带一份 PlayerSettings
+   覆盖**（YAML 文本快照），注意同级的 `Windows64.asset` 没有覆盖
+3. `Assets/Editor/BuildTools/PlayerBuildConfig.asset` —— 出包时
+   `PlayerBuilder.cs` 会把它里的值写回 PlayerSettings，所以它是出包的真正权威
+4. `Assets/Editor/BuildTools/PlayerBuildConfig.cs` —— 字段初始化器里的默认值（只影响新建的 asset）
+
+### 改这两个值的注意事项
+
+- `companyName` / `productName` 决定 `persistentDataPath`
+  （`%USERPROFILE%\AppData\LocalLow\<company>\<product>`）、`Player.log` 路径和
+  PlayerPrefs 存储位置。改完**已存的 PlayerPrefs 全部读不到**，
+  包括 SpacetimeDB SDK 存的 auth token —— 下次连接会拿到**新 identity**。
+- 编辑器开着的时候**不要手改** `ProjectSettings.asset` 和 build profile 的 YAML 快照，
+  会被编辑器内存里的值盖回。走 API：
+  `PlayerSettings.companyName` / `SetApplicationIdentifier(NamedBuildTarget.X, ...)`；
+  build profile 的覆盖用 `SerializedObject(profile.playerSettings)` 改完再调
+  `SerializePlayerSettings()`（两者都是 internal，用反射）。
+- `PlayerBuildConfig` 里那个「从 ProjectSettings 读取当前设置」按钮会**连带覆盖
+  `Version`**（拿全局 `bundleVersion`），只想改名字时别按它。

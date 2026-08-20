@@ -21,9 +21,9 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
-  ProductName: "\u5267\u60C5\u6E38\u620F"
-  CompanyName: com.LuminoInc.AFramework
-  BundleIdentifier: com.LuminoInc.AFramework
+  ProductName: ReDiv
+  CompanyName: LuminoInc
+  BundleIdentifier: com.LuminoInc.ReDiv
   Channel: 0
   Version: 0.1
   VersionCode: 2
