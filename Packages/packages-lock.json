@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.clockworklabs.spacetimedbsdk": {
+      "version": "https://github.com/clockworklabs/com.clockworklabs.spacetimedbsdk.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "ab7646ad9861f55fead4712129f8ac9960d2c83b"
+    },
     "com.code-philosophy.luban": {
       "version": "https://github.com/focus-creative-games/luban_unity.git",
       "depth": 0,
@@ -77,15 +84,8 @@
       "dependencies": {},
       "hash": "acc1c7bc9ea34c33b830e40316fca52553878d29"
     },
-    "com.kyrylokuzyk.primetween": {
-      "version": "1.4.11",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {},
-      "url": "http://192.168.10.226:4873"
-    },
     "com.lumino.drama.runtime": {
-      "version": "0.3.1",
+      "version": "0.3.4",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
@@ -381,7 +381,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.pipeline": {
-      "version": "0.4.0-exp.1",
+      "version": "0.5.0-exp.1",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -530,7 +530,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.timeline": {
-      "version": "1.8.12",
+      "version": "1.8.13",
       "depth": 0,
       "source": "registry",
       "dependencies": {

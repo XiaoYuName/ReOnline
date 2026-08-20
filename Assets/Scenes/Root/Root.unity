@@ -1873,6 +1873,7 @@ GameObject:
   - component: {fileID: 2027759317}
   - component: {fileID: 2027759318}
   - component: {fileID: 2027759320}
+  - component: {fileID: 2027759321}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -1934,6 +1935,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ce99241bcdfc7144a8bbe33c6f6541f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameDataManager
+--- !u!114 &2027759321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2027759316}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e016ef92e52934343857fd26e55140c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: com.clockworklabs.spacetimedbsdk::SpacetimeDB.SpacetimeDBNetworkManager
 --- !u!1 &100546413285855374
 GameObject:
   m_ObjectHideFlags: 0
