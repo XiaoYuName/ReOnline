@@ -1874,6 +1874,7 @@ GameObject:
   - component: {fileID: 2027759318}
   - component: {fileID: 2027759320}
   - component: {fileID: 2027759321}
+  - component: {fileID: 2027759322}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -1947,6 +1948,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e016ef92e52934343857fd26e55140c1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: com.clockworklabs.spacetimedbsdk::SpacetimeDB.SpacetimeDBNetworkManager
+--- !u!114 &2027759322
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2027759316}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b91378c569c92384ea706599945246fd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ReDiv.Net.SpacetimeConnection
+  serverUri: http://127.0.0.1:2383
+  databaseName: rediv
+  confirmedReads: 1
+  dontDestroyOnLoad: 1
+  connectOnStart: 1
 --- !u!1 &100546413285855374
 GameObject:
   m_ObjectHideFlags: 0
