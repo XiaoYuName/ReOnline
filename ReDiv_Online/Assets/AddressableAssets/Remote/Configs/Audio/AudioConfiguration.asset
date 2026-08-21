@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8814e267dee94f44acc984ace7bdaec, type: 3}
+  m_Name: AudioConfiguration
+  m_EditorClassIdentifier: 
+  serializationData:
+    SerializedFormat: 2
+    SerializedBytes: 
+    ReferencedUnityObjects: []
+    SerializedBytesString: 
+    Prefab: {fileID: 0}
+    PrefabModificationsReferencedUnityObjects: []
+    PrefabModifications: []
+    SerializationNodes: []
+  DataList:
+  - audioID: Cursor_Click_01
+    audioType: 0
+    audioClip: {fileID: 8300000, guid: 8446e2c28d5d43447ad8d6e1ec7c5bcf, type: 3}
+    InitVolume: 1
+    soundPitchMin: 0.8
+    soundPitchMax: 1.2
+  - audioID: BD2_Main_Title_01
+    audioType: 0
+    audioClip: {fileID: 8300000, guid: 39956e148e020f34c8e9253153de3a0f, type: 3}
+    InitVolume: 1
+    soundPitchMin: 0.8
+    soundPitchMax: 1.2
+  XMixer: {fileID: 24100000, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  MixerGroupList:
+  - Type: 0
+    Group: {fileID: 24300002, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 1
+    Group: {fileID: -3105266404616777636, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 2
+    Group: {fileID: -4047271708886626820, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 3
+    Group: {fileID: -2369903501755512400, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 4
+    Group: {fileID: -3421193718889992128, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 5
+    Group: {fileID: 9070372685132012838, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 6
+    Group: {fileID: -8860644994228036286, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 7
+    Group: {fileID: 3378638782404124791, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 8
+    Group: {fileID: 787116664093463324, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 9
+    Group: {fileID: 3378638782404124791, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 10
+    Group: {fileID: 787116664093463324, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  MixerSnapshotsList:
+  - Type: 0
+    Snapshot: {fileID: 24500006, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 1
+    Snapshot: {fileID: 4864891800596028167, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 2
+    Snapshot: {fileID: -5600504530818870087, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  - Type: 3
+    Snapshot: {fileID: 2056470108741604723, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
+  MusicSourcePath: Assets/AddressableAssets/Remote/Prefabs/AudioItem/MusicSource.prefab

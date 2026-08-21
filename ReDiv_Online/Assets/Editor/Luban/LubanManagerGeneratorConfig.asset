@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b08622909f8b9c4f8c0599b8ccb7059, type: 3}
+  m_Name: LubanManagerGeneratorConfig
+  m_EditorClassIdentifier: Assembly-CSharp-Editor::XFramework.LubanManagerGeneratorConfig
+  lubanCodeDirectory: Assets/Scripts/Game/Scripts/Luban
+  outputPath: Assets/Scripts/Game/Scripts/System/LubanManager.Generated.cs
+  useNamespace: 1
+  namespaceName: XFramework
+  assetKeysClassName: AssetKeys
+  assetKeyNameMode: 2
+  assetKeyPrefix: 
+  assetKeySuffix: Path
+  freeAssetOnClearCache: 1
+  refreshAssetDatabase: 1
+  autoScanBeforeGenerate: 1
+  utf8WithoutBom: 1

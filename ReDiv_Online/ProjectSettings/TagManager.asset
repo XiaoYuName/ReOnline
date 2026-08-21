@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 3
+  tags:
+  - Doll
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - Character
+  - Ground
+  - Environment
+  - Cubism
+  - Doll
+  - CaughtDoll
+  - DollWall
+  - Hock
+  - 
+  - CheckDoll
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Ground
+    uniqueID: 1131732319
+    locked: 0
+  - name: UIGround
+    uniqueID: 1951463129
+    locked: 0
+  - name: EffectDown
+    uniqueID: 1669018403
+    locked: 0
+  - name: Environment
+    uniqueID: 3616096299
+    locked: 0
+  - name: Character
+    uniqueID: 1346935051
+    locked: 0
+  - name: EffectTop
+    uniqueID: 320523745
+    locked: 0
+  - name: SceneFade
+    uniqueID: 2713210879
+    locked: 0
+  - name: EffectUIDown
+    uniqueID: 906977437
+    locked: 0
+  - name: UILayout
+    uniqueID: 2770384607
+    locked: 0
+  - name: EffectUITop
+    uniqueID: 2320367719
+    locked: 0
+  - name: UIFade
+    uniqueID: 3303454291
+    locked: 0
+  m_RenderingLayers:
+  - Default
+  m_MigratedRenderPipelines: []
