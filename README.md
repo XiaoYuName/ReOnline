@@ -5,15 +5,17 @@
 ## 项目结构
 
 ```
-REDIV/
-├── ReDiv_Online/       客户端 —— Unity 6000.4.8f1 工程（独立 git 仓库）
+REDIV/                  ← 唯一的 git 仓库（分支 main）
+├── ReDiv_Online/       客户端 —— Unity 6000.4.8f1 工程
 ├── ReDiv_Server/       服务端 —— SpacetimeDB 模块，C# 编译成 WebAssembly
+├── .gitignore          只管根这一层；Unity / 服务端的忽略在各自子目录里
 ├── README.md           本文件
 ├── CLAUDE.md           AI 协作总纲（新开对话先读这个）
 └── .mcp.json           MCP for Unity 的注册（HTTP，指向 127.0.0.1:8848）
 ```
 
-`REDIV/` 本身**不是** git 仓库，只是装着两个独立仓库的父目录。
+`REDIV/` 就是仓库根。2026-08-21 之前客户端和服务端是两个独立仓库，根目录这几个
+共用文件不在任何版本库里、换机器拉不到，所以合并成了一个；两边的提交历史都保留了。
 
 ## 这套架构的特殊之处
 

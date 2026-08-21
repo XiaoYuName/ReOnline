@@ -17,12 +17,27 @@ ReDiv 是**自研玩法**的在线联机游戏。美术素材参考公主连结�
 ## 1. 仓库地图
 
 ```
-REDIV/                  ← 会话工作目录，本身不是 git 仓库
-├── ReDiv_Online/       客户端，Unity 6000.4.8f1，独立 git 仓库
+REDIV/                  ← 会话工作目录，也是**唯一的 git 仓库**（分支 main）
+├── ReDiv_Online/       客户端，Unity 6000.4.8f1
 └── ReDiv_Server/       服务端，SpacetimeDB C# 模块 → WASM
 ```
 
-两边是**独立的 git 仓库**。改动跨两边时，注意分别提交。
+**单仓库。** 2026-08-21 从两个独立仓库合并而来（客户端 10 个提交 + 服务端 2 个提交
+都用 subtree 方式保留了，注意旧提交里的路径是当时的原路径，不带 `ReDiv_Online/` 前缀）。
+跨客户端/服务端的改动现在一个提交就能覆盖。
+
+忽略规则**分三层**，各自留在原地，不要合并到根：
+
+| 文件 | 管什么 |
+|---|---|
+| `.gitignore` | 只有根这一层的杂物 |
+| `ReDiv_Online/.gitignore` | Unity 全套（`Library/` `Temp/` `obj/` `Build/` `Logs/` `UserSettings/` …） |
+| `ReDiv_Server/.gitignore` | `bin/` `obj/` `spacetime.local.json` … |
+
+子目录 `.gitignore` 里以 `/` 开头的模式是相对**该子目录**锚定的，所以
+`ReDiv_Online/.gitignore` 里的 `/[Ll]ibrary/` 依然只匹配 `ReDiv_Online/Library/`，
+**不要**改写成 `ReDiv_Online/[Ll]ibrary/`。`.gitattributes`（含 Addressables 的
+`merge=union`）同理，也各自留在子目录里。
 
 架构上没有独立的游戏服务器进程 —— 服务端是跑在数据库进程内的 WASM 模块。
 详见 [README.md](README.md) 的「这套架构的特殊之处」。
@@ -131,4 +146,4 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
   不要"顺手同步回上游版本"，详见该目录下的 `UPSTREAM.md`
 - CLI / 数据库 / Unity SDK 三者版本必须同为 2.8.2
 - 补间动画用 **DOTween Pro**（`Assets/Plugins/Demigiant/`），**不是** PrimeTween
-- 提交与推送只在用户明确要求时做；两边是独立仓库
+- 提交与推送只在用户明确要求时做（现在是单仓库，一次提交即可覆盖两边）
