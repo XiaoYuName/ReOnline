@@ -1,0 +1,7 @@
+bin/
+obj/
+*.user
+.idea/
+.vs/
+# 本地覆盖：各人指向自己的服务器 / 数据库名
+spacetime.local.json
