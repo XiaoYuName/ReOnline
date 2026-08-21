@@ -78,7 +78,6 @@ namespace XFramework
         {
             UISystem.Instance.CloseUI("CommonUI");
             OnEnterGame?.Invoke();
-            UISystem.Instance.OpenUI<MainUI>("MainUI");
         }
 
         private void OnOnExitGame()

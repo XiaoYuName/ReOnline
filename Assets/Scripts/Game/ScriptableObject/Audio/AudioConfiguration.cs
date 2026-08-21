@@ -39,9 +39,16 @@ namespace XFramework
         }
 
 #if UNITY_EDITOR
-        private const string AudioKeysOutputPath = "Assets/Scripts/Game/Scripts/AddressableKeys/AudioKeys.cs";
-        private const string AudioKeysClassName = "AudioKeys";
-        private const string AudioKeysNamespace = "XFramework";
+        // 以前这三个是 const，编辑器里看不见也改不了。现在做成资源上的字段，
+        // ConfigTools 窗口的「输出位置总览」也从这里读第 5 步写到哪。
+        [BoxGroup("代码生成"), LabelText("AudioKeys 输出路径"), FilePath(Extensions = "cs")]
+        public string AudioKeysOutputPath = "Assets/Scripts/Game/Scripts/AddressableKeys/AudioKeys.cs";
+
+        [BoxGroup("代码生成"), LabelText("AudioKeys 类名")]
+        public string AudioKeysClassName = "AudioKeys";
+
+        [BoxGroup("代码生成"), LabelText("AudioKeys 命名空间")]
+        public string AudioKeysNamespace = "XFramework";
 
         [BoxGroup("代码生成"), Button("生成 AudioKeys 常量类", ButtonSizes.Large), GUIColor(0.3f, 0.8f, 0.4f)]
         [PropertyTooltip("把 DataList 里的所有 audioID 生成为常量类，避免手写字符串。")]
@@ -81,6 +88,14 @@ namespace XFramework
             if (duplicates.Count > 0)
             {
                 Debug.LogError($"[AudioKeys] 存在重复的 audioID: {string.Join("、", duplicates)}，请先改成唯一值再生成。");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(AudioKeysOutputPath) ||
+                string.IsNullOrWhiteSpace(AudioKeysClassName) ||
+                string.IsNullOrWhiteSpace(AudioKeysNamespace))
+            {
+                Debug.LogError("[AudioKeys] 输出路径 / 类名 / 命名空间不能为空，请在本资源的「代码生成」里补全。");
                 return false;
             }
 

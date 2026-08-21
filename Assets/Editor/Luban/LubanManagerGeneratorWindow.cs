@@ -18,7 +18,7 @@ namespace XFramework
     /// </summary>
     public class LubanManagerGeneratorWindow : OdinEditorWindow
     {
-        private const string DefaultConfigPath = "Assets/Editor/Luban/LubanManagerGeneratorConfig.asset";
+        public const string DefaultConfigPath = "Assets/Editor/Luban/LubanManagerGeneratorConfig.asset";
 
         [TitleGroup("配置文件")]
         [LabelText("配置资源")]

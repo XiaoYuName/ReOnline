@@ -22,63 +22,15 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   DataList:
-  - audioID: HomeBGM
+  - audioID: Cursor_Click_01
     audioType: 0
-    audioClip: {fileID: 0}
-    InitVolume: 1
-    soundPitchMin: 1
-    soundPitchMax: 1.2
-  - audioID: FactorySuccessSound
-    audioType: 4
-    audioClip: {fileID: 8300000, guid: 7c9e2f4a8b1d4e6f9a3c5b7d1f8e2a4c, type: 3}
+    audioClip: {fileID: 8300000, guid: 8446e2c28d5d43447ad8d6e1ec7c5bcf, type: 3}
     InitVolume: 1
     soundPitchMin: 0.8
     soundPitchMax: 1.2
-  - audioID: FactoryFailSound
-    audioType: 4
-    audioClip: {fileID: 8300000, guid: 8d1f3a5c9e2b4f6a8c1e3d5b7f9a2c4e, type: 3}
-    InitVolume: 1
-    soundPitchMin: 0.8
-    soundPitchMax: 1.2
-  - audioID: FactoryVictoryClipSound
-    audioType: 4
-    audioClip: {fileID: 8300000, guid: 9e2a4c6e8b3d5f7a9c2e4a6c8e1b3d5f, type: 3}
-    InitVolume: 1
-    soundPitchMin: 0.8
-    soundPitchMax: 1.2
-  - audioID: FactoryGameBgm
+  - audioID: BD2_Main_Title_01
     audioType: 0
-    audioClip: {fileID: 8300000, guid: ea43e1fdddd61fa429a41b987ece59cd, type: 3}
-    InitVolume: 1
-    soundPitchMin: 0.8
-    soundPitchMax: 1.2
-  - audioID: ShopHelpReturn
-    audioType: 4
-    audioClip: {fileID: 8300000, guid: aca9bd0b1ee0e0b4b8aa8afa58bd8fc5, type: 3}
-    InitVolume: 1
-    soundPitchMin: 0.8
-    soundPitchMax: 1.2
-  - audioID: ShopHelpPlace
-    audioType: 4
-    audioClip: {fileID: 8300000, guid: 8d113140344c520458136062f940e1ac, type: 3}
-    InitVolume: 1
-    soundPitchMin: 0.8
-    soundPitchMax: 1.2
-  - audioID: ShopHelpLose
-    audioType: 4
-    audioClip: {fileID: 8300000, guid: a927a0c20016bbc40b91cfce233840c0, type: 3}
-    InitVolume: 1
-    soundPitchMin: 0.8
-    soundPitchMax: 1.2
-  - audioID: ShopHelpWin
-    audioType: 4
-    audioClip: {fileID: 8300000, guid: 78781887bd4173f48beb0a85ff08659b, type: 3}
-    InitVolume: 1
-    soundPitchMin: 0.8
-    soundPitchMax: 1.2
-  - audioID: DranaStartBgm
-    audioType: 0
-    audioClip: {fileID: 8300000, guid: e34209ba90feac042b4a3ada6fb034dd, type: 3}
+    audioClip: {fileID: 8300000, guid: 39956e148e020f34c8e9253153de3a0f, type: 3}
     InitVolume: 1
     soundPitchMin: 0.8
     soundPitchMax: 1.2

@@ -16,10 +16,6 @@ namespace XFramework
     /// </summary>
     public static class UIKeysGenerator
     {
-        private const string OutputPath = "Assets/Scripts/Game/Scripts/AddressableKeys/UIKeys.cs";
-        private const string ClassName = "UIKeys";
-        private const string NamespaceName = "XFramework";
-
         [MenuItem("Tools/XFramework/UI/生成 UIKeys", false, 300)]
         private static void GenerateMenuItem()
         {
@@ -32,6 +28,28 @@ namespace XFramework
         /// <returns>生成成功返回 true。</returns>
         public static bool Generate()
         {
+            // 输出路径 / 类名 / 命名空间以前是这里的 const，改不了也看不见，现在统一放在
+            // ConfigToolsSettings 资源里（ConfigTools 窗口的「设置」里就能改）。
+            ConfigToolsSettings settings = ConfigToolsSettings.LoadOrCreate();
+
+            if (settings == null)
+            {
+                Debug.LogError("[UIKeys] 读不到 ConfigToolsSettings 设置资源。");
+                return false;
+            }
+
+            string outputPath = settings.UIKeysOutputPath;
+            string className = settings.UIKeysClassName;
+            string namespaceName = settings.UIKeysNamespace;
+
+            if (string.IsNullOrWhiteSpace(outputPath) ||
+                string.IsNullOrWhiteSpace(className) ||
+                string.IsNullOrWhiteSpace(namespaceName))
+            {
+                Debug.LogError($"[UIKeys] 输出路径 / 类名 / 命名空间不能为空，请在 {ConfigToolsSettings.DefaultAssetPath} 里补全。");
+                return false;
+            }
+
             if (!TryReadEntries(out var entries))
             {
                 return false;
@@ -43,18 +61,18 @@ namespace XFramework
                 return false;
             }
 
-            string scriptContent = BuildScript(entries);
-            string directory = Path.GetDirectoryName(OutputPath);
+            string scriptContent = BuildScript(entries, className, namespaceName);
+            string directory = Path.GetDirectoryName(outputPath);
 
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
             }
 
-            File.WriteAllText(OutputPath, scriptContent, new UTF8Encoding(false));
-            AssetDatabase.ImportAsset(OutputPath);
+            File.WriteAllText(outputPath, scriptContent, new UTF8Encoding(false));
+            AssetDatabase.ImportAsset(outputPath);
 
-            Debug.Log($"[UIKeys] 生成成功: {OutputPath}\n共 {entries.Count} 条 UI 界面 ID 常量。");
+            Debug.Log($"[UIKeys] 生成成功: {outputPath}\n共 {entries.Count} 条 UI 界面 ID 常量。");
             return true;
         }
 
@@ -140,7 +158,7 @@ namespace XFramework
             return true;
         }
 
-        private static string BuildScript(List<UIPageEntry> entries)
+        private static string BuildScript(List<UIPageEntry> entries, string className, string namespaceName)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -151,9 +169,9 @@ namespace XFramework
             sb.AppendLine("// </auto-generated>");
             sb.AppendLine("// ------------------------------------------------------------------------------");
             sb.AppendLine();
-            sb.AppendLine($"namespace {NamespaceName}");
+            sb.AppendLine($"namespace {namespaceName}");
             sb.AppendLine("{");
-            sb.AppendLine($"    public static class {ClassName}");
+            sb.AppendLine($"    public static class {className}");
             sb.AppendLine("    {");
 
             var usedNames = new HashSet<string>(StringComparer.Ordinal);

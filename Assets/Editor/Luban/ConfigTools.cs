@@ -13,10 +13,6 @@ using Debug = UnityEngine.Debug;
 
 public class ConfigTools : OdinEditorWindow
 {
-    private const string GenClientBatRelativePath = "ExcelTool/LubanTools/DataTables/gen_client.bat";
-    private const string DefaultXlsxFolderRelativePath = "ExcelTool/LubanTools/DataTables/Datas";
-    private const int GenClientTimeoutMs = 300000;
-
     [TitleGroup("配置生成工具", "1 导出 Luban  →  2 AssetKeys  →  3 LubanManager.Generated.cs  →  4 UIKeys  →  5 AudioKeys", TitleAlignments.Left)]
     [HorizontalGroup("配置生成工具/Actions", 0.72f)]
     [Button("一键生成配置", ButtonSizes.Large)]
@@ -26,11 +22,11 @@ public class ConfigTools : OdinEditorWindow
     {
         try
         {
-            // 顺序不能调：UIKeys 读的是 gen_client.bat 导出的 tbuipagedata.json，
+            // 顺序不能调：UIKeys 读的是第 1 步导出的 tbuipagedata.json，
             // LubanManager.Generated.cs 又引用 AssetKeys 里的常量。
             var steps = new (string Title, Func<bool> Run)[]
             {
-                ("执行 gen_client.bat...", RunGenClientBat),
+                ("导出 Luban 配置...", RunLubanExport),
                 ("生成 Addressable AssetKeys...", GenerateAssetKeys),
                 ("生成 LubanManager.Generated.cs...", GenerateLubanManager),
                 ("生成 UIKeys...", GenerateUIKeys),
@@ -54,7 +50,8 @@ public class ConfigTools : OdinEditorWindow
             }
 
             RefreshExcelInfo();
-            Debug.Log("一键生成配置完成：gen_client.bat、AssetKeys、LubanManager.Generated.cs、UIKeys、AudioKeys 全部生成成功。");
+            RefreshOverview();
+            Debug.Log("一键生成配置完成：Luban 导出、AssetKeys、LubanManager.Generated.cs、UIKeys、AudioKeys 全部生成成功。");
         }
         finally
         {
@@ -87,11 +84,11 @@ public class ConfigTools : OdinEditorWindow
     [HorizontalGroup("分步生成/Steps")]
     [Button("1. 导出 Luban 配置", ButtonSizes.Large)]
     [GUIColor(0.72f, 0.82f, 0.95f)]
-    [PropertyTooltip("执行 ExcelTool/LubanTools/DataTables/gen_client.bat，把 Excel 导出成 Json 和 Tb*.cs。")]
+    [PropertyTooltip("直接调 dotnet Luban.dll（参数见下方「设置」），把 Excel 导出成 Json 和 Tb*.cs。")]
     [PropertyOrder(-17)]
-    private void GenClientBatStep()
+    private void LubanExportStep()
     {
-        RunStep("导出 Luban 配置", RunGenClientBat);
+        RunStep("导出 Luban 配置", RunLubanExport);
     }
 
     [HorizontalGroup("分步生成/Steps")]
@@ -150,6 +147,7 @@ public class ConfigTools : OdinEditorWindow
             }
 
             AssetDatabase.Refresh();
+            RefreshOverview();
             Debug.Log($"{title} 完成。");
         }
         finally
@@ -207,7 +205,13 @@ public class ConfigTools : OdinEditorWindow
     private void RefreshExcelInfo()
     {
         excelFiles.Clear();
-        string absoluteXlsxFolder = GetAbsoluteProjectPath(xlsxFolder);
+
+        if (Settings == null)
+        {
+            return;
+        }
+
+        string absoluteXlsxFolder = GetAbsoluteProjectPath(Settings.XlsxFolder);
 
         if (!Directory.Exists(absoluteXlsxFolder))
         {
@@ -222,14 +226,22 @@ public class ConfigTools : OdinEditorWindow
     }
 
     [PropertySpace(SpaceBefore = 10)]
-    [BoxGroup("Excel 文件")]
-    [FolderPath(RequireExistingPath = true)]
-    [LabelText("Excel 目录")]
-    [OnValueChanged(nameof(OnXlsxFolderChanged))]
-    [InfoBox("当前 Excel 目录不存在。", InfoMessageType.Warning, nameof(IsXlsxFolderInvalid))]
-    [PropertyOrder(0)]
+    [TitleGroup("设置")]
+    [LabelText("ConfigTools 设置")]
+    [InlineEditor(InlineEditorObjectFieldModes.Boxed)]
+    [Required("缺少 ConfigToolsSettings 设置资源")]
+    [InfoBox("第 1 步的 Luban 参数与输出目录、Excel 目录、第 4 步 UIKeys 的输出路径都在这里改，不用再动 gen_client.bat。")]
+    [PropertyOrder(-5)]
+    public ConfigToolsSettings Settings;
+
+    [PropertySpace(SpaceBefore = 6)]
+    [TitleGroup("输出位置总览")]
+    [InfoBox("每一步实际写到哪，从各自的配置资源读出来的 —— 不用再靠翻代码或 bat 去猜。")]
+    [TableList(IsReadOnly = true, AlwaysExpanded = true)]
+    [HideLabel]
+    [PropertyOrder(-4)]
     [SerializeField]
-    private string xlsxFolder;
+    private List<OutputTarget> outputTargets = new List<OutputTarget>();
 
     [BoxGroup("Excel 文件")]
     [HorizontalGroup("Excel 文件/Summary")]
@@ -246,7 +258,7 @@ public class ConfigTools : OdinEditorWindow
     [PropertyOrder(2)]
     private void OpenXlsxFolder()
     {
-        EditorUtility.RevealInFinder(GetAbsoluteProjectPath(xlsxFolder));
+        EditorUtility.RevealInFinder(GetAbsoluteProjectPath(Settings.XlsxFolder));
     }
 
     [BoxGroup("Excel 文件")]
@@ -261,8 +273,22 @@ public class ConfigTools : OdinEditorWindow
         base.OnEnable();
         titleContent = new GUIContent("ConfigTools");
         minSize = new Vector2(820, 520);
-        ReadPath();
+        Settings = ConfigToolsSettings.LoadOrCreate();
+        ConfigToolsSettings.Changed += OnSettingsChanged;
         RefreshExcelInfo();
+        RefreshOverview();
+    }
+
+    protected override void OnDisable()
+    {
+        ConfigToolsSettings.Changed -= OnSettingsChanged;
+        base.OnDisable();
+    }
+
+    private void OnSettingsChanged()
+    {
+        RefreshExcelInfo();
+        RefreshOverview();
     }
 
     [MenuItem("Tools/XFramework/配置/LuaConfig _F6", false, 200)]
@@ -274,40 +300,92 @@ public class ConfigTools : OdinEditorWindow
         window.Show();
     }
 
-    private void OnXlsxFolderChanged()
+    /// <summary>
+    /// 直接调 dotnet Luban.dll 导出配置，参数全部来自 <see cref="ConfigToolsSettings"/>。
+    ///
+    /// 以前这里跑的是 gen_client.bat，输出目录写死在 bat 的 -x 参数里，编辑器既看不见也改不了。
+    /// 那个 bat 曾经指着旧工程的 Assets/Scripts/XFramework/C#/Luban，于是表 C# 落到一个不存在的
+    /// 目录，而第 3 步在另一个目录扫表，LubanManager.Generated.cs 一直是空的。
+    /// </summary>
+    private bool RunLubanExport()
     {
-        xlsxFolder = ToProjectRelativePath(xlsxFolder);
-        SavePath();
-        RefreshExcelInfo();
-    }
-
-    private bool RunGenClientBat()
-    {
-        string projectRoot = GetProjectRoot();
-        if (string.IsNullOrEmpty(projectRoot))
+        if (Settings == null)
         {
-            Debug.LogError("无法获取 Unity 项目根目录。");
+            Debug.LogError("缺少 ConfigToolsSettings 设置资源，无法导出 Luban 配置。");
             return false;
         }
 
-        string batPath = Path.Combine(projectRoot, GenClientBatRelativePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
-        if (!File.Exists(batPath))
+        string dllPath = GetAbsoluteProjectPath(Settings.LubanDllPath);
+
+        if (!File.Exists(dllPath))
         {
-            Debug.LogError($"gen_client.bat 不存在: {batPath}");
+            Debug.LogError($"Luban.dll 不存在: {dllPath}");
             return false;
         }
 
-        string workingDirectory = Path.GetDirectoryName(batPath);
+        string confPath = GetAbsoluteProjectPath(Settings.LubanConfPath);
+
+        if (!File.Exists(confPath))
+        {
+            Debug.LogError($"luban.conf 不存在: {confPath}");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Settings.Target) ||
+            string.IsNullOrWhiteSpace(Settings.CodeTarget) ||
+            string.IsNullOrWhiteSpace(Settings.DataTarget))
+        {
+            Debug.LogError("生成目标 -t / 代码格式 -c / 数据格式 -d 都不能为空。");
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Settings.OutputCodeDir) ||
+            string.IsNullOrWhiteSpace(Settings.OutputDataDir))
+        {
+            Debug.LogError("表 C# 输出目录和 Json 数据输出目录都不能为空。");
+            return false;
+        }
+
+        string outputCodeDir = GetAbsoluteProjectPath(Settings.OutputCodeDir);
+        string outputDataDir = GetAbsoluteProjectPath(Settings.OutputDataDir);
+
+        var arguments = new StringBuilder();
+        arguments.Append(Quote(dllPath));
+        arguments.Append($" -t {Quote(Settings.Target.Trim())}");
+        arguments.Append($" -c {Quote(Settings.CodeTarget.Trim())}");
+        arguments.Append($" -d {Quote(Settings.DataTarget.Trim())}");
+        arguments.Append($" --conf {Quote(confPath)}");
+        arguments.Append($" -x {Quote($"outputCodeDir={outputCodeDir}")}");
+        arguments.Append($" -x {Quote($"outputDataDir={outputDataDir}")}");
+
+        if (Settings.ExtraXArgs != null)
+        {
+            foreach (string extra in Settings.ExtraXArgs)
+            {
+                if (!string.IsNullOrWhiteSpace(extra))
+                {
+                    arguments.Append($" -x {Quote(extra.Trim())}");
+                }
+            }
+        }
+
+        // luban.conf 里的 schemaFiles / dataDir 是相对 conf 自己所在目录解析的，
+        // 所以工作目录必须设成 conf 所在目录，不能用工程根目录。
+        string workingDirectory = Path.GetDirectoryName(confPath);
+        int timeoutMs = Mathf.Max(10, Settings.TimeoutSeconds) * 1000;
+
         var startInfo = new ProcessStartInfo
         {
-            FileName = "cmd.exe",
-            Arguments = $"/c \"\"{batPath}\"\"",
+            FileName = string.IsNullOrWhiteSpace(Settings.DotnetPath) ? "dotnet" : Settings.DotnetPath.Trim(),
+            Arguments = arguments.ToString(),
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = true,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            // Luban 的日志里有中文，不指定编码会变成乱码。
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8
         };
 
         using (Process process = new Process())
@@ -331,23 +409,29 @@ public class ConfigTools : OdinEditorWindow
                 }
             };
 
-            if (!process.Start())
+            try
             {
-                Debug.LogError("gen_client.bat 进程启动失败。");
+                if (!process.Start())
+                {
+                    Debug.LogError("Luban 进程启动失败。");
+                    return false;
+                }
+            }
+            catch (Exception e)
+            {
+                // 最常见的原因是 PATH 里没有 dotnet。
+                Debug.LogError($"启动 dotnet 失败（{startInfo.FileName}）: {e.Message}"
+                               + "\n可以在设置里把「dotnet 命令」改成 dotnet.exe 的绝对路径。");
                 return false;
             }
 
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            // gen_client.bat 末尾有 pause，写入回车避免后台执行卡住。
-            process.StandardInput.WriteLine();
-            process.StandardInput.Close();
-
-            if (!process.WaitForExit(GenClientTimeoutMs))
+            if (!process.WaitForExit(timeoutMs))
             {
                 process.Kill();
-                Debug.LogError($"gen_client.bat 执行超时（{GenClientTimeoutMs / 1000} 秒）。\n{outputBuilder}\n{errorBuilder}");
+                Debug.LogError($"Luban 导出超时（{timeoutMs / 1000} 秒）。\n{outputBuilder}\n{errorBuilder}");
                 return false;
             }
 
@@ -355,7 +439,9 @@ public class ConfigTools : OdinEditorWindow
 
             if (process.ExitCode != 0)
             {
-                Debug.LogError($"gen_client.bat 执行失败，ExitCode: {process.ExitCode}\n{outputBuilder}\n{errorBuilder}");
+                Debug.LogError($"Luban 导出失败，ExitCode: {process.ExitCode}"
+                               + $"\n命令: {startInfo.FileName} {startInfo.Arguments}"
+                               + $"\n{outputBuilder}\n{errorBuilder}");
                 return false;
             }
 
@@ -364,42 +450,91 @@ public class ConfigTools : OdinEditorWindow
 
             if (!string.IsNullOrWhiteSpace(output))
             {
-                Debug.Log($"gen_client.bat 执行完成:\n{output}");
+                Debug.Log($"Luban 导出完成。\n表 C# -> {outputCodeDir}\nJson  -> {outputDataDir}\n{output}");
             }
 
             if (!string.IsNullOrWhiteSpace(error))
             {
-                Debug.LogWarning($"gen_client.bat 输出警告:\n{error}");
+                Debug.LogWarning($"Luban 输出警告:\n{error}");
             }
         }
 
         return true;
     }
 
-    private bool IsXlsxFolderInvalid()
+    private static string Quote(string value)
     {
-        return !HasValidXlsxFolder();
+        return "\"" + value + "\"";
+    }
+
+    /// <summary>
+    /// 汇总五个步骤各自的实际输出位置。每一项都从对应的配置资源现读，
+    /// 这里不留第二份真相 —— 之前就是因为「路径写在别处」才踩的坑。
+    /// </summary>
+    private void RefreshOverview()
+    {
+        outputTargets.Clear();
+
+        string audioKeysPath = string.Empty;
+        string audioConfigPath = string.Empty;
+        string[] audioGuids = AssetDatabase.FindAssets("t:AudioConfiguration");
+
+        if (audioGuids.Length == 1)
+        {
+            audioConfigPath = AssetDatabase.GUIDToAssetPath(audioGuids[0]);
+            var audioConfig = AssetDatabase.LoadAssetAtPath<XFramework.AudioConfiguration>(audioConfigPath);
+
+            if (audioConfig != null)
+            {
+                audioKeysPath = audioConfig.AudioKeysOutputPath;
+            }
+        }
+        else if (audioGuids.Length > 1)
+        {
+            audioConfigPath = $"找到 {audioGuids.Length} 份 AudioConfiguration，无法确定";
+        }
+
+        var assetKeysSettings = AssetDatabase.LoadAssetAtPath<AddressableKeyGeneratorSettings>(
+            AddressableKeyGeneratorOdinWindow.DefaultSettingsAssetPath);
+
+        var lubanManagerConfig = AssetDatabase.LoadAssetAtPath<LubanManagerGeneratorConfig>(
+            LubanManagerGeneratorWindow.DefaultConfigPath);
+
+        outputTargets.Add(new OutputTarget(
+            "1 表 C#",
+            Settings == null ? string.Empty : Settings.OutputCodeDir,
+            ConfigToolsSettings.DefaultAssetPath));
+
+        outputTargets.Add(new OutputTarget(
+            "1 Json 数据",
+            Settings == null ? string.Empty : Settings.OutputDataDir,
+            ConfigToolsSettings.DefaultAssetPath));
+
+        outputTargets.Add(new OutputTarget(
+            "2 AssetKeys",
+            assetKeysSettings == null
+                ? string.Empty
+                : $"{assetKeysSettings.OutputFolder}/{assetKeysSettings.ClassName}.cs",
+            AddressableKeyGeneratorOdinWindow.DefaultSettingsAssetPath));
+
+        outputTargets.Add(new OutputTarget(
+            "3 LubanManager",
+            lubanManagerConfig == null ? string.Empty : lubanManagerConfig.outputPath,
+            LubanManagerGeneratorWindow.DefaultConfigPath));
+
+        outputTargets.Add(new OutputTarget(
+            "4 UIKeys",
+            Settings == null ? string.Empty : Settings.UIKeysOutputPath,
+            ConfigToolsSettings.DefaultAssetPath));
+
+        outputTargets.Add(new OutputTarget("5 AudioKeys", audioKeysPath, audioConfigPath));
     }
 
     private bool HasValidXlsxFolder()
     {
-        return !string.IsNullOrEmpty(xlsxFolder) && Directory.Exists(GetAbsoluteProjectPath(xlsxFolder));
-    }
-
-    private void SavePath()
-    {
-        EditorPrefs.SetString("xlsxFolder_" + PlayerSettings.applicationIdentifier, xlsxFolder);
-    }
-
-    private void ReadPath()
-    {
-        xlsxFolder = EditorPrefs.GetString("xlsxFolder_" + PlayerSettings.applicationIdentifier);
-        if (string.IsNullOrEmpty(xlsxFolder))
-        {
-            xlsxFolder = DefaultXlsxFolderRelativePath;
-        }
-
-        xlsxFolder = ToProjectRelativePath(xlsxFolder);
+        return Settings != null
+               && !string.IsNullOrEmpty(Settings.XlsxFolder)
+               && Directory.Exists(GetAbsoluteProjectPath(Settings.XlsxFolder));
     }
 
     private static string GetProjectRoot()
@@ -464,6 +599,30 @@ public class ConfigTools : OdinEditorWindow
         return absolutePath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase)
             ? absolutePath.Substring(rootPrefix.Length)
             : absolutePath;
+    }
+
+    [Serializable]
+    private class OutputTarget
+    {
+        [TableColumnWidth(130, false)]
+        [ReadOnly]
+        [LabelText("步骤")]
+        public string Step;
+
+        [ReadOnly]
+        [LabelText("输出位置")]
+        public string Output;
+
+        [ReadOnly]
+        [LabelText("在哪改")]
+        public string ConfigAsset;
+
+        public OutputTarget(string step, string output, string configAsset)
+        {
+            Step = step;
+            Output = string.IsNullOrWhiteSpace(output) ? "(读不到)" : output;
+            ConfigAsset = string.IsNullOrWhiteSpace(configAsset) ? "(找不到配置资源)" : configAsset;
+        }
     }
 
     [Serializable]

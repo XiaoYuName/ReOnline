@@ -143,13 +143,15 @@ namespace XFramework
         /// </summary>
         /// <param name="button">Button对象</param>
         /// <param name="func">绑定事件</param>
-        protected virtual void Bind(Button button, Action func)
+        /// <param name="audioID">音效ID</param>
+        protected virtual void Bind(Button button, Action func = null,string audioID = "")
         {
             button.onClick.RemoveAllListeners();
 
             void UnityAction()
             {
                 func?.Invoke();
+                AudioManager.Instance.PlayAudio(audioID);
             }
 
             button.onClick.AddListener(UnityAction);

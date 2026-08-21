@@ -16,7 +16,7 @@ using UnityEngine;
 /// </summary>
 public class AddressableKeyGeneratorOdinWindow : OdinEditorWindow
 {
-    private const string DefaultSettingsAssetPath =
+    public const string DefaultSettingsAssetPath =
         "Assets/Editor/AddressableKeyGeneratorWindow/AddressableKeyGeneratorWindow.asset";
 
     [Title("Addressable Key 常量生成器")]

@@ -10,44 +10,12 @@ namespace XFramework
     public static class AudioKeys
     {
         /// <summary>
-        /// HomeBGM (BGM)
+        /// Cursor_Click_01 (BGM)
         /// </summary>
-        public const string HomeBGM = "HomeBGM";
+        public const string CursorClick01 = "Cursor_Click_01";
         /// <summary>
-        /// FactorySuccessSound (Music)
+        /// BD2_Main_Title_01 (BGM)
         /// </summary>
-        public const string FactorySuccessSound = "FactorySuccessSound";
-        /// <summary>
-        /// FactoryFailSound (Music)
-        /// </summary>
-        public const string FactoryFailSound = "FactoryFailSound";
-        /// <summary>
-        /// FactoryVictoryClipSound (Music)
-        /// </summary>
-        public const string FactoryVictoryClipSound = "FactoryVictoryClipSound";
-        /// <summary>
-        /// FactoryGameBgm (BGM)
-        /// </summary>
-        public const string FactoryGameBgm = "FactoryGameBgm";
-        /// <summary>
-        /// ShopHelpReturn (Music)
-        /// </summary>
-        public const string ShopHelpReturn = "ShopHelpReturn";
-        /// <summary>
-        /// ShopHelpPlace (Music)
-        /// </summary>
-        public const string ShopHelpPlace = "ShopHelpPlace";
-        /// <summary>
-        /// ShopHelpLose (Music)
-        /// </summary>
-        public const string ShopHelpLose = "ShopHelpLose";
-        /// <summary>
-        /// ShopHelpWin (Music)
-        /// </summary>
-        public const string ShopHelpWin = "ShopHelpWin";
-        /// <summary>
-        /// DranaStartBgm (BGM)
-        /// </summary>
-        public const string DranaStartBgm = "DranaStartBgm";
+        public const string BD2MainTitle01 = "BD2_Main_Title_01";
     }
 }
