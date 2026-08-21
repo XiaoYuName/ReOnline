@@ -1,10 +1,49 @@
 fileFormatVersion: 2
-guid: 968572bda0c0d0a4ea94b2cb1ef0fcaf
+guid: f65feb23eeeea4646aa1785b41afe75b
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 7414261224600783322
-    second: Steam_0
+      213: 5672667905035327414
+    second: rediv-login-popup-spritesheet_0
+  - first:
+      213: 9187740432804615396
+    second: rediv-login-popup-spritesheet_1
+  - first:
+      213: -3812134059886331315
+    second: rediv-login-popup-spritesheet_2
+  - first:
+      213: -5536815328217660066
+    second: rediv-login-popup-spritesheet_3
+  - first:
+      213: -3720366776913105588
+    second: rediv-login-popup-spritesheet_4
+  - first:
+      213: 4468112852626216840
+    second: rediv-login-popup-spritesheet_5
+  - first:
+      213: 246272557228645353
+    second: rediv-login-popup-spritesheet_6
+  - first:
+      213: 4912978832616139993
+    second: rediv-login-popup-spritesheet_7
+  - first:
+      213: -5674907116880628977
+    second: rediv-login-popup-spritesheet_8
+  - first:
+      213: -1256755374781395419
+    second: rediv-login-popup-spritesheet_9
+  - first:
+      213: 3545360339533138132
+    second: rediv-login-popup-spritesheet_10
+  - first:
+      213: 5725482881028119381
+    second: rediv-login-popup-spritesheet_11
+  - first:
+      213: 4797026385126550791
+    second: rediv-login-popup-spritesheet_12
+  - first:
+      213: 3494144162545965974
+    second: rediv-login-popup-spritesheet_13
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -98,34 +137,12 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites:
-    - serializedVersion: 2
-      name: Steam_0
-      rect:
-        serializedVersion: 2
-        x: 44
-        y: 36
-        width: 936
-        height: 936
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: ad948442d4fb4e660800000000000000
-      internalID: 7414261224600783322
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
+    sprites: []
     outline: []
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 82679753a28ed3c428d65119e6ab4a48
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +152,20 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Steam_0: 7414261224600783322
+      rediv-login-popup-spritesheet_0: 5672667905035327414
+      rediv-login-popup-spritesheet_1: 9187740432804615396
+      rediv-login-popup-spritesheet_10: 3545360339533138132
+      rediv-login-popup-spritesheet_11: 5725482881028119381
+      rediv-login-popup-spritesheet_12: 4797026385126550791
+      rediv-login-popup-spritesheet_13: 3494144162545965974
+      rediv-login-popup-spritesheet_2: -3812134059886331315
+      rediv-login-popup-spritesheet_3: -5536815328217660066
+      rediv-login-popup-spritesheet_4: -3720366776913105588
+      rediv-login-popup-spritesheet_5: 4468112852626216840
+      rediv-login-popup-spritesheet_6: 246272557228645353
+      rediv-login-popup-spritesheet_7: 4912978832616139993
+      rediv-login-popup-spritesheet_8: -5674907116880628977
+      rediv-login-popup-spritesheet_9: -1256755374781395419
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
