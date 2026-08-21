@@ -1,0 +1,12 @@
+# 这个 .gitignore 只管仓库根这一层。
+#
+# Unity 的忽略规则在 ReDiv_Online/.gitignore，服务端的在 ReDiv_Server/.gitignore。
+# 子目录里的 .gitignore，其以 / 开头的模式是相对该子目录锚定的
+# （例如 ReDiv_Online/.gitignore 里的 /[Ll]ibrary/ 只匹配 ReDiv_Online/Library/），
+# 所以它们留在原地就照旧生效 —— 不要挪到这里，也不用改写成 ReDiv_Online/xxx。
+# .gitattributes 同理，各自留在子目录里。
+
+# 操作系统 / 资源管理器杂物
+.DS_Store
+Thumbs.db
+desktop.ini
