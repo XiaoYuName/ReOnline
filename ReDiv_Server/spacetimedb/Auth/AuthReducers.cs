@@ -118,6 +118,9 @@ public static partial class Module
 
         ctx.Db.IdentityBinding.Identity.Delete(ctx.Sender);
 
+        // 登出也要把本设备的选角状态清掉，否则在线列表里还挂着这个角色
+        ClearSelectionsOfIdentity(ctx, ctx.Sender);
+
         Log.Info($"[Auth] 登出 identity={ctx.Sender}");
     }
 
@@ -195,6 +198,9 @@ public static partial class Module
     private static void CloseSession(ReducerContext ctx, Session session, SessionCloseReason reason)
     {
         ctx.Db.Session.ConnectionId.Delete(session.ConnectionId);
+
+        // 会话没了，那条连接的选角状态也不该留着（被顶号 / 同设备换号都会走到这）
+        ctx.Db.CharacterSelection.ConnectionId.Delete(session.ConnectionId);
 
         ctx.Db.SessionClosed.Insert(new SessionClosed
         {

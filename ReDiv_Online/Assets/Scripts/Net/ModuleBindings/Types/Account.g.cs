@@ -30,6 +30,8 @@ namespace ReDiv.Net.Bindings
         public SpacetimeDB.Timestamp CreatedAt;
         [DataMember(Name = "last_login_at")]
         public SpacetimeDB.Timestamp? LastLoginAt;
+        [DataMember(Name = "character_slots")]
+        public uint CharacterSlots;
 
         public Account(
             ulong AccountId,
@@ -39,7 +41,8 @@ namespace ReDiv.Net.Bindings
             string PasswordSalt,
             uint HashIterations,
             SpacetimeDB.Timestamp CreatedAt,
-            SpacetimeDB.Timestamp? LastLoginAt
+            SpacetimeDB.Timestamp? LastLoginAt,
+            uint CharacterSlots
         )
         {
             this.AccountId = AccountId;
@@ -50,6 +53,7 @@ namespace ReDiv.Net.Bindings
             this.HashIterations = HashIterations;
             this.CreatedAt = CreatedAt;
             this.LastLoginAt = LastLoginAt;
+            this.CharacterSlots = CharacterSlots;
         }
 
         public Account()

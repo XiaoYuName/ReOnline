@@ -50,6 +50,15 @@ public static partial class Module
 
         /// <summary>最近一次登录成功的时间。从没登录过（理论上不会，注册即登录）时为 null。</summary>
         public Timestamp? LastLoginAt;
+
+        /// <summary>
+        /// 已解锁的角色栏位数。栏位可扩展，所以存在账号上而不是写成全局常量。
+        ///
+        /// <c>[Default]</c> 是为了**兼容地追加字段**：已有账号行会拿到这个默认值，
+        /// 不用清库重发。注意它只能加在追加到末尾的普通字段上，主键 / 唯一 / 自增字段不行。
+        /// </summary>
+        [Default(DefaultCharacterSlots)]
+        public uint CharacterSlots;
     }
 
     /// <summary>

@@ -1,0 +1,195 @@
+fileFormatVersion: 2
+guid: cbfc8acc6cf803749a38f5c8e27a0ef7
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 1685272535297858731
+    second: SelectedCharacterUI_0
+  - first:
+      213: -6188786717895977601
+    second: SelectedCharacterUI_1
+  - first:
+      213: -4255098965741441527
+    second: SelectedCharacterUI_2
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 512
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: btn_coop_join
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 218
+        height: 120
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":0,"y":392,"width":218,"height":120},"logicalSize":{"width":218,"height":120}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f20651e5621e8174aacd3c5743efde43
+      internalID: 1665059483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: btn_coop_recruit
+      rect:
+        serializedVersion: 2
+        x: 220
+        y: 0
+        width: 218
+        height: 120
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":220,"y":392,"width":218,"height":120},"logicalSize":{"width":218,"height":120}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8681b85e273832f4cb4a6b910e11f0d6
+      internalID: -780801514
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: icon_coop_ticket
+      rect:
+        serializedVersion: 2
+        x: 440
+        y: 0
+        width: 37
+        height: 22
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":1,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":440,"y":490,"width":37,"height":22},"logicalSize":{"width":38,"height":22}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d80d35943b0f55943aef7c5b323d4a41
+      internalID: -1308525922
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: b75137f10e321ba469df6b7ddd83437a
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      btn_coop_join: 1665059483
+      btn_coop_recruit: -780801514
+      icon_coop_ticket: -1308525922
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: '{"schema":"Rediv.NGUI.AtlasMultipleMetadata/v1","sourceAtlas":"Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/atlascooptop.png","sourceManifest":"Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/atlas_manifest.json","spriteCount":3,"paddingStorage":"SpriteRect.customData","clampedBorderCount":0}'
+  assetBundleName: 
+  assetBundleVariant: 

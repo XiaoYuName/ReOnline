@@ -1,0 +1,33 @@
+<!--
+  角色相关的配置表结构。
+
+  为什么结构写在 XML 而不是 Excel 表头（read_schema_from_file=false）：
+  只有 XML 能给**字段**标 group —— group="c" 的列只会进客户端生成的代码和数据，
+  group="s" 的只进服务端，不写 group 的两边都有。
+  这样一份 Excel 供两端各取所需：客户端不必把初始数值编进包，服务端不必把图标路径编进 wasm。
+
+  服务端的数据是 cs-bin 生成、以嵌入资源编进 wasm 的（模块里没有文件系统），
+  所以改了 s 组的列或数据，必须重新生成 + spacetime publish 才生效。
+-->
+<module name="">
+
+    <bean name="CharacterJob">
+        <!-- 不标 group = 两端都有。索引字段必须两端都在。 -->
+        <var name="JobId" type="int"/>
+
+        <!-- 职业树：0 表示这是基础职业，否则指向父职业的 JobId。转职就是把角色的 JobId 改成子职业。 -->
+        <var name="ParentJobId" type="int"/>
+
+        <!-- 能否在创建角色界面里选。客户端用来筛选可选项，服务端用来拒绝非法创建，两端都要。 -->
+        <var name="Creatable" type="bool"/>
+
+        <!-- 只有服务端能信的初始值 -->
+        <var name="StartLevel" type="int" group="s"/>
+
+        <!-- 只有客户端要的展示信息 -->
+        <var name="NameKey" type="string" group="c"/>
+        <var name="IconKey" type="string" group="c"/>
+        <var name="SortOrder" type="int" group="c"/>
+    </bean>
+
+</module>

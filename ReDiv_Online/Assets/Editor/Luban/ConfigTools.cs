@@ -13,7 +13,7 @@ using Debug = UnityEngine.Debug;
 
 public class ConfigTools : OdinEditorWindow
 {
-    [TitleGroup("配置生成工具", "1 导出 Luban  →  2 AssetKeys  →  3 LubanManager.Generated.cs  →  4 UIKeys  →  5 AudioKeys", TitleAlignments.Left)]
+    [TitleGroup("配置生成工具", "1 导出 Luban  →  2 AssetKeys  →  3 LubanManager  →  4 UIKeys  →  5 AudioKeys  →  6 服务端配置", TitleAlignments.Left)]
     [HorizontalGroup("配置生成工具/Actions", 0.72f)]
     [Button("一键生成配置", ButtonSizes.Large)]
     [GUIColor(0.4f, 0.85f, 0.5f)]
@@ -32,6 +32,9 @@ public class ConfigTools : OdinEditorWindow
             {
                 new GenerateStep("导出 Luban 配置", RunLubanExport),
                 new GenerateStep("生成 Addressable AssetKeys", GenerateAssetKeys),
+                // 服务端配置：和第 1 步读同一份 Excel，但输出到 SpacetimeDB 模块工程。
+                // 依赖第 1 步只是为了共用一次 schema 校验失败的判断 —— Excel 有问题时没必要再导一遍。
+                new GenerateStep("导出服务端配置", RunLubanServerExport, "导出 Luban 配置"),
                 // 需要第 1 步导出的 Tb*.cs，也引用第 2 步生成的 AssetKeys 常量
                 new GenerateStep("生成 LubanManager.Generated.cs", GenerateLubanManager,
                     "导出 Luban 配置", "生成 Addressable AssetKeys"),
@@ -201,6 +204,17 @@ public class ConfigTools : OdinEditorWindow
     private void UIKeysStep()
     {
         RunStep("生成 UIKeys", GenerateUIKeys);
+    }
+
+    [HorizontalGroup("分步生成/Steps")]
+    [Button("6. 导出服务端配置", ButtonSizes.Large)]
+    [GUIColor(0.95f, 0.85f, 0.55f)]
+    [PropertyTooltip("把同一份 Excel 按 server 目标导出成 cs-bin 代码 + bin 数据，落进 SpacetimeDB 模块工程。" +
+                     "导出完必须 spacetime publish 才生效（数据以嵌入资源编进 wasm）。")]
+    [PropertyOrder(-12)]
+    private void ServerConfigStep()
+    {
+        RunStep("导出服务端配置", RunLubanServerExport);
     }
 
     [HorizontalGroup("分步生成/Steps")]
@@ -389,7 +403,30 @@ public class ConfigTools : OdinEditorWindow
     /// 那个 bat 曾经指着旧工程的 Assets/Scripts/XFramework/C#/Luban，于是表 C# 落到一个不存在的
     /// 目录，而第 3 步在另一个目录扫表，LubanManager.Generated.cs 一直是空的。
     /// </summary>
+    /// <summary>客户端配置：cs-newtonsoft-json + json，落进 Unity 工程。</summary>
     private bool RunLubanExport()
+    {
+        return RunLuban("客户端", Settings?.Target, Settings?.CodeTarget, Settings?.DataTarget,
+            Settings?.OutputCodeDir, Settings?.OutputDataDir);
+    }
+
+    /// <summary>
+    /// 服务端配置：cs-bin + bin，落进 SpacetimeDB 模块工程。
+    ///
+    /// 和客户端**必须用不同的 codeTarget**：服务端是 NativeAOT 裁剪过的 wasm，
+    /// cs-newtonsoft-json 那套反射在里面用不了；cs-bin 生成的代码零反射。
+    /// 只会导出 group 含 s 的表和字段（分组在 Defines/character.xml 里按字段标）。
+    ///
+    /// ⚠️ 生成完还要 spacetime publish 才生效 —— 数据是以嵌入资源编进 wasm 的。
+    /// </summary>
+    private bool RunLubanServerExport()
+    {
+        return RunLuban("服务端", Settings?.ServerTarget, Settings?.ServerCodeTarget, Settings?.ServerDataTarget,
+            Settings?.ServerOutputCodeDir, Settings?.ServerOutputDataDir);
+    }
+
+    private bool RunLuban(string label, string target, string codeTarget, string dataTarget,
+        string outputCodeDirSetting, string outputDataDirSetting)
     {
         if (Settings == null)
         {
@@ -413,29 +450,29 @@ public class ConfigTools : OdinEditorWindow
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(Settings.Target) ||
-            string.IsNullOrWhiteSpace(Settings.CodeTarget) ||
-            string.IsNullOrWhiteSpace(Settings.DataTarget))
+        if (string.IsNullOrWhiteSpace(target) ||
+            string.IsNullOrWhiteSpace(codeTarget) ||
+            string.IsNullOrWhiteSpace(dataTarget))
         {
             Debug.LogError("生成目标 -t / 代码格式 -c / 数据格式 -d 都不能为空。");
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(Settings.OutputCodeDir) ||
-            string.IsNullOrWhiteSpace(Settings.OutputDataDir))
+        if (string.IsNullOrWhiteSpace(outputCodeDirSetting) ||
+            string.IsNullOrWhiteSpace(outputDataDirSetting))
         {
             Debug.LogError("表 C# 输出目录和 Json 数据输出目录都不能为空。");
             return false;
         }
 
-        string outputCodeDir = GetAbsoluteProjectPath(Settings.OutputCodeDir);
-        string outputDataDir = GetAbsoluteProjectPath(Settings.OutputDataDir);
+        string outputCodeDir = GetAbsoluteProjectPath(outputCodeDirSetting);
+        string outputDataDir = GetAbsoluteProjectPath(outputDataDirSetting);
 
         var arguments = new StringBuilder();
         arguments.Append(Quote(dllPath));
-        arguments.Append($" -t {Quote(Settings.Target.Trim())}");
-        arguments.Append($" -c {Quote(Settings.CodeTarget.Trim())}");
-        arguments.Append($" -d {Quote(Settings.DataTarget.Trim())}");
+        arguments.Append($" -t {Quote(target.Trim())}");
+        arguments.Append($" -c {Quote(codeTarget.Trim())}");
+        arguments.Append($" -d {Quote(dataTarget.Trim())}");
         arguments.Append($" --conf {Quote(confPath)}");
         arguments.Append($" -x {Quote($"outputCodeDir={outputCodeDir}")}");
         arguments.Append($" -x {Quote($"outputDataDir={outputDataDir}")}");
@@ -513,7 +550,7 @@ public class ConfigTools : OdinEditorWindow
             if (!process.WaitForExit(timeoutMs))
             {
                 process.Kill();
-                Debug.LogError($"Luban 导出超时（{timeoutMs / 1000} 秒）。\n{outputBuilder}\n{errorBuilder}");
+                Debug.LogError($"Luban {label}配置导出超时（{timeoutMs / 1000} 秒）。\n{outputBuilder}\n{errorBuilder}");
                 return false;
             }
 
@@ -521,7 +558,7 @@ public class ConfigTools : OdinEditorWindow
 
             if (process.ExitCode != 0)
             {
-                Debug.LogError($"Luban 导出失败，ExitCode: {process.ExitCode}"
+                Debug.LogError($"Luban {label}配置导出失败，ExitCode: {process.ExitCode}"
                                + $"\n命令: {startInfo.FileName} {startInfo.Arguments}"
                                + $"\n{outputBuilder}\n{errorBuilder}");
                 return false;
@@ -532,7 +569,7 @@ public class ConfigTools : OdinEditorWindow
 
             if (!string.IsNullOrWhiteSpace(output))
             {
-                Debug.Log($"Luban 导出完成。\n表 C# -> {outputCodeDir}\nJson  -> {outputDataDir}\n{output}");
+                Debug.Log($"Luban {label}配置导出完成。\n表 C# -> {outputCodeDir}\nJson  -> {outputDataDir}\n{output}");
             }
 
             if (!string.IsNullOrWhiteSpace(error))

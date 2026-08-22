@@ -2,6 +2,8 @@
 
 新开对话先读这个文件，再按需读子文档。工程结构见 [README.md](README.md)。
 
+**想知道「现在做到哪了、接着该干什么」，直接跳第 5 节。**
+
 ---
 
 ## 0. 项目定位（最容易搞错的一点）
@@ -10,8 +12,10 @@ ReDiv 是**自研玩法**的在线联机游戏。美术素材参考公主连结�
 
 > ⚠️ **不要**从「像某款已知游戏」去推导数据模型、系统设计或玩法机制。
 > 需要业务结构时**主动问**，不要按同类游戏的常规套路自己填。
-> 服务端目前只有**账号系统**（注册 / 登录 / 会话，见 `ReDiv_Server/spacetimedb/Auth/`），
-> 玩法表一张都还没有。要加玩法数据结构时先问，别自己按同类游戏的套路建表。
+> 服务端目前有**账号系统**和**角色系统**（`ReDiv_Server/spacetimedb/Auth/`、`Character/`）——
+> 这两个是通用基础设施，不算玩法。战斗 / 地图 / 背包这类**玩法表一张都还没有**，
+> 要加玩法数据结构时先问，别自己按同类游戏的套路建表。
+> 角色系统的形态（多角色、选人界面）是用户明确指定「类似 DNF」的，不是我们推的。
 
 ---
 
@@ -117,6 +121,41 @@ unity command recompile_status              # 轮询到 completed，看 failed �
 - 用 `unity command menu` 或 `mcpforunity://menu-items` 可以验证 `[MenuItem]` 是否生效；
   用 `execute_code` / `unity command eval` 查 `System.Type.GetType(...)` 可以验证类型是否真的编进了程序集。
 
+
+### MCP 可能根本没连上，Pipeline 的 eval 是兜底
+
+`.mcp.json` 里注册了 MCP for Unity，但**它不一定连着**（2026-08-22 的会话里
+`mcp__unity__*` 一个都不可用）。所以：
+
+- 不要把「用 `unity_reflect` 验证 API」当成唯一手段，它可能不在手上。
+- 等价兜底是 Pipeline 的任意 C# eval，反射照样查得到：
+
+```bash
+unity command eval --code 'var t = System.Type.GetType("SpacetimeDB.Identity, SpacetimeDB.BSATN.Runtime"); return string.Join(",", System.Linq.Enumerable.Select(t.GetMethods(), m => m.Name));'
+```
+
+这条回路实测能查出 `Identity.ToString()` 返回的是**不带 `0x` 前缀的大写 hex**
+（写订阅 SQL 时要自己补 `0x`）—— 这种细节靠猜一定错。
+
+### 端到端验证：直接把编辑器开进 Play 模式驱动
+
+编译通过 ≠ 功能对。Pipeline 可以进出 Play 模式并在运行中执行任意代码，
+所以能把整条链路真的跑一遍（这次登录 / 顶号 / 版本弹窗 / 建角色选角色全是这么验的）：
+
+```bash
+unity command editor_play
+unity command eval --code 'ReDiv.Net.AuthManager.Instance.LoginAsync("alice","secret123"); return "已发起";'
+unity command eval --code 'var a = ReDiv.Net.AuthManager.Instance; return a.Username + " " + a.IsLoggedIn;'
+unity command editor_stop
+```
+
+按钮也能这么点：`ui.transform.Find("路径").GetComponent<Button>().onClick.Invoke()`，
+这样连 UI 绑定一起验了。两个注意：
+
+- **eval 是一次性的，异步结果要下一次调用再查**（`await` 不会等你）。
+- **`AssetDatabase.Refresh()` 触发重编译会清空控制台**，汇总日志会跟着没。
+  想稳定拿到日志就去读 Unity 的 `Editor.log`（在 `%LOCALAPPDATA%/Unity/Editor/` 下，
+  含中文，用 `grep -a` 当文本读）。
 ---
 
 ## 3. 服务端改代码
@@ -132,6 +171,22 @@ spacetime generate       # 重新生成客户端 C# 绑定
 `spacetime generate` 会覆盖写入 `ReDiv_Online/Assets/Scripts/Net/ModuleBindings/`，
 **那个目录不要手改**。生成完记得回客户端跑一次编译验证（见第 2 节）。
 
+### 服务端的 API 不确定时，必须真的 publish + call 一次
+
+**编译通过、`spacetime build` 成功、`spacetime publish` 成功，全都说明不了 API 可用。**
+模块跑在 wasi-wasm + NativeAOT + 裁剪环境里，很多东西是链接得过、一调就炸。
+2026-08-22 这一天就踩了四个，全靠先写个探针 Reducer 实测才没走错路：
+
+| 试的东西 | 结果 |
+|---|---|
+| `System.Security.Cryptography`（SHA256 / PBKDF2 / FixedTimeEquals） | ❌ 链接过，运行时抛 `SystemSecurityCryptography_PlatformNotSupported` |
+| `Assembly.GetManifestResourceStream`（嵌入资源） | ✅ 可用 —— 配置能编进 wasm 靠的就是它 |
+| `[SpacetimeDB.View]` + `ViewContext` + 自定义行类型 + 声明主键 | ✅ 全可用，而且底层表一变会实时推给订阅者 |
+| SQL `WHERE x IS NULL` | ❌ 400 `Unsupported expression` —— 可空列没法用订阅 SQL 过滤，只能走 View |
+
+做法就是加一个临时 Reducer（`_XxxSpike.cs`）→ publish → `spacetime call` → 看日志 →
+**删掉探针再 publish 一次**，别把探针留在 schema 里。
+
 SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）见
 [ReDiv_Server/README.md](ReDiv_Server/README.md)，官方 AI 规则见
 [ReDiv_Server/AGENTS.md](ReDiv_Server/AGENTS.md)（`spacetime init` 生成，勿手改）。
@@ -142,7 +197,16 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 
 - 玩法自研，**不要照抄同类游戏的数据模型**（见第 0 节）
 - 客户端改完 C# **必须**跑编译验证，且**必须**单独查控制台错误
+- **服务端用到不确定的 API，先写探针 Reducer 实测**（publish + call + 看日志），
+  编译/发布成功不代表运行时可用。已知的坑见 [ReDiv_Server/README.md](ReDiv_Server/README.md)
+  「已知坑」和本文件第 3 节
+- 客户端表回调**要连 `OnUpdate` 一起挂**：同主键的删+插在同一事务里会被合并成 update，
+  只挂 Insert/Delete 会漏（换号登录时界面显示旧账号，实测踩过）
 - `ReDiv_Online/Assets/Scripts/Net/ModuleBindings/` 是生成物，不要手改
+- `ReDiv_Server/spacetimedb/Luban/Generated/`、`Luban/Runtime/`、`Configs/` 也不要手改
+  （前者是 Luban 生成物，中间是 vendored 的上游运行时，后者是导出的 bin 数据）
+- **改了服务端配置（Excel 里 group 含 s 的列/数据）要走两步**：ConfigTools 第 6 步
+  「导出服务端配置」+ `spacetime publish`。配置是以嵌入资源编进 wasm 的，不发布不生效
 - `ReDiv_Online/Packages/com.clockworklabs.spacetimedbsdk/` 是**内嵌的打过补丁的分叉**，
   不要"顺手同步回上游版本"，详见该目录下的 `UPSTREAM.md`
 - CLI / 数据库 / Unity SDK 三者版本必须同为 2.8.2
@@ -151,3 +215,48 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
   见 [ReDiv_Server/README.md](ReDiv_Server/README.md) 的「版本号」一节
 - 补间动画用 **DOTween Pro**（`Assets/Plugins/Demigiant/`），**不是** PrimeTween
 - 提交与推送只在用户明确要求时做（现在是单仓库，一次提交即可覆盖两边）
+
+---
+
+## 5. 当前进度与下一步（**新对话先看这节**）
+
+最后更新：2026-08-22。
+
+### 已经能用的
+
+| 系统 | 服务端 | 客户端 | 文档 |
+|---|---|---|---|
+| 账号（注册 / 登录 / 登出 / 会话 / 顶号 / 免密重连） | ✅ | ✅ | [ReDiv_Server/README.md](ReDiv_Server/README.md) 「账号系统」 |
+| 版本校验（不一致弹窗 + 禁止登录） | ✅ | ✅ | 同上「版本号」 |
+| 角色（多角色 / 创建 / 软删 / 选择 / 选角状态） | ✅ | ❌ **还没写** | 同上「角色系统」 |
+| 配置表通路（Excel → Luban → 编进 wasm） | ✅ | ✅（原有） | 同上「配置表」 |
+
+客户端 UI 现状：`CommonUI`（标题界面：服务器状态 / 账号栏 / 版本号 / 点屏幕）、
+`LoginUI`（登录注册）、`PopDialogueUI`（通用弹窗）都已接好逻辑。
+**选人界面还不存在** —— 服务端接口和 View 都就绪了，契约见
+[ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节「角色系统」。
+
+### 下一步大概率是这些
+
+1. **客户端选人界面**：订阅 `my_character` / `my_account_profile`（View，不用带 where），
+   调 `CreateCharacter` / `DeleteCharacter` / `SelectCharacter`，选完进城镇。
+2. **真实职业列表**：`ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/CharacterJob.xlsx` 现在只有一行占位数据
+   （`JobId=1 / Job_Placeholder_01`），**不是玩法设定**，等定了替换。
+3. 城镇 / 地图 / 角色玩法态表 —— 还没设计，**要动手前先问**。
+
+### 本地测试数据（开发库 `rediv` 里现成的）
+
+| 账号 | 口令 | 备注 |
+|---|---|---|
+| `alice` | `secret123` | 名下 3 个存活角色（影狼 / Ranger_01 / 祭星者）+ 2 个软删的 |
+| `Carol_01` | `carol123` | 名下 1 个角色「苍之骑士」 |
+| `bob_2` | `密码123带空格 ok` | 用来验证中文 + 空格口令能过 |
+
+角色栏位默认 4，职业只能填 `1`（占位那行）。清库重来：
+`spacetime publish --delete-data=always --yes`。
+
+### 哪些东西是「有意没做」，别当成漏掉了
+
+- 登录失败次数锁定（做不了，原因是事务回滚，见服务端 README「有意没做的事」）
+- 改密码 / 找回密码 / 删号 / 改角色名 / 软删恢复 / 扩栏位入口 / 敏感词过滤
+- 玩法态表（战斗、地图、背包）—— 玩法未定型，**不要自己建**

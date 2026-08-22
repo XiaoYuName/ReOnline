@@ -69,6 +69,29 @@ namespace XFramework
         [OnValueChanged(nameof(RaiseChanged))]
         public string OutputDataDir = "Assets/AddressableAssets/Remote/Configs/LubanJson";
 
+        // ---------------- 服务端（SpacetimeDB 模块）----------------
+        // 和客户端读同一份 Excel，但**必须用不同的 codeTarget**：服务端是 NativeAOT 裁剪过的
+        // wasm，cs-newtonsoft-json 那套反射在里面用不了；cs-bin 生成的代码零反射。
+        // 只会导出 group 含 s 的表和字段（分组在 Defines/character.xml 里按字段标）。
+        // bin 数据以嵌入资源编进 wasm，所以导出完还要 spacetime publish 才生效。
+
+        [LabelText("服务端生成目标 -t")]
+        public string ServerTarget = "server";
+
+        [LabelText("服务端代码格式 -c")]
+        public string ServerCodeTarget = "cs-bin";
+
+        [LabelText("服务端数据格式 -d")]
+        public string ServerDataTarget = "bin";
+
+        [LabelText("服务端表 C# 输出目录")]
+        [OnValueChanged(nameof(RaiseChanged))]
+        public string ServerOutputCodeDir = "../ReDiv_Server/spacetimedb/Luban/Generated";
+
+        [LabelText("服务端 bin 数据输出目录")]
+        [OnValueChanged(nameof(RaiseChanged))]
+        public string ServerOutputDataDir = "../ReDiv_Server/spacetimedb/Configs";
+
         [LabelText("额外 -x 参数")]
         [InfoBox("每条形如 key=value，各自展开成一个 -x 参数。一般不用填。")]
         [ListDrawerSettings(ShowFoldout = true, DraggableItems = false)]

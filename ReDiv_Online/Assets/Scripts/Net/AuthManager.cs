@@ -450,6 +450,7 @@ namespace ReDiv.Net
         private void HookConnection()
         {
             conn.Db.Session.OnInsert += HandleSessionInsert;
+            conn.Db.Session.OnUpdate += HandleSessionUpdate;
             conn.Db.Session.OnDelete += HandleSessionDelete;
             conn.Db.SessionClosed.OnInsert += HandleSessionClosed;
 
@@ -467,6 +468,7 @@ namespace ReDiv.Net
             }
 
             conn.Db.Session.OnInsert -= HandleSessionInsert;
+            conn.Db.Session.OnUpdate -= HandleSessionUpdate;
             conn.Db.Session.OnDelete -= HandleSessionDelete;
             conn.Db.SessionClosed.OnInsert -= HandleSessionClosed;
 
@@ -556,6 +558,22 @@ namespace ReDiv.Net
             if (conn != null && row.ConnectionId == conn.ConnectionId)
             {
                 SetAccount(row);
+            }
+        }
+
+        /// <summary>
+        /// 会话行被就地替换。
+        ///
+        /// ⚠️ 这个回调不能省：同一台设备换账号登录时，服务端是「删掉本连接的旧会话行 +
+        /// 插入新行」，两个操作在**同一个事务**里、主键（ConnectionId）又相同，
+        /// SpacetimeDB 会把它合并成一次 **update**，OnInsert / OnDelete 都不会触发。
+        /// 只挂 Insert/Delete 的话，换号后界面会一直显示上一个账号（实测踩过）。
+        /// </summary>
+        private void HandleSessionUpdate(EventContext ctx, Session oldRow, Session newRow)
+        {
+            if (conn != null && newRow.ConnectionId == conn.ConnectionId)
+            {
+                SetAccount(newRow);
             }
         }
 

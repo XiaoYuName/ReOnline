@@ -28,6 +28,9 @@ namespace ReDiv.Net.Bindings
     {
         public RemoteTables(DbConnection conn)
         {
+            AddTable(CharacterSelection = new(conn));
+            AddTable(MyAccountProfile = new(conn));
+            AddTable(MyCharacter = new(conn));
             AddTable(Session = new(conn));
             AddTable(SessionClosed = new(conn));
         }
@@ -526,6 +529,9 @@ namespace ReDiv.Net.Bindings
 
         internal static string[] AllTablesSqlQueries() => new string[]
         {
+            new QueryBuilder().From.CharacterSelection().ToSql(),
+            new QueryBuilder().From.MyAccountProfile().ToSql(),
+            new QueryBuilder().From.MyCharacter().ToSql(),
             new QueryBuilder().From.Session().ToSql(),
             new QueryBuilder().From.SessionClosed().ToSql(),
         }
@@ -534,6 +540,9 @@ namespace ReDiv.Net.Bindings
 
     public sealed class From
     {
+        public global::SpacetimeDB.Table<CharacterSelection, CharacterSelectionCols, CharacterSelectionIxCols> CharacterSelection() => new("character_selection", new CharacterSelectionCols("character_selection"), new CharacterSelectionIxCols("character_selection"));
+        public global::SpacetimeDB.Table<MyAccountProfileRow, MyAccountProfileCols, MyAccountProfileIxCols> MyAccountProfile() => new("my_account_profile", new MyAccountProfileCols("my_account_profile"), new MyAccountProfileIxCols("my_account_profile"));
+        public global::SpacetimeDB.Table<MyCharacterRow, MyCharacterCols, MyCharacterIxCols> MyCharacter() => new("my_character", new MyCharacterCols("my_character"), new MyCharacterIxCols("my_character"));
         public global::SpacetimeDB.Table<Session, SessionCols, SessionIxCols> Session() => new("session", new SessionCols("session"), new SessionIxCols("session"));
         public global::SpacetimeDB.Table<SessionClosed, SessionClosedCols, SessionClosedIxCols> SessionClosed() => new("session_closed", new SessionClosedCols("session_closed"), new SessionClosedIxCols("session_closed"));
     }
@@ -619,10 +628,14 @@ namespace ReDiv.Net.Bindings
             {
                 Reducer.AuthSelfTest args => Reducers.InvokeAuthSelfTest(eventContext, args),
                 Reducer.CheckVersion args => Reducers.InvokeCheckVersion(eventContext, args),
+                Reducer.CreateCharacter args => Reducers.InvokeCreateCharacter(eventContext, args),
+                Reducer.DeleteCharacter args => Reducers.InvokeDeleteCharacter(eventContext, args),
+                Reducer.LeaveCharacter args => Reducers.InvokeLeaveCharacter(eventContext, args),
                 Reducer.Login args => Reducers.InvokeLogin(eventContext, args),
                 Reducer.Logout args => Reducers.InvokeLogout(eventContext, args),
                 Reducer.Ping args => Reducers.InvokePing(eventContext, args),
                 Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
+                Reducer.SelectCharacter args => Reducers.InvokeSelectCharacter(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }

@@ -1,0 +1,83 @@
+{
+  "tool": "restore_ngui_atlas_manifests.py",
+  "tool_version": "1.0.0",
+  "schema": "Rediv.NGUI.AtlasManifest/v1",
+  "source_bundle": "D:\\AssetsStudio\\Rediv\\CN_分类完成\\_原始数据\\AssetBundles\\Android\\202608171854\\a\\atlasngui_atlascooptop.unity3d",
+  "source_texture_name": "AtlasCoopTop",
+  "source_texture_path_id": -1009996245536784355,
+  "source_uiatlas_path_id": 7932364698924830344,
+  "classified_atlas": "D:\\AssetsStudio\\Rediv\\CN_分类完成\\UI\\Common_通用\\atlasngui\\coop\\cooptop\\atlascooptop.png",
+  "sprite_count": 3,
+  "texture_size": {
+    "width": 512,
+    "height": 512
+  },
+  "sprites": [
+    {
+      "name": "btn_coop_join",
+      "file": "btn_coop_join.png",
+      "ngui_rect_top_left": {
+        "x": 0,
+        "y": 392,
+        "width": 218,
+        "height": 120
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "btn_coop_recruit",
+      "file": "btn_coop_recruit.png",
+      "ngui_rect_top_left": {
+        "x": 220,
+        "y": 392,
+        "width": 218,
+        "height": 120
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "icon_coop_ticket",
+      "file": "icon_coop_ticket.png",
+      "ngui_rect_top_left": {
+        "x": 440,
+        "y": 490,
+        "width": 37,
+        "height": 22
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 1,
+        "top": 0,
+        "bottom": 0
+      }
+    }
+  ]
+}

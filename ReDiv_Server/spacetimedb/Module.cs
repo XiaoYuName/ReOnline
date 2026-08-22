@@ -54,7 +54,9 @@ public static partial class Module
     {
         Log.Debug($"[Disconnect] {ctx.Sender} / {ctx.ConnectionId}");
 
+        // 顺序无关，但两个都要清：会话行和选角行都是按 ConnectionId 建的
         CloseSessionOnDisconnect(ctx);
+        ClearSelectionOnDisconnect(ctx);
     }
 
     /// <summary>

@@ -3,8 +3,8 @@
 ReDiv 服务端。C# 编写的 **SpacetimeDB 模块**，编译成 WebAssembly 跑在数据库进程内 ——
 **没有独立的游戏服务器进程**。
 
-**当前状态：只有账号系统。** 注册 / 登录 / 会话已经能用（见下面「账号系统」一节），
-玩法表一张都还没有 —— 玩法定型后再往里加。
+**当前状态：账号系统 + 角色系统。** 注册 / 登录 / 会话、以及多角色的创建 / 删除 / 选择
+都能用了（见下面两节）。战斗、地图、背包这些玩法表还没有 —— 定型后再往里加。
 
 > ⚠️ 玩法是**自研**的。不要从「像某款已知游戏」去推导表结构和系统设计 —— 需要业务结构时
 > 主动问。详见 [../CLAUDE.md](../CLAUDE.md) 第 0 节。
@@ -49,15 +49,26 @@ ReDiv_Server/
     ├── global.json         钉 .NET 10 SDK
     ├── NuGet.Config        dotnet-experimental 源，NativeAOT-LLVM 用
     ├── Module.cs           生命周期钩子（Init / ClientConnected / ClientDisconnected）+ Ping
+    ├── Version.cs          版本号常量 + CheckVersion
     ├── Auth/               账号系统
     │   ├── AuthTables.cs   Account / IdentityBinding / Session / SessionClosed
     │   ├── AuthReducers.cs Register / Login / Logout + 会话管理
     │   ├── AuthRules.cs    用户名与口令的格式规则、归一化
     │   └── AuthSelfTest.cs 手写密码学实现的测试向量自检
-    └── Security/           口令哈希（自己写的，原因见「已知坑」）
-        ├── Sha256.cs
-        ├── Pbkdf2Sha256.cs
-        └── PasswordHasher.cs
+    ├── Character/          角色系统
+    │   ├── CharacterTables.cs    Character（私有）/ CharacterSelection（公开）
+    │   ├── CharacterReducers.cs  CreateCharacter / DeleteCharacter / SelectCharacter / LeaveCharacter
+    │   ├── CharacterRules.cs     角色名规则（允许中文，按显示宽度限长）
+    │   └── CharacterViews.cs     MyCharacter / MyAccountProfile（per-subscriber View）
+    ├── Security/           口令哈希（自己写的，原因见「已知坑」）
+    │   ├── Sha256.cs
+    │   ├── Pbkdf2Sha256.cs
+    │   └── PasswordHasher.cs
+    ├── Luban/              配置表（见「配置表」一节）
+    │   ├── ServerConfig.cs 配置入口，从嵌入资源加载
+    │   ├── Generated/      Luban 生成的 C#（生成物，勿手改）
+    │   └── Runtime/        vendored 的 Luban ByteBuf 运行时（勿手改）
+    └── Configs/            Luban 导出的 bin 数据，以嵌入资源编进 wasm（生成物）
 ```
 
 ---
@@ -244,6 +255,97 @@ spacetime sql rediv "SELECT account_id, username_key, username FROM account"
 
 ---
 
+## 角色系统
+
+一个账号多个角色（DNF 那种），登录后进选人界面，选完角色才进城镇。
+源码在 `spacetimedb/Character/`。
+
+### 表
+
+| 表 | 公开性 | 说明 |
+|---|---|---|
+| `Character` | **私有** | 角色档案。`AccountId`（索引）/ `NameKey`（唯一）/ `Name` / `JobId` / `Level` / `Exp` / `DeletedAt` |
+| `CharacterSelection` | 公开 | 这条连接当前选了哪个角色，主键 `ConnectionId`。天然就是在线角色列表 |
+
+`Account` 上加了 `CharacterSlots`（默认 4，上限常量 8），栏位可扩展所以存在账号上。
+这个字段是用 `[Default(4)]` **兼容追加**的，已有账号行自动拿到默认值，不用清库。
+
+玩法态（地图 / 坐标 / HP / 体力）**故意还没建表**。定型后以 `CharacterId` 为主键单开表，
+别往 `Character` 上堆 —— 那张表只在选人界面读一次。
+
+### Reducer
+
+| 客户端绑定 | CLI | 行为 |
+|---|---|---|
+| `CreateCharacter(name, jobId)` | `create_character` | 校验顺序：会话 → 名字 → 栏位 → 重名 → 职业配置 |
+| `DeleteCharacter(characterId)` | `delete_character` | **软删**：打 `DeletedAt`，同时把名字释放出来 |
+| `SelectCharacter(characterId)` | `select_character` | 选完才算进城镇，写 `CharacterSelection` |
+| `LeaveCharacter()` | `leave_character` | 回选人界面，只清选角状态不影响登录态 |
+
+鉴权一律走**当前连接的 Session 行**（`RequireAccountId`）：必须有活会话才能动角色数据。
+「角色不存在」和「不属于你」回同一句文案，否则拿 characterId 挨个试就能探出别人有哪些角色。
+
+### 角色列表用 View 下发，不用公开表
+
+`Character` 是私有表，客户端通过 **per-subscriber View** 拿自己的列表：
+
+| View | 内容 |
+|---|---|
+| `MyCharacter` | 自己账号下未删除的角色（PK = CharacterId） |
+| `MyAccountProfile` | 账号名 + 栏位数（客户端画选人格子要） |
+
+为什么不做成公开表让客户端按 `account_id` 订阅：**AccountId 是自增整数，太好猜**，
+改一句订阅 SQL（`WHERE account_id = 2`）就能看到别人的角色列表。View 的过滤在服务端、
+以订阅者自己的 Identity 为准，客户端伪造不了。实测确认了 View 的这些性质：
+per-subscriber（`ctx.Sender`）、支持两跳索引查找、可返回**自定义行类型**（只暴露想给的字段）、
+可声明主键、底层表一变**会实时推送**、客户端当普通表订阅即可。
+
+⚠️ View 里**不能 `Iter()`**，只能索引 Find / Filter ⇒ `Character.AccountId` 的索引是必需的，不是优化。
+
+还有一条更硬的理由：**SpacetimeDB 的 SQL 不支持 `IS NULL`**（实测
+`SELECT * FROM character WHERE deleted_at IS NULL` 直接 400，`Unsupported expression`）。
+也就是说「只订阅未删除的角色」这个条件**根本没法用订阅 SQL 表达**。View 是过程式的
+C# 代码，`if (character.DeletedAt is not null) continue;` 想怎么过滤都行 ——
+凡是过滤条件写不进 SQL 的场景，都得走 View。
+
+View 用 `IdentityBinding` 定位账号（`ViewContext` 只有 Sender、没有连接概念），
+所以登出后自然返回空。读列表宽松、写数据严格，这个不对称是有意的。
+
+### 软删和唯一名字的冲突
+
+`NameKey` 是全服唯一索引，软删后名字还占着就成了永久占用。做法是软删时把 `NameKey`
+改写成 `#del#<CharacterId>`（`#` 不在合法字符集里，撞不上真名字），`Name` 保留原值。
+名字立刻释放，唯一索引仍然有效，将来要恢复或客服查询数据也都还在。
+
+### 角色名规则
+
+允许**中文**（和用户名只收 ASCII 不一样，角色名是给人看的）。
+白名单：汉字（U+4E00–U+9FFF）+ ASCII 字母 / 数字 / 下划线。挡掉的都是有意挡的 ——
+emoji、零宽字符、RTL 控制符、全角字母数字、假名、空格，这些都会造成「看着同名却是两个角色」。
+
+长度按**显示宽度**算（汉字 2、ASCII 1），范围 4~16 ⇒ 中文 2~8 字、英文 4~16 字。
+按字符数限制的话，16 个汉字在 UI 上是 16 个字母的两倍宽，排版会炸。
+
+唯一性归一化只做 trim + ASCII 大小写折叠，**不做 Unicode 折叠**（模块跑在
+InvariantGlobalization 下不可靠），白名单已经把易混淆区段挡掉了。
+
+没做敏感词过滤。
+
+### CLI 测试速查
+
+```bash
+spacetime call rediv create_character '"影狼"' '1'
+```
+
+```bash
+spacetime sql rediv "SELECT character_id, name, job_id, level FROM my_character"
+```
+
+`character_selection` 查出来是空的很正常：CLI 每次调用都是新连接，调完就断，
+选角行跟着被清掉。要看它有内容，得用活着的客户端连接。
+
+---
+
 ## 版本号
 
 客户端和服务端各自独立发布，很容易出现「客户端还是旧的、服务端已经改了表结构或
@@ -266,7 +368,7 @@ spacetime call rediv check_version '"0.0.1"'
 ```
 
 ⚠️ **改版本号要改四处**，少一处就会在某个环节对不上（客户端那三处见
-[../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 8 节）：
+[../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 9 节）：
 
 1. 服务端 `Module.ServerVersion` —— 改完必须 `spacetime publish`
 2. 客户端 `ProjectSettings.asset` 的 `bundleVersion`（编辑器开着就走
@@ -280,6 +382,65 @@ spacetime call rediv check_version '"0.0.1"'
 
 这是**提示性**校验，不是安全边界：拦不住改过的客户端。真要按版本卡死请求，
 得把版本号存进按连接的表里，在每个业务 Reducer 里核对。
+
+---
+
+## 配置表（Luban → 编进 wasm）
+
+Excel 是**唯一真相源**，客户端和服务端从同一份表各取所需：
+
+```
+ExcelTool/LubanTools/DataTables/
+├── Defines/character.xml     表结构（字段带 group，见下）
+├── Datas/__tables__.xlsx     表登记
+└── Datas/CharacterJob.xlsx   职业表数据
+        │
+        ├─ -t client -c cs-newtonsoft-json -d json → Unity 工程 + Addressables
+        └─ -t server -c cs-bin           -d bin    → spacetimedb/Luban/Generated + spacetimedb/Configs
+                                                     └─ 以嵌入资源编进 wasm
+```
+
+导出服务端配置：Unity 里 **ConfigTools 的第 6 步「导出服务端配置」**（一键流程里也有），
+或命令行 `ExcelTool/LubanTools/DataTables/gen_server.bat`。
+
+### 四个必须知道的点（都实测过）
+
+1. **模块里没有文件系统，配置只能靠嵌入资源带进去。**
+   `Assembly.GetManifestResourceStream` 在 wasi-wasm + NativeAOT + 裁剪下**可用**（实测）。
+   入口是 `Luban/ServerConfig.cs`，用法 `ServerConfig.Tables.TbCharacterJob.GetOrDefault(id)`。
+2. **服务端必须用 `cs-bin`，不能用客户端那套 `cs-newtonsoft-json`。**
+   cs-bin 生成的代码零反射（构造函数按顺序读 ByteBuf），AOT + 裁剪安全；Newtonsoft 走反射，
+   在这个环境里是雷（和 `System.Security.Cryptography` 一个道理，见「已知坑」）。
+3. **`Luban.Runtime` 不在 NuGet 上。** cs-bin 只需要 3 个文件（`ByteBuf` / `BeanBase` /
+   `StringUtil`，零 Unity、零 Newtonsoft 依赖），已 vendored 到 `spacetimedb/Luban/Runtime/`。
+   它要求 csproj 开 `<AllowUnsafeBlocks>`（ByteBuf 有两个 `*_Unsafe` 优化方法用了指针）——
+   开这个开关是为了让 vendored 文件和上游**逐字节一致**，升级时直接覆盖，不用重打补丁。
+   wasm 里的指针出不了线性内存沙箱，也不影响 Reducer 的确定性。
+4. **字段级 group 可用。** 一张表按列分给两端：
+
+| 列 | group | 谁用 |
+|---|---|---|
+| `JobId` / `ParentJobId` / `Creatable` | 不标（两端都有） | 客户端画职业树，服务端校验合法性 |
+| `StartLevel` | `s` | 只有服务端能信的初始值 |
+| `NameKey` / `IconKey` / `SortOrder` | `c` | 只有客户端要，不进 wasm |
+
+分组写在 `Defines/character.xml`（相对上面那个 DataTables 目录）而不是 Excel 表头（`read_schema_from_file=false`）——
+只有 XML 能给**字段**标 group。
+
+### 限制与约定
+
+- **改了配置要走两步**：重新导出（ConfigTools 第 6 步）+ `spacetime publish`。
+  只改 Excel 不发布，线上还是旧配置。这既是限制也是优点：配置和代码是同一份产物，不可能错配。
+- 真需要热更数值（不重发就调平衡）时再改成「配置进表 + 导入 Reducer 推进去」，
+  那时客户端可以直接订阅配置表，两端彻底同源。现阶段没必要。
+- 建议把「改了 `s` 组配置」纳入版本号语义，bump 一下版本 —— 版本校验就能挡住配置不一致的旧客户端。
+
+### ⚠️ 职业表现在只有一行占位数据
+
+`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/CharacterJob.xlsx` 里目前是
+`JobId=1 / NameKey=Job_Placeholder_01`，
+纯粹为了把通路跑通，**不是玩法设定**。真的职业列表定了之后替换掉它
+（`ParentJobId=0` 表示基础职业，转职就是把角色的 `JobId` 改成子职业的 id）。
 
 ---
 
@@ -462,6 +623,8 @@ Unity 侧的登录逻辑已经完成，入口都在 `../ReDiv_Online/Assets/Scri
   玩法数据以后单开表挂 `AccountId`，别往 `Account` 上堆
 - 哪些数据公开、哪些私有 + View
 - 登录相关的补齐项：改密码 / 找回密码 / 删号、失败次数锁定（要改错误回报方式，
-  见「账号系统 → 有意没做的事」）、昵称（单开 Profile 表）
+  见「账号系统 → 有意没做的事」）
+- 角色相关的补齐项：真实职业列表（现在是占位行）、改名、软删角色的恢复入口、
+  扩栏位的入口（付费 / 活动）、敏感词过滤
+- Luban 配置怎么进服务端 —— **已解决**，见「配置表」一节
 - 战斗由谁裁定：服务端全权模拟 / 服务端发种子+校验结果
-- Luban 配置怎么进服务端（模块里没有文件系统，配置要么编进 wasm，要么 Init 时灌进表）

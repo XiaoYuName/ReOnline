@@ -48,8 +48,10 @@ Assets/Scripts/
 │       ├── Tools/
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
-    ├── SpacetimeConnection.cs
-    └── ModuleBindings/        生成物，不要手改
+    ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState
+    ├── AuthManager.cs          账号门面（纯 C# 单例，UI 只跟它打交道）
+    ├── AuthValidation.cs       服务端 AuthRules 的客户端镜像
+    └── ModuleBindings/         生成物，不要手改
 ```
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
@@ -69,11 +71,18 @@ Excel 源表在 `ExcelTool/LubanTools/DataTables/Datas/*.xlsx`，生成的 C# �
 
 ### 一键生成配置的依赖关系
 
-`ConfigTools` 的「一键生成配置」有 5 步，其中**只有一条依赖**：
-第 3 步（LubanManager）需要第 1 步的导出产物和第 2 步的常量。
+`ConfigTools` 的「一键生成配置」有 6 步，依赖只有两条：
+第 3 步（LubanManager）需要第 1 步的导出产物和第 2 步的常量；第 6 步（服务端配置）需要第 1 步。
 第 4 步 UIKeys 读 `UIPageConfiguration` 资产、第 5 步 AudioKeys 读 `AudioConfiguration` 资产，
 **都和 Luban 无关**，前面失败也照样执行（2026-08-22 修：以前是一步失败就整体中断，
 而工程里暂时没有 Luban 表类 ⇒ 第 3 步必然失败 ⇒ UIKeys 永远生成不出来）。
+
+**第 6 步「导出服务端配置」** 把同一份 Excel 按 `server` 目标导出成 `cs-bin` 代码 + `bin` 数据，
+落进 `../ReDiv_Server/spacetimedb/`。服务端是 NativeAOT 裁剪过的 wasm，客户端那套
+`cs-newtonsoft-json` 的反射在里面用不了，所以两边 codeTarget 必须不同。
+字段级 group（`ExcelTool/LubanTools/DataTables/Defines/character.xml`）决定哪些列进客户端、哪些进服务端。
+⚠️ 导出完还要 `spacetime publish` 才生效 —— bin 数据是以嵌入资源编进 wasm 的。
+细节见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「配置表」一节。
 
 跑完看日志里的汇总（成功 / 失败 / 跳过各是哪几步），别只看有没有报错。
 
@@ -203,7 +212,7 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
 | `IsAuthReady` / `AuthReady` | 订阅是否生效。**为 false 时 `IsLoggedIn` 不可信** |
 | `IsLoggedIn` / `Username` / `AccountId` / `LoginStateChanged` | 登录态 |
 | `SessionClosedByServer` | 被顶号 / 被登出的通知（带原因枚举） |
-| `VersionMismatch` / `VersionMessage` / `VersionMismatched` | 版本校验，见第 8 节 |
+| `VersionMismatch` / `VersionMessage` / `VersionMismatched` | 版本校验，见第 9 节 |
 | `RegisterAsync` / `LoginAsync` / `LogoutAsync` | 返回 `AuthResult { Ok, Message }`，Message 是可直接显示的中文 |
 | `RetryConnect()` | 断线重连 |
 
@@ -219,12 +228,35 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
    reason 是服务端抛的中文原文，直接显示。
 4. **连上后别直接弹登录界面**：服务端会按 Identity 免密恢复登录态，
    `AuthReady` 时 `IsLoggedIn` 已经是 true 就直接进游戏。
+5. **表回调要把 `OnUpdate` 一起挂上**，别只挂 Insert/Delete。同一主键的删+插如果发生在
+   **同一个事务**里（比如同设备换号登录：删掉本连接的旧会话行 + 插入新行，主键都是
+   ConnectionId），SpacetimeDB 会把它合并成一次 **update**，Insert / Delete 都不触发。
+   实测踩过：换号后界面一直显示上一个账号。带主键的 View 同理。
 
 > ⚠️ 改 `companyName` / `productName` 会换掉 PlayerPrefs 位置 ⇒ AuthToken 丢 ⇒ 拿到新
-> Identity ⇒ 免密登录失效，得重新输口令。见第 8 节。
+> Identity ⇒ 免密登录失效，得重新输口令。见第 8 节。版本号见第 9 节。
 
 > `Logout` 会同时解除服务端的免密绑定。prefab 里还没有登出按钮，
 > 加了之后 Bind 到 `CommonUI.Logout` 即可。
+
+### 角色系统（客户端还没做）
+
+服务端已经能用：多角色、创建 / 删除（软删）/ 选择，选完角色才进城镇。
+契约见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「角色系统」一节。接的时候注意：
+
+- 角色列表走 **View**（`my_character`），订阅时**不用带 where** —— 服务端已按订阅者过滤。
+  栏位数在 `my_account_profile` 里。
+- 订阅要分段：连上订 `session` → 登录成功后订 `my_character` / `my_account_profile`
+  → 选角后订角色态（还没有）。订阅 SQL 不能 join 到会话，所以只能分段。
+- `character_selection` 是公开表，订阅自己那行判断「是否已进城镇」；
+  它同时也是以后做在线列表 / 频道人数的数据源。
+- 失败文案和账号系统一个套路：从 Reducer 回调的 `ctx.Event.Status` 取
+  `Status.Failed(var reason)`，reason 是服务端抛的中文原文（「角色栏位已满（4/4）」
+  「这个角色名已经被使用了」这种），直接显示给玩家。
+- 成功不看回调，看表：建角色看 `my_character` 多出一行，选角色看 `character_selection`
+  出现自己那行。带主键的 View 更新会走 **OnUpdate**，别只挂 OnInsert/OnDelete（见上一条第 5 点）。
+- **现在只能传 `jobId = 1`**（职业表里唯一那行占位数据）。真实职业列表还没定，
+  界面上的职业选项先别硬编码。
 
 ### 服务端操作面板
 
@@ -296,31 +328,6 @@ Febucci Text Animator、DamageNumbersPro、PathologicalGames
 
 ---
 
-## 8.5 版本号（客户端三处 + 服务端一处必须一致）
-
-客户端连上服务器后会立刻调 `CheckVersion(Application.version)` 对一次版本号，
-不一致就弹窗提示并禁止登录（详见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「版本号」一节）。
-所以版本号改一处不够，客户端这**三处**要一起改：
-
-| 位置 | 作用 |
-|---|---|
-| `ProjectSettings/ProjectSettings.asset` 的 `bundleVersion` | `Application.version` 读的就是它，**校验用的是这个值** |
-| `Assets/Settings/Build Profiles/PC.asset` | 这个 profile 自带一份 PlayerSettings 覆盖快照 |
-| `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 的 `Version` | 出包时会写回 PlayerSettings，是**出包时的真正权威** |
-
-加上服务端 `ReDiv_Server/spacetimedb/Version.cs` 的 `Module.ServerVersion`（改完要 publish），
-一共四处。2026-08-22 之前这四处是 `1.0` / `0.1` / `0.1` / 无，界面上还写死显示 `0.0.1`，
-四个值互不相同 —— 现在统一成 `0.0.1`。
-
-编辑器开着时**不要手改** `ProjectSettings.asset` 和 profile 的 YAML 快照（会被编辑器内存值盖回），
-走 API：`PlayerSettings.bundleVersion`；profile 的覆盖用
-`SerializedObject(profile.playerSettings)` 改完再调 `SerializePlayerSettings()`（都是 internal，用反射）。
-
-界面右下角的版本号由 `CommonUI.RefreshVersion()` 从 `Application.version` 刷，
-**不要再往 prefab 里写死**，否则又会和校验值对不上。
-
----
-
 ## 8. 工程标识（companyName / productName / 包名）
 
 2026-08-20 从旧工程的值改成了现在这套（旧值：`com.LuminoInc.AFramework` / `剧情游戏`
@@ -354,3 +361,30 @@ Febucci Text Animator、DamageNumbersPro、PathologicalGames
   `SerializePlayerSettings()`（两者都是 internal，用反射）。
 - `PlayerBuildConfig` 里那个「从 ProjectSettings 读取当前设置」按钮会**连带覆盖
   `Version`**（拿全局 `bundleVersion`），只想改名字时别按它。
+
+---
+
+## 9. 版本号（客户端三处 + 服务端一处必须一致）
+
+客户端连上服务器后会立刻调 `CheckVersion(Application.version)` 对一次版本号，
+不一致就弹窗提示并禁止登录（详见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「版本号」一节）。
+所以版本号改一处不够，客户端这**三处**要一起改：
+
+| 位置 | 作用 |
+|---|---|
+| `ProjectSettings/ProjectSettings.asset` 的 `bundleVersion` | `Application.version` 读的就是它，**校验用的是这个值** |
+| `Assets/Settings/Build Profiles/PC.asset` | 这个 profile 自带一份 PlayerSettings 覆盖快照 |
+| `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 的 `Version` | 出包时会写回 PlayerSettings，是**出包时的真正权威** |
+
+加上服务端 `ReDiv_Server/spacetimedb/Version.cs` 的 `Module.ServerVersion`（改完要 publish），
+一共四处。2026-08-22 之前这四处是 `1.0` / `0.1` / `0.1` / 无，界面上还写死显示 `0.0.1`，
+四个值互不相同 —— 现在统一成 `0.0.1`。
+
+编辑器开着时**不要手改** `ProjectSettings.asset` 和 profile 的 YAML 快照（会被编辑器内存值盖回），
+走 API：`PlayerSettings.bundleVersion`；profile 的覆盖用
+`SerializedObject(profile.playerSettings)` 改完再调 `SerializePlayerSettings()`（都是 internal，用反射）。
+
+界面右下角的版本号由 `CommonUI.RefreshVersion()` 从 `Application.version` 刷，
+**不要再往 prefab 里写死**，否则又会和校验值对不上。
+
+---

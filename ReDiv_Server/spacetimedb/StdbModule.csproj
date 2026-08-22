@@ -5,6 +5,12 @@
     <RuntimeIdentifier>wasi-wasm</RuntimeIdentifier>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!--
+      Luban 的 ByteBuf（vendored 在 Luban/Runtime/）里有两个 *_Unsafe 优化方法用了指针。
+      开这个开关是为了让 vendored 文件和上游**逐字节一致**，升级时直接覆盖即可，不用重打补丁。
+      wasm 里的指针操作出不了线性内存沙箱，也不影响 Reducer 的确定性。
+    -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(TargetFramework.StartsWith('net10.')) Or '$(EXPERIMENTAL_WASM_AOT)' == '1'">
@@ -25,6 +31,16 @@
 
   <ItemGroup>
     <PackageReference Include="SpacetimeDB.Runtime" Version="2.8.*" />
+  </ItemGroup>
+
+  <!--
+    Luban 导出的配置数据（Configs/*.bytes）以**嵌入资源**编进 wasm。
+    模块跑在数据库进程内、没有文件系统，这是唯一能把配置带进去的方式。
+    实测 GetManifestResourceStream 在 wasi-wasm + NativeAOT + 裁剪下可用。
+    ⇒ 改了配置必须重新 gen_server.bat + spacetime publish 才生效。
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Configs\**\*.bytes" />
   </ItemGroup>
 
   <ItemGroup Condition="$(TargetFramework.StartsWith('net10.'))">
