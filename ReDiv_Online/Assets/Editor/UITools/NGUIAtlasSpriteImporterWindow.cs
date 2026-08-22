@@ -591,8 +591,8 @@ public sealed class NGUIAtlasSpriteImporterWindow : OdinEditorWindow
         if (clampedBorderCount > 0)
         {
             Debug.LogWarning(
-                $"[NGUI Atlas Importer] {clampedBorderCount:N0} 个 NGUI Border 超出 Sprite Rect，" +
-                "已按比例压缩为 Unity 可接受的 Border；原始值保存在 SpriteRect.customData。");
+                $"[NGUI Atlas Importer] {clampedBorderCount:N0} 个 NGUI Border 含负数或超出 Sprite Rect，" +
+                "已钳制/按比例压缩为 Unity 可接受的 Border；原始值保存在 SpriteRect.customData。");
         }
     }
 
@@ -612,6 +612,8 @@ public sealed class NGUIAtlasSpriteImporterWindow : OdinEditorWindow
 
     private static void ScaleBorderPair(int first, int second, int limit, out int appliedFirst, out int appliedSecond)
     {
+        first = Mathf.Max(0, first);
+        second = Mathf.Max(0, second);
         int total = first + second;
         if (total <= limit)
         {
@@ -731,11 +733,10 @@ public sealed class NGUIAtlasSpriteImporterWindow : OdinEditorWindow
                 $"矩形越界：({rect.x}, {rect.y}, {rect.width}, {rect.height}) / {atlasWidth}x{atlasHeight}");
         }
 
-        EdgeData border = sprite.border ?? new EdgeData();
         EdgeData padding = sprite.padding ?? new EdgeData();
-        if (border.HasNegativeValue() || padding.HasNegativeValue())
+        if (padding.HasNegativeValue())
         {
-            throw new InvalidDataException("Border 或 Padding 包含负数。");
+            throw new InvalidDataException("Padding 包含负数。");
         }
     }
 
@@ -747,21 +748,19 @@ public sealed class NGUIAtlasSpriteImporterWindow : OdinEditorWindow
 
         int outputWidth = rect.width + (RestoreTransparentPadding ? padding.left + padding.right : 0);
         int outputHeight = rect.height + (RestoreTransparentPadding ? padding.top + padding.bottom : 0);
-        var appliedBorder = new EdgeData
+        var requestedBorder = new EdgeData
         {
             left = border.left + (RestoreTransparentPadding ? padding.left : 0),
             right = border.right + (RestoreTransparentPadding ? padding.right : 0),
             top = border.top + (RestoreTransparentPadding ? padding.top : 0),
             bottom = border.bottom + (RestoreTransparentPadding ? padding.bottom : 0)
         };
-
-        if (appliedBorder.left + appliedBorder.right > outputWidth ||
-            appliedBorder.top + appliedBorder.bottom > outputHeight)
-        {
-            throw new InvalidDataException(
-                $"应用后的 Border 超出输出尺寸：Border=({appliedBorder.left},{appliedBorder.bottom}," +
-                $"{appliedBorder.right},{appliedBorder.top}) Size={outputWidth}x{outputHeight}");
-        }
+        CreateUnityCompatibleBorder(
+            requestedBorder,
+            outputWidth,
+            outputHeight,
+            out EdgeData appliedBorder,
+            out _);
 
         return new ImportWorkItem
         {

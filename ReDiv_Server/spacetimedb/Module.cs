@@ -1,9 +1,9 @@
 using SpacetimeDB;
 
 /// <summary>
-/// ReDiv 服务端模块（空壳）。
+/// ReDiv 服务端模块。
 ///
-/// 目前只有生命周期钩子，没有任何业务表 —— 玩法定型后再往里加。
+/// 目前只有账号系统（注册 / 登录 / 会话），玩法表还没定 —— 见 Auth/ 下的文件。
 ///
 /// SpacetimeDB 2.8 的写法约定：
 ///   - 表 / Reducer / View / 定时表都挂在这个 partial class 下，
@@ -31,18 +31,30 @@ public static partial class Module
     /// <summary>
     /// 每条连接建立时执行。抛异常会拒绝这条连接。
     /// 同一个 Identity 可能有多条连接（多端登录），要区分就用 ctx.ConnectionId。
+    ///
+    /// 这里会尝试免密恢复登录态：这个 Identity 之前登录过（IdentityBinding 里有绑定）
+    /// 就直接建会话，客户端连上就已经是登录状态，不用再输口令。
+    /// ⚠️ 注意这个钩子里抛异常会**拒绝连接**，所以恢复失败必须静默返回而不是抛
+    /// —— 一条悬空绑定不该让玩家连不进来。
     /// </summary>
     [SpacetimeDB.Reducer(ReducerKind.ClientConnected)]
     public static void ClientConnected(ReducerContext ctx)
     {
         Log.Debug($"[Connect] {ctx.Sender} / {ctx.ConnectionId}");
+
+        TryRestoreSession(ctx);
     }
 
-    /// <summary>连接断开时执行。抛异常只会记日志，不会阻止断开。</summary>
+    /// <summary>
+    /// 连接断开时执行。抛异常只会记日志，不会阻止断开。
+    /// 清掉这条连接的会话行；免密绑定要留着，那是下次重连的凭据。
+    /// </summary>
     [SpacetimeDB.Reducer(ReducerKind.ClientDisconnected)]
     public static void ClientDisconnected(ReducerContext ctx)
     {
         Log.Debug($"[Disconnect] {ctx.Sender} / {ctx.ConnectionId}");
+
+        CloseSessionOnDisconnect(ctx);
     }
 
     /// <summary>

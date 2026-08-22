@@ -28,6 +28,8 @@ namespace ReDiv.Net.Bindings
     {
         public RemoteTables(DbConnection conn)
         {
+            AddTable(Session = new(conn));
+            AddTable(SessionClosed = new(conn));
         }
     }
 
@@ -524,12 +526,16 @@ namespace ReDiv.Net.Bindings
 
         internal static string[] AllTablesSqlQueries() => new string[]
         {
+            new QueryBuilder().From.Session().ToSql(),
+            new QueryBuilder().From.SessionClosed().ToSql(),
         }
         ;
     }
 
     public sealed class From
     {
+        public global::SpacetimeDB.Table<Session, SessionCols, SessionIxCols> Session() => new("session", new SessionCols("session"), new SessionIxCols("session"));
+        public global::SpacetimeDB.Table<SessionClosed, SessionClosedCols, SessionClosedIxCols> SessionClosed() => new("session_closed", new SessionClosedCols("session_closed"), new SessionClosedIxCols("session_closed"));
     }
 
     public sealed class TypedSubscriptionBuilder
@@ -611,7 +617,11 @@ namespace ReDiv.Net.Bindings
             var eventContext = (ReducerEventContext)context;
             return reducer switch
             {
+                Reducer.AuthSelfTest args => Reducers.InvokeAuthSelfTest(eventContext, args),
+                Reducer.Login args => Reducers.InvokeLogin(eventContext, args),
+                Reducer.Logout args => Reducers.InvokeLogout(eventContext, args),
                 Reducer.Ping args => Reducers.InvokePing(eventContext, args),
+                Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }

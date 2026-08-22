@@ -153,6 +153,25 @@ Assets/Scripts/Net/
 [Stdb] 订阅已生效
 ```
 
+### 账号系统（客户端这半还没做）
+
+服务端已有用户名 + 口令的注册 / 登录 / 会话（`Register` / `Login` / `Logout`，
+绑定已生成）。Unity 侧**还没有**登录界面和封装。要接的时候记住三件事，
+细节和完整契约在 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「账号系统」一节：
+
+1. **订阅必须先建立再调 `Login`**，否则成功那一行的 `OnInsert` 会漏。至少要订阅
+   `session` 和 `session_closed` 里自己 identity 的行。
+   现在的 `Subscribe()` 用的是 `SubscribeToAllTables()`，是试通阶段的写法，接登录时要改。
+2. **失败文案走 Reducer 回调**：`Conn.Reducers.OnLogin += ctx => ...`，
+   从 `ctx.Event.Status` 的 `Status.Failed(var reason)` 里取，reason 是中文，直接显示。
+   成功不看回调，看 `Session` 表里有没有自己那一行。
+3. **连上后别直接跳登录界面**：服务端会按 Identity 免密恢复登录态（AuthToken 存在
+   PlayerPrefs 里），订阅生效时 `Session` 里已经有自己那行就直接进游戏。
+   收到 `SessionClosed` 且 `Reason = KickedByNewLogin` 就是被顶号了。
+
+> ⚠️ 改 `companyName` / `productName` 会换掉 PlayerPrefs 位置 ⇒ AuthToken 丢 ⇒ 拿到新
+> Identity ⇒ 免密登录失效，得重新输口令。见第 8 节。
+
 ### 服务端操作面板
 
 **`Tools > XFramework > 服务端 > SpacetimeDB 控制台`** —— 一站式：发布模块、生成绑定、

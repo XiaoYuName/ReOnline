@@ -6,10 +6,16 @@ using UnityEngine;
 public partial class CommonUI
 {
     private TMPro.TextMeshProUGUI clickTex;
+    private TMPro.TextMeshProUGUI loginTex;
+    private TMPro.TextMeshProUGUI serverStatusTex;
+    private UnityEngine.UI.Button aVProVideo;
 
     private void InitAutoBind()
     {
         clickTex = Get<TMPro.TextMeshProUGUI>("UIMask/ClickTex");
+        loginTex = Get<TMPro.TextMeshProUGUI>("UIMask/LoginInfo/LoginTex");
+        serverStatusTex = Get<TMPro.TextMeshProUGUI>("UIMask/ServerStatus/ServerStatusTex");
+        aVProVideo = Get<UnityEngine.UI.Button>("UIMask/AVPro Video");
 
     }
 }
