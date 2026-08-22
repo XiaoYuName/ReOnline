@@ -20,8 +20,6 @@ namespace XFramework
         private CanvasGroup _canvasGroup;
         private Sequence _sequence;
         private Canvas _canvas;
-        private TextMeshProUGUI _text;
-        private TypewriterByCharacter _typewriter;
         private CancellationTokenSource cancellationToken;
 
         /// <summary>
@@ -36,8 +34,6 @@ namespace XFramework
         {
             _canvas = Get<Canvas>("");
             _canvasGroup = Get<CanvasGroup>("");
-            _text = Get<TextMeshProUGUI>("UIMask/Tip");
-            _typewriter = Get<TypewriterByCharacter>("UIMask/Tip");
             UISystem.Instance.AddUI("PopLoadingUI", this);
 
             // 常驻UI:开局保持整块遮住(连UI一起)并拦住输入,挡掉初始化过程,
@@ -48,7 +44,6 @@ namespace XFramework
 
             // Open() 里做的这两件事在这也补一遍:常驻实例可能不经过 OpenUI 就被直接调 FadeOut/ShowLabel
             cancellationToken ??= new CancellationTokenSource();
-            _typewriter.gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -58,7 +53,6 @@ namespace XFramework
         {
             base.Open();
             cancellationToken = new CancellationTokenSource();
-            _typewriter.gameObject.SetActive(false);
         }
         
 
@@ -156,34 +150,6 @@ namespace XFramework
             }
 
             await FadeOutAsync(duration, layer, OrderInLayer);
-        }
-        
-        public async UniTask ShowLabel(string label)
-        {
-           
-
-            _typewriter.gameObject.SetActive(true);
-            _typewriter.ShowText(label);
-
-            // 等待文字显示完成
-            await UniTask.WaitWhile(
-                () => _typewriter.isShowingText,
-                cancellationToken: cancellationToken.Token);
-
-            // 可选：完整显示后停留一段时间
-            await UniTask.Delay(
-                TimeSpan.FromSeconds(1),
-                cancellationToken: cancellationToken.Token);
-
-            _typewriter.StartDisappearingText();
-
-            // 等待文字隐藏完成
-            await UniTask.WaitWhile(
-                () => _typewriter.isHidingText,
-                cancellationToken: cancellationToken.Token
-            );
-
-            _typewriter.gameObject.SetActive(false);
         }
 
     }

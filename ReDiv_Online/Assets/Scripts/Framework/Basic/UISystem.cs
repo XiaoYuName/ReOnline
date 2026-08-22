@@ -463,7 +463,7 @@ namespace XFramework
                 return null;
             }
             
-            GameObject Prefab = AssetsManager.Instance.LoadAssets<GameObject>(tableData.PagePath);
+            GameObject Prefab = AssetsManager.Instance.LoadAssets<GameObject>(tableData.PageKey);
             
             var Obj = Instantiate(Prefab, GetUIParent(tableData));
             UIBase uiBase = Obj.GetComponent<UIBase>();
@@ -488,7 +488,7 @@ namespace XFramework
             {
                 return null;
             }
-            GameObject Prefab = AssetsManager.Instance.LoadAssets<GameObject>(tableData.PagePath);
+            GameObject Prefab = AssetsManager.Instance.LoadAssets<GameObject>(tableData.PageKey);
             var Obj = Instantiate(Prefab, GetUIParent(tableData));
             T uiBase = Obj.GetComponent<T>();
             if (uiBase != null)
@@ -513,7 +513,7 @@ namespace XFramework
             {
                 return;
             }
-            AssetsManager.Instance.LoadAssetsAsync(tableData.PagePath, delegate(GameObject prefab)
+            AssetsManager.Instance.LoadAssetsAsync(tableData.PageKey, delegate(GameObject prefab)
             {
                 var Obj = Instantiate(prefab, GetUIParent(tableData));
                 UIBase uiBase = Obj.GetComponent<UIBase>();
@@ -545,7 +545,7 @@ namespace XFramework
             {
                 yield break;
             }
-            yield return AssetsManager.Instance.LoadAssetsCoroutine(tableData.PagePath, delegate(GameObject prefab)
+            yield return AssetsManager.Instance.LoadAssetsCoroutine(tableData.PageKey, delegate(GameObject prefab)
             {
                 var Obj = Instantiate(prefab, GetUIParent(tableData));
                 UIBase uiBase = Obj.GetComponent<UIBase>();
@@ -572,7 +572,7 @@ namespace XFramework
             {
                 return null;
             }
-            var prefab =  await AssetsManager.Instance.LoadAssetsUniTask<GameObject>(tableData.PagePath);
+            var prefab =  await AssetsManager.Instance.LoadAssetsUniTask<GameObject>(tableData.PageKey);
             var Obj = Instantiate(prefab, GetUIParent(tableData));
             T uiBase = Obj.GetComponent<T>();
             if (uiBase != null)

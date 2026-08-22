@@ -146,5 +146,8 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 - `ReDiv_Online/Packages/com.clockworklabs.spacetimedbsdk/` 是**内嵌的打过补丁的分叉**，
   不要"顺手同步回上游版本"，详见该目录下的 `UPSTREAM.md`
 - CLI / 数据库 / Unity SDK 三者版本必须同为 2.8.2
+- **客户端与服务端的游戏版本号必须一致**（服务端 `Module.ServerVersion` ↔ 客户端
+  `Application.version`），不一致客户端会弹窗并禁止登录。改版本号要动四处，
+  见 [ReDiv_Server/README.md](ReDiv_Server/README.md) 的「版本号」一节
 - 补间动画用 **DOTween Pro**（`Assets/Plugins/Demigiant/`），**不是** PrimeTween
 - 提交与推送只在用户明确要求时做（现在是单仓库，一次提交即可覆盖两边）

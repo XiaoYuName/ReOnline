@@ -22,27 +22,42 @@ public class ConfigTools : OdinEditorWindow
     {
         try
         {
-            // 顺序不能调：UIKeys 读的是第 1 步导出的 tbuipagedata.json，
-            // LubanManager.Generated.cs 又引用 AssetKeys 里的常量。
-            var steps = new (string Title, Func<bool> Run)[]
+            // 每一步显式声明自己依赖谁，只有**前置真的失败了**才跳过它。
+            //
+            // 以前这里是「一步失败就整体 return」，而 UIKeys 排在 Luban 链条后面 ——
+            // UIKeys 早就不读 Luban 了（数据源换成了 UIPageConfiguration 资产），
+            // 可只要工程里暂时没有 Luban 表类，第 3 步就失败，UIKeys 跟着永远生成不出来。
+            // 现在没有依赖关系的步骤互不牵连。
+            var steps = new[]
             {
-                ("导出 Luban 配置...", RunLubanExport),
-                ("生成 Addressable AssetKeys...", GenerateAssetKeys),
-                ("生成 LubanManager.Generated.cs...", GenerateLubanManager),
-                ("生成 UIKeys...", GenerateUIKeys),
-                ("生成 AudioKeys...", GenerateAudioKeys),
+                new GenerateStep("导出 Luban 配置", RunLubanExport),
+                new GenerateStep("生成 Addressable AssetKeys", GenerateAssetKeys),
+                // 需要第 1 步导出的 Tb*.cs，也引用第 2 步生成的 AssetKeys 常量
+                new GenerateStep("生成 LubanManager.Generated.cs", GenerateLubanManager,
+                    "导出 Luban 配置", "生成 Addressable AssetKeys"),
+                // 读 UIPageConfiguration 资产，和 Luban 无关
+                new GenerateStep("生成 UIKeys", GenerateUIKeys),
+                // 读 AudioConfiguration 资产，和 Luban 无关
+                new GenerateStep("生成 AudioKeys", GenerateAudioKeys),
             };
+
+            var results = new Dictionary<string, bool>(steps.Length, StringComparer.Ordinal);
+            var skipped = new List<string>();
 
             for (int i = 0; i < steps.Length; i++)
             {
-                var step = steps[i];
-                EditorUtility.DisplayProgressBar("一键生成配置", step.Title, (float)i / steps.Length);
+                GenerateStep step = steps[i];
 
-                if (!step.Run())
+                string blockedBy = step.FindFailedPrerequisite(results);
+                if (blockedBy != null)
                 {
-                    Debug.LogError($"一键生成配置中断：{step.Title.TrimEnd('.')} 失败。");
-                    return;
+                    skipped.Add($"{step.Title}（前置「{blockedBy}」失败）");
+                    results[step.Title] = false;
+                    continue;
                 }
+
+                EditorUtility.DisplayProgressBar("一键生成配置", step.Title + "...", (float)i / steps.Length);
+                results[step.Title] = step.Run();
 
                 // 每步产物都可能是新文件，下一步要能读到。
                 EditorUtility.DisplayProgressBar("一键生成配置", "刷新 AssetDatabase...", (i + 0.5f) / steps.Length);
@@ -51,11 +66,78 @@ public class ConfigTools : OdinEditorWindow
 
             RefreshExcelInfo();
             RefreshOverview();
-            Debug.Log("一键生成配置完成：Luban 导出、AssetKeys、LubanManager.Generated.cs、UIKeys、AudioKeys 全部生成成功。");
+            LogSummary(results, skipped);
         }
         finally
         {
             EditorUtility.ClearProgressBar();
+        }
+    }
+
+    private static void LogSummary(Dictionary<string, bool> results, List<string> skipped)
+    {
+        var succeeded = results.Where(kv => kv.Value).Select(kv => kv.Key).ToList();
+        var failed = results.Where(kv => !kv.Value).Select(kv => kv.Key).ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine(failed.Count == 0 ? "一键生成配置完成，全部成功。" : "一键生成配置结束，有步骤失败。");
+        sb.AppendLine($"成功 {succeeded.Count} 步：{(succeeded.Count == 0 ? "无" : string.Join("、", succeeded))}");
+
+        if (failed.Count > 0)
+        {
+            sb.AppendLine($"失败 {failed.Count} 步：{string.Join("、", failed)}");
+        }
+
+        if (skipped.Count > 0)
+        {
+            sb.AppendLine($"跳过：{string.Join("、", skipped)}");
+        }
+
+        if (failed.Count == 0)
+        {
+            Debug.Log(sb.ToString());
+        }
+        else
+        {
+            // 具体的失败原因各步自己已经 LogError 过了，这里只给总览
+            Debug.LogError(sb.ToString());
+        }
+    }
+
+    /// <summary>
+    /// 一键流程里的一步。<see cref="prerequisites"/> 是这一步依赖的其它步骤标题 ——
+    /// 只有依赖项真的失败了才跳过它，不相干的步骤失败不影响。
+    /// </summary>
+    private readonly struct GenerateStep
+    {
+        public readonly string Title;
+        public readonly Func<bool> Run;
+        private readonly string[] prerequisites;
+
+        public GenerateStep(string title, Func<bool> run, params string[] prerequisites)
+        {
+            Title = title;
+            Run = run;
+            this.prerequisites = prerequisites;
+        }
+
+        /// <summary>返回第一个已失败的前置步骤标题；没有则返回 null。</summary>
+        public string FindFailedPrerequisite(Dictionary<string, bool> results)
+        {
+            if (prerequisites == null)
+            {
+                return null;
+            }
+
+            foreach (string prerequisite in prerequisites)
+            {
+                if (results.TryGetValue(prerequisite, out bool ok) && !ok)
+                {
+                    return prerequisite;
+                }
+            }
+
+            return null;
         }
     }
 
@@ -73,7 +155,7 @@ public class ConfigTools : OdinEditorWindow
     /// </summary>
     [PropertySpace(SpaceBefore = 6)]
     [TitleGroup("分步生成", "只改了某一环时用它快速重生成，执行的是和一键流程完全相同的逻辑", TitleAlignments.Left)]
-    [InfoBox("步骤间有依赖：4 读的是 1 导出的 Json，3 引用 2 生成的常量；5 只依赖 AudioConfiguration 资源，可随时单独执行。")]
+    [InfoBox("依赖只有一条：3 需要 1 的导出产物和 2 的常量。1 / 2 / 4 / 5 各自独立，可随时单独执行 —— 4 读 UIPageConfiguration 资产，5 读 AudioConfiguration 资产，都和 Luban 无关。")]
     [OnInspectorGUI]
     [PropertyOrder(-18)]
     private void DrawStepHint()
@@ -114,7 +196,7 @@ public class ConfigTools : OdinEditorWindow
     [HorizontalGroup("分步生成/Steps")]
     [Button("4. 生成 UIKeys", ButtonSizes.Large)]
     [GUIColor(0.72f, 0.82f, 0.95f)]
-    [PropertyTooltip("读取 tbuipagedata.json，生成 UI 界面 ID 常量类 UIKeys。")]
+    [PropertyTooltip("读取 UIPageConfiguration 资产，生成 UI 界面 ID 常量类 UIKeys。（以前读的是 Luban 导出的 tbuipagedata.json，UI 配置独立出来后不再依赖 Luban。）")]
     [PropertyOrder(-14)]
     private void UIKeysStep()
     {

@@ -1,0 +1,689 @@
+fileFormatVersion: 2
+guid: a98a2e34fcad5134e939d16f9a35de4f
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 8751500378348485988
+    second: commonframe_0
+  - first:
+      213: 1779077945172779311
+    second: commonframe_1
+  - first:
+      213: 6845462446162117959
+    second: commonframe_2
+  - first:
+      213: -4890976895096930842
+    second: commonframe_3
+  - first:
+      213: 5664912559191122437
+    second: commonframe_4
+  - first:
+      213: 8608715927650500339
+    second: commonframe_5
+  - first:
+      213: 3291818502562603431
+    second: commonframe_6
+  - first:
+      213: 188067948161809407
+    second: commonframe_7
+  - first:
+      213: -1712917987684510766
+    second: commonframe_8
+  - first:
+      213: 3692309517724358687
+    second: commonframe_9
+  - first:
+      213: 353993144650657618
+    second: commonframe_10
+  - first:
+      213: 7113959759585999495
+    second: commonframe_11
+  - first:
+      213: -3757529275339031625
+    second: commonframe_12
+  - first:
+      213: -2460816599643428088
+    second: commonframe_13
+  - first:
+      213: 4688637603685411043
+    second: commonframe_14
+  - first:
+      213: -2577221443612937173
+    second: commonframe_15
+  - first:
+      213: 146166290444844099
+    second: commonframe_16
+  - first:
+      213: -618048506210305496
+    second: commonframe_17
+  - first:
+      213: -681783380024321506
+    second: commonframe_18
+  - first:
+      213: -4016251199697242204
+    second: commonframe_19
+  - first:
+      213: 2438794865391594603
+    second: commonframe_20
+  - first:
+      213: 8233484452235035994
+    second: commonframe_21
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 1024
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: unit_frame_1
+      rect:
+        serializedVersion: 2
+        x: 244
+        y: 143
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":244,"y":753,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9ea242be4b1feb1448dfc04d251f8ed6
+      internalID: 1134299271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_1_l
+      rect:
+        serializedVersion: 2
+        x: 122
+        y: 186
+        width: 120
+        height: 185
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":1},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":122,"y":653,"width":120,"height":185},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 06769f40c9cdc304db00c1f08acc451b
+      internalID: 1727695893
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_10
+      rect:
+        serializedVersion: 2
+        x: 517
+        y: 130
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":517,"y":766,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 68f8008d4f3c9034da5088013759a041
+      internalID: 1448345376
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_10_l
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 374
+        width: 120
+        height: 185
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":1},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":0,"y":465,"width":120,"height":185},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5fb6a65d16f3e6346a4996781ec5cf77
+      internalID: 342560159
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_2
+      rect:
+        serializedVersion: 2
+        x: 517
+        y: 0
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":517,"y":896,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6af5b283da136ef44933b5db84153fe8
+      internalID: -786819681
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_2_l
+      rect:
+        serializedVersion: 2
+        x: 122
+        y: 560
+        width: 120
+        height: 185
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":1},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":122,"y":279,"width":120,"height":185},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0ecb32beb13812b479120309fa5e634e
+      internalID: -1028329305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_3
+      rect:
+        serializedVersion: 2
+        x: 387
+        y: 130
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":387,"y":766,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8368c6b84d24e29489c02c57cee997a2
+      internalID: 830373080
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_3_l
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 187
+        width: 120
+        height: 185
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":1},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":0,"y":652,"width":120,"height":185},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c3fb0a7b0a6ba044da7d6531d255ec51
+      internalID: 174172272
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_4
+      rect:
+        serializedVersion: 2
+        x: 647
+        y: 0
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":647,"y":896,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 43aeadff2d13a734f976bd26f26e4a07
+      internalID: -2139263422
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_4_l
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 120
+        height: 185
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":1},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":0,"y":839,"width":120,"height":185},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8073bef8cd2b97942bfa19818de87df8
+      internalID: -986669754
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_5
+      rect:
+        serializedVersion: 2
+        x: 374
+        y: 260
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":374,"y":636,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f7596fa5f0a37bd44bd9615dc21efab3
+      internalID: -439337164
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_5_l
+      rect:
+        serializedVersion: 2
+        x: 122
+        y: 373
+        width: 120
+        height: 185
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":1,"bottom":0},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":122,"y":466,"width":120,"height":185},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: acfe450346cd84445825183212ad3e91
+      internalID: -251119666
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_6
+      rect:
+        serializedVersion: 2
+        x: 777
+        y: 130
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":777,"y":766,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cb08e1f67abba27469117cb38bba9657
+      internalID: 961080541
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_6_l
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 561
+        width: 120
+        height: 184
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":1,"bottom":1},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":0,"y":279,"width":120,"height":184},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f6048fb5c4c943c4490acf320f7ed1b7
+      internalID: -320012229
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_7
+      rect:
+        serializedVersion: 2
+        x: 777
+        y: 0
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":777,"y":896,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ffd900c1c5453434dbe95b32e2c5d45f
+      internalID: -1422146584
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_7_l
+      rect:
+        serializedVersion: 2
+        x: 122
+        y: 747
+        width: 120
+        height: 184
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":122,"y":93,"width":120,"height":184},"logicalSize":{"width":120,"height":184}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fc91baf709ae0634c902f696269458b7
+      internalID: -688959091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_8
+      rect:
+        serializedVersion: 2
+        x: 387
+        y: 0
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":387,"y":896,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7904aef6305b9264b811ebc8c38ae424
+      internalID: 1265312539
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_8_l
+      rect:
+        serializedVersion: 2
+        x: 122
+        y: 0
+        width: 120
+        height: 184
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":1,"bottom":1},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":122,"y":840,"width":120,"height":184},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 15fecd71ed3410045857d01f64d2c2ae
+      internalID: 276224956
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_9
+      rect:
+        serializedVersion: 2
+        x: 647
+        y: 130
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":647,"y":766,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 99e4034d46c1e7f4295c4380ceb4197a
+      internalID: 497411295
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_9_l
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 747
+        width: 120
+        height: 185
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 30, y: 30, z: 30, w: 30}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":1},"originalBorder":{"left":30,"right":30,"top":30,"bottom":30},"appliedUnityBorder":{"left":30,"right":30,"top":30,"bottom":30},"originalRectTopLeft":{"x":0,"y":92,"width":120,"height":185},"logicalSize":{"width":120,"height":186}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a0f866ebfa72c794d8cfd0dda17dd959
+      internalID: 170294382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_alert
+      rect:
+        serializedVersion: 2
+        x: 244
+        y: 0
+        width: 141
+        height: 141
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":2,"right":1,"top":2,"bottom":1},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":244,"y":883,"width":141,"height":141},"logicalSize":{"width":144,"height":144}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3c817f8bb20674a4b99e7ce2154093c0
+      internalID: -1137142710
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: unit_frame_white
+      rect:
+        serializedVersion: 2
+        x: 244
+        y: 273
+        width: 128
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: '{"schema":"Rediv.NGUI.AtlasSpriteCustomData/v1","padding":{"left":0,"right":0,"top":0,"bottom":0},"originalBorder":{"left":0,"right":0,"top":0,"bottom":0},"appliedUnityBorder":{"left":0,"right":0,"top":0,"bottom":0},"originalRectTopLeft":{"x":244,"y":623,"width":128,"height":128},"logicalSize":{"width":128,"height":128}}'
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8d89e51ecfbcc6e4b9308c27f8e2aaf7
+      internalID: 231548396
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 0c415b513accbdf428833d35ad53e420
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      unit_frame_1: 1134299271
+      unit_frame_10: 1448345376
+      unit_frame_10_l: 342560159
+      unit_frame_1_l: 1727695893
+      unit_frame_2: -786819681
+      unit_frame_2_l: -1028329305
+      unit_frame_3: 830373080
+      unit_frame_3_l: 174172272
+      unit_frame_4: -2139263422
+      unit_frame_4_l: -986669754
+      unit_frame_5: -439337164
+      unit_frame_5_l: -251119666
+      unit_frame_6: 961080541
+      unit_frame_6_l: -320012229
+      unit_frame_7: -1422146584
+      unit_frame_7_l: -688959091
+      unit_frame_8: 1265312539
+      unit_frame_8_l: 276224956
+      unit_frame_9: 497411295
+      unit_frame_9_l: 170294382
+      unit_frame_alert: -1137142710
+      unit_frame_white: 231548396
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: '{"schema":"Rediv.NGUI.AtlasMultipleMetadata/v1","sourceAtlas":"Assets/AddressableAssets/Remote/Texture2D/Farme/atlaspromotionframe.png","sourceManifest":"Assets/AddressableAssets/Remote/Texture2D/Farme/atlas_manifest.json","spriteCount":22,"paddingStorage":"SpriteRect.customData","clampedBorderCount":0}'
+  assetBundleName: 
+  assetBundleVariant: 

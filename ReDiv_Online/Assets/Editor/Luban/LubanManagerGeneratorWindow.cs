@@ -293,7 +293,14 @@ namespace XFramework
 
             if (scannedTables == null || scannedTables.Count == 0)
             {
-                Debug.LogError("没有扫描到任何 Luban 表，生成失败。");
+                // 常见原因就两个：还没导出过 Luban（目录里没有 Tb*.cs），
+                // 或者目录里只有 Bean 类（继承 Luban.BeanBase，不是表，会被 IsValidLubanTableClass 排掉）。
+                // 这里不生成空文件：已有的 LubanManager.Generated.cs 会被清空，比报错难查得多。
+                Debug.LogError($"没有扫描到任何 Luban 表，生成失败。\n"
+                               + $"扫描目录: {config.lubanCodeDirectory}\n"
+                               + "先跑「1. 导出 Luban 配置」；如果导出过了还是 0 张，"
+                               + "说明目录里只有 Bean 类（Luban.BeanBase）而没有表类，检查 __tables__.xlsx 里是否登记了表。\n"
+                               + "注意 UIKeys / AudioKeys 不依赖这一步，可以单独生成。");
                 return false;
             }
 

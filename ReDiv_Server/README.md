@@ -177,9 +177,11 @@ spacetime describe rediv --json
 
 **顶号，粒度是 Identity（设备）而不是连接。** 新登录会关掉该账号在**其它 Identity** 上的
 会话、并删掉那些 Identity 的绑定 —— 绑定留着的话，被顶的机器一重连就会免密登录回来，
-把新登录顶下去，两边来回打。同一 Identity 的多条连接**允许共存**：Unity 编辑器和同机的
-Standalone 包共用 PlayerPrefs 里的 AuthToken，是同一个 Identity，按连接顶号的话本机开
-两个客户端就互相踢，开发期没法调。
+把新登录顶下去，两边来回打。同一 Identity 的多条连接**允许共存**：一台机器上跑两份
+同一个客户端包就是同一个 Identity（AuthToken 存在同一个位置），按连接顶号它们会互相踢。
+（Unity 编辑器和打包出来的客户端**不是**同一个 Identity —— SDK 的 AuthToken 在编辑器下
+会把 Application.dataPath 拼进 PlayerPrefs 的键，两边各存一份，所以拿编辑器和真机
+互相测顶号是可行的。）
 
 **免密重连绑 Identity。** 登录成功时记下当前 Identity；`ClientConnected` 钩子发现绑定
 就直接建会话。客户端的 AuthToken 存在 PlayerPrefs 里（`SpacetimeConnection.HandleConnect`），
@@ -239,6 +241,45 @@ spacetime sql rediv "SELECT account_id, username_key, username FROM account"
   正式环境必须上 TLS；只在客户端预哈希是**假安全**（预哈希值本身就成了口令）。
 - 没有改密码 / 找回密码 / 删号，也没有昵称。昵称建议以后单开 Profile 表挂 `AccountId`，
   别动 `Account`（它每次登录只读一次，跟高频数据放一起会白白放大同步量）。
+
+---
+
+## 版本号
+
+客户端和服务端各自独立发布，很容易出现「客户端还是旧的、服务端已经改了表结构或
+Reducer 语义」。那种情况下报出来的错五花八门（订阅失败、字段对不上、参数不匹配），
+排查很费时间。所以开局先对一次版本号。
+
+| 在哪 | 值来自 |
+|---|---|
+| 服务端 | `spacetimedb/Version.cs` 里的 `Module.ServerVersion` 常量 |
+| 客户端 | `Application.version`，即 Player Settings 的 Version（`bundleVersion`） |
+
+判定是**字符串全等**，不做 major/minor 兼容判断。流程：客户端连上后立刻调
+`CheckVersion(Application.version)`；不匹配时服务端抛异常，客户端在
+`Status.Failed(reason)` 里拿到带两边版本号的中文说明，弹窗给玩家，
+并且**禁止登录 / 注册**（`AuthManager.BlockRequestsOnVersionMismatch`，
+开发期想临时无视就改成 false）。
+
+```bash
+spacetime call rediv check_version '"0.0.1"'
+```
+
+⚠️ **改版本号要改四处**，少一处就会在某个环节对不上（客户端那三处见
+[../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 8 节）：
+
+1. 服务端 `Module.ServerVersion` —— 改完必须 `spacetime publish`
+2. 客户端 `ProjectSettings.asset` 的 `bundleVersion`（编辑器开着就走
+   `PlayerSettings.bundleVersion` API，别手改 YAML）
+3. 客户端 `Assets/Settings/Build Profiles/PC.asset` 里那份 PlayerSettings 覆盖快照
+4. 客户端 `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 的 `Version`
+   —— 出包时它会写回 PlayerSettings，是**出包时的真正权威**
+
+界面右下角显示的版本号读的是 `Application.version`（不再写死在 prefab 里），
+所以玩家看到的和校验用的一定是同一个值。
+
+这是**提示性**校验，不是安全边界：拦不住改过的客户端。真要按版本卡死请求，
+得把版本号存进按连接的表里，在每个业务 Reducer 里核对。
 
 ---
 
@@ -387,21 +428,30 @@ WebGL 下还靠它跑消息解析协程，是必需组件），所以**不要再
 
 真机 / 局域网调试记得把 Inspector 里的地址改成 `http://192.168.10.226:2383`。
 
-### 账号系统还差客户端那一半
+### 客户端已经接好了
 
-服务端已经能用，Unity 侧还**没有**登录界面和调用封装。要接的时候按这个契约来：
+Unity 侧的登录逻辑已经完成，入口都在 `../ReDiv_Online/Assets/Scripts/Net/`：
 
-- `SpacetimeConnection.Subscribe()` 现在用的是 `SubscribeToAllTables()`（试通阶段的写法，
-  建立后无法取消）。接登录时改成按需订阅，至少要包含
-  `SELECT * FROM session WHERE identity = 0x<自己的 identity>` 和
-  `SELECT * FROM session_closed WHERE identity = 0x<自己的 identity>`。
-  订阅必须在调 `Login` **之前**建立，否则成功那一行的 `OnInsert` 会漏掉。
-- 失败文案从 `Conn.Reducers.OnLogin += ctx => ...` 的 `ctx.Event.Status` 里取
-  （`Status.Failed(var reason)`，reason 是中文，直接显示）。
-- 连上后不要直接跳登录界面：先等订阅生效，看 `Session` 里有没有自己那一行 ——
-  有就是服务端免密恢复成功，直接进游戏。
-- `SessionClosed` 的 `OnInsert` 收到 `KickedByNewLogin` 就弹「账号已在其他设备登录」
-  并退回登录界面。
+| 文件 | 职责 |
+|---|---|
+| `SpacetimeConnection.cs` | 只管连接生命周期 + `ServerLinkState`。**不再建立任何订阅** |
+| `AuthManager.cs` | 账号门面：订阅、表回调、Reducer 回调、登录态、`RegisterAsync/LoginAsync/LogoutAsync` |
+| `AuthValidation.cs` | `AuthRules.cs` 的客户端镜像，少一次白跑的往返（服务端仍是权威） |
+
+界面在 `Assets/Scripts/Game/Scripts/UGUI/`：`LoginUI`（登录/注册）、
+`CommonUI`（服务器状态 + 账号栏 + 点屏幕的三种走向）。
+
+契约上有三条容易踩的，客户端已经按这个实现，改的时候别破坏：
+
+1. **订阅必须在调 Login 之前建立**，否则成功那一行的 `OnInsert` 会漏。
+   `AuthManager` 在 `OnConnect` 里就订阅了
+   `session` / `session_closed` 里自己 identity 的行。
+   identity 在 SQL 里是十六进制字面量，要带 `0x` 前缀（`Identity.ToString()` 不带）。
+2. **登录成功看 `Session` 表里有没有自己这条连接的行**，不是看 Reducer 有没有报错。
+   判断用 `ConnectionId == Conn.ConnectionId` 而不是 identity —— 同一 identity 可能有多条连接。
+3. **失败文案从 Reducer 回调的 `Status.Failed(reason)` 取**，reason 就是服务端抛的中文原文。
+
+---
 
 ---
 

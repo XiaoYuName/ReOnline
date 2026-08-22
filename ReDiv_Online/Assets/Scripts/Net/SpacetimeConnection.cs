@@ -5,10 +5,28 @@ using Identity = SpacetimeDB.Identity;
 
 namespace ReDiv.Net
 {
+    /// <summary>服务器连接状态。UI 直接拿它显示「服务器已启动 / 连接中 / 连不上」。</summary>
+    public enum ServerLinkState
+    {
+        /// <summary>还没连，或者已经断开。</summary>
+        Disconnected = 0,
+
+        /// <summary>正在连。</summary>
+        Connecting = 1,
+
+        /// <summary>连上了，identity 已拿到。</summary>
+        Connected = 2,
+
+        /// <summary>连接失败（服务器没起、地址不对、网络不通）。</summary>
+        Failed = 3,
+    }
+
     /// <summary>
     /// SpacetimeDB 连接管理器。挂在一个常驻 GameObject 上即可。
     ///
-    /// 只负责连接生命周期，不含任何玩法逻辑。
+    /// 只负责连接生命周期，不含任何玩法逻辑，**也不建立任何订阅** ——
+    /// 订阅由各个系统自己管（账号相关的在 <see cref="AuthManager"/> 里），
+    /// 官方的建议是按生命周期分组订阅，攒在这里迟早变成一坨谁都不敢删的查询。
     ///
     /// 关于 <c>SpacetimeDBNetworkManager</c>：
     /// SDK 靠它在 Unity 的 Update 里驱动 <c>FrameTick()</c>（把后台线程解析好的消息应用到
@@ -54,6 +72,12 @@ namespace ReDiv.Net
 
         public static bool IsConnected => Conn != null && Conn.IsActive;
 
+        /// <summary>当前连接状态。</summary>
+        public static ServerLinkState LinkState { get; private set; } = ServerLinkState.Disconnected;
+
+        /// <summary>连接状态变化时触发。UI 用这个刷服务器状态显示。</summary>
+        public static event Action<ServerLinkState> LinkStateChanged;
+
         /// <summary>连接建立、拿到 Identity 之后触发。</summary>
         public static event Action Connected;
 
@@ -62,9 +86,6 @@ namespace ReDiv.Net
 
         /// <summary>连接失败时触发。</summary>
         public static event Action<Exception> ConnectFailed;
-
-        /// <summary>订阅生效、初始数据已进客户端缓存后触发。</summary>
-        public static event Action SubscriptionApplied;
 
         // ------------------------------------------------------------------
         // Unity 生命周期
@@ -121,6 +142,8 @@ namespace ReDiv.Net
                 return;
             }
 
+            SetLinkState(ServerLinkState.Connecting);
+
             var builder = DbConnection.Builder()
                 .WithUri(serverUri)
                 .WithDatabaseName(databaseName)
@@ -153,6 +176,7 @@ namespace ReDiv.Net
                 Conn.Disconnect();
             }
             Conn = null;
+            SetLinkState(ServerLinkState.Disconnected);
         }
 
         // ------------------------------------------------------------------
@@ -175,15 +199,17 @@ namespace ReDiv.Net
 #endif
 
             Debug.Log($"[Stdb] 已连接，identity={identity}");
-            Connected?.Invoke();
 
-            Subscribe();
+            // 先切状态再发 Connected：订阅者（AuthManager）在回调里会检查 LinkState
+            SetLinkState(ServerLinkState.Connected);
+            Connected?.Invoke();
         }
 
         private void HandleConnectError(Exception ex)
         {
             Debug.LogError($"[Stdb] 连接失败：{ex.Message}");
             Conn = null;
+            SetLinkState(ServerLinkState.Failed);
             ConnectFailed?.Invoke(ex);
         }
 
@@ -199,39 +225,24 @@ namespace ReDiv.Net
             }
 
             Conn = null;
+            SetLinkState(ServerLinkState.Disconnected);
             Disconnected?.Invoke(ex);
-        }
-
-        /// <summary>
-        /// 建立订阅。
-        ///
-        /// 目前模块里还没有表，所以订阅全表只是走通流程。等有了业务表要改成按需订阅：
-        /// 官方的建议是「按生命周期分组」—— 常驻数据（公告、配置）一组，
-        /// 随界面进出的数据（商店、公会）各一组，切换时先订阅新的再退订旧的。
-        /// SubscribeToAllTables 建立的订阅无法取消，只适合当前这种试通阶段。
-        /// </summary>
-        private void Subscribe()
-        {
-            Conn.SubscriptionBuilder()
-                .OnApplied(HandleSubscriptionApplied)
-                .OnError(HandleSubscriptionError)
-                .SubscribeToAllTables();
-        }
-
-        private void HandleSubscriptionApplied(SubscriptionEventContext ctx)
-        {
-            Debug.Log("[Stdb] 订阅已生效");
-            SubscriptionApplied?.Invoke();
-        }
-
-        private void HandleSubscriptionError(ErrorContext ctx, Exception ex)
-        {
-            Debug.LogError($"[Stdb] 订阅失败：{ex.Message}");
         }
 
         // ------------------------------------------------------------------
         // 内部
         // ------------------------------------------------------------------
+
+        private static void SetLinkState(ServerLinkState state)
+        {
+            if (LinkState == state)
+            {
+                return;
+            }
+
+            LinkState = state;
+            LinkStateChanged?.Invoke(state);
+        }
 
         /// <summary>
         /// 确保场景里有且只有一个 SpacetimeDBNetworkManager。

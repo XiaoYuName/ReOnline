@@ -80,8 +80,8 @@ public static partial class Module
     /// 在线会话（**公开表**）。客户端订阅自己那一行来判断登录状态。
     ///
     /// 主键是 ConnectionId 而不是 Identity：同一个 Identity 可能有多条连接
-    /// （最典型的是 Unity 编辑器和同机的 Standalone 包 —— 它们共用 PlayerPrefs 里的
-    /// AuthToken，因此是同一个 Identity）。一条连接一行，断开时按 ConnectionId 精确清理。
+    /// （一台机器上跑两份同一个客户端包就是同一个 Identity，因为 AuthToken 存在同一个位置）。
+    /// 一条连接一行，断开时按 ConnectionId 精确清理。
     ///
     /// 公开表意味着所有客户端都能订阅到全部行，也就是能看到当前在线的用户名列表。
     /// 这是有意的（在线列表本身有用），所以这里**只放不敏感字段**。

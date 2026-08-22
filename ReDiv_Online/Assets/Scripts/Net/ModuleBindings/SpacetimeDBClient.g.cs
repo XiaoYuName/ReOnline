@@ -618,6 +618,7 @@ namespace ReDiv.Net.Bindings
             return reducer switch
             {
                 Reducer.AuthSelfTest args => Reducers.InvokeAuthSelfTest(eventContext, args),
+                Reducer.CheckVersion args => Reducers.InvokeCheckVersion(eventContext, args),
                 Reducer.Login args => Reducers.InvokeLogin(eventContext, args),
                 Reducer.Logout args => Reducers.InvokeLogout(eventContext, args),
                 Reducer.Ping args => Reducers.InvokePing(eventContext, args),

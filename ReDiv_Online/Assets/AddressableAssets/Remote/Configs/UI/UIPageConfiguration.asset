@@ -22,9 +22,21 @@ MonoBehaviour:
     PrefabModifications: []
     SerializationNodes: []
   DataList:
-  - PageID: 
-    PagePath: 
+  - PageID: PopDialogueUI
+    PagePath: Prefabs/UGUI/PopDialogueUI/PopDialogueUI.prefab
+    UIParent: 0
+    IsTween: 1
+    IsMouseRightHide: 1
+    Description: "\u5BF9\u8BDD\u6846UI"
+  - PageID: LoginUI
+    PagePath: Prefabs/UGUI/LoginUI/LoginUI.prefab
+    UIParent: 0
+    IsTween: 1
+    IsMouseRightHide: 1
+    Description: "\u767B\u5F55\u754C\u9762UI"
+  - PageID: CommonUI
+    PagePath: Prefabs/UGUI/CommonUI/CommonUI.prefab
     UIParent: 0
     IsTween: 0
     IsMouseRightHide: 0
-    Description: 
+    Description: "\u5916\u4E3B\u754C\u9762"

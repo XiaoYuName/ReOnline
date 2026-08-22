@@ -16,6 +16,7 @@ namespace XFramework
         private AssetsLoadMode assetsLoadMode = AssetsLoadMode.LocalAssetDatabase;
 
         public CommonUI _commonUI;
+        public PopLoadingUI  _popLoadingUI;
 
         /// <summary>
         /// 游戏开始事件
@@ -30,6 +31,7 @@ namespace XFramework
         {
             base.Awake();
             DontDestroyOnLoad(gameObject);
+            _popLoadingUI.Init();
             AssetsManager.Instance.SetLoadMode(assetsLoadMode);
             LanguageManager.Instance.Initialized().Forget();
             ResolutionManager.Instance.Initialized().Forget();
@@ -51,6 +53,8 @@ namespace XFramework
             Application.targetFrameRate = -1;
            
             StarGame();
+            // 首屏准备好了再把遮罩淡掉
+            await _popLoadingUI.FadeOutAsync(1f);
         }
 
         public async UniTask Release()
@@ -69,7 +73,7 @@ namespace XFramework
 
         private void StarGame()
         {
-            //_commonUI.uiPageData = UISystem.Instance.GetPageData(UIKeys.CommonUI);
+            _commonUI.uiPageData = UISystem.Instance.GetPageData(UIKeys.CommonUI);
             _commonUI.Open();
             _commonUI.Init();
         }

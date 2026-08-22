@@ -129,9 +129,10 @@ public static partial class Module
     /// 给当前连接建会话，并按「顶号」策略清理其它会话。
     ///
     /// 顶号的粒度是 **Identity（设备）而不是连接**：同一 Identity 的多条连接允许共存。
-    /// 这不只是为了宽容 —— Unity 编辑器和同机的 Standalone 包共用 PlayerPrefs 里的
-    /// AuthToken，是同一个 Identity；如果按连接顶号，本机开两个客户端就会互相踢，
-    /// 开发期根本没法调。
+    /// 因为 Identity 来自客户端存在本地的 AuthToken，一台机器上跑两份**同一个包**
+    /// 就是同一个 Identity；按连接顶号的话它们会互相踢，谁都进不去。
+    /// （Unity 编辑器和打包出来的客户端**不是**同一个 Identity —— SDK 的 AuthToken
+    /// 在编辑器下会把 Application.dataPath 拼进 PlayerPrefs 的键里，两边各存一份。）
     /// </summary>
     private static void OpenSession(ReducerContext ctx, Account account)
     {

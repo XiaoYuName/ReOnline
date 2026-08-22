@@ -224,10 +224,10 @@ TextureImporter:
       name: LoginUI_4
       rect:
         serializedVersion: 2
-        x: 165
-        y: 516
-        width: 79
-        height: 52
+        x: 171
+        y: 520
+        width: 70
+        height: 40
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -414,6 +414,28 @@ TextureImporter:
       bones: []
       spriteID: bbd1b931132125b43ac028cde8503115
       internalID: -1625850657
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_13
+      rect:
+        serializedVersion: 2
+        x: 171
+        y: 616
+        width: 70
+        height: 38
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a033dfab1842f8c4984d32bf71f410f2
+      internalID: 536064329
       vertices: []
       indices: 
       edges: []

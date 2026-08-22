@@ -1,0 +1,501 @@
+{
+  "tool": "restore_ngui_atlas_manifests.py",
+  "tool_version": "1.0.0",
+  "schema": "Rediv.NGUI.AtlasManifest/v1",
+  "source_bundle": "D:\\AssetsStudio\\Rediv\\CN_分类完成\\_原始数据\\AssetBundles\\Android\\202608171854\\a\\atlasngui_atlaspromotionframe.unity3d",
+  "source_texture_name": "AtlasPromotionFrame",
+  "source_texture_path_id": -2556875503619677299,
+  "source_uiatlas_path_id": 6511213090748456874,
+  "classified_atlas": "D:\\AssetsStudio\\Rediv\\CN_分类完成\\UI\\Common_通用\\atlasngui\\promotionframe\\atlaspromotionframe.png",
+  "sprite_count": 22,
+  "texture_size": {
+    "width": 1024,
+    "height": 1024
+  },
+  "sprites": [
+    {
+      "name": "unit_frame_1",
+      "file": "unit_frame_1.png",
+      "ngui_rect_top_left": {
+        "x": 244,
+        "y": 753,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_1_l",
+      "file": "unit_frame_1_l.png",
+      "ngui_rect_top_left": {
+        "x": 122,
+        "y": 653,
+        "width": 120,
+        "height": 185
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_10",
+      "file": "unit_frame_10.png",
+      "ngui_rect_top_left": {
+        "x": 517,
+        "y": 766,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_10_l",
+      "file": "unit_frame_10_l.png",
+      "ngui_rect_top_left": {
+        "x": 0,
+        "y": 465,
+        "width": 120,
+        "height": 185
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_2",
+      "file": "unit_frame_2.png",
+      "ngui_rect_top_left": {
+        "x": 517,
+        "y": 896,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_2_l",
+      "file": "unit_frame_2_l.png",
+      "ngui_rect_top_left": {
+        "x": 122,
+        "y": 279,
+        "width": 120,
+        "height": 185
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_3",
+      "file": "unit_frame_3.png",
+      "ngui_rect_top_left": {
+        "x": 387,
+        "y": 766,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_3_l",
+      "file": "unit_frame_3_l.png",
+      "ngui_rect_top_left": {
+        "x": 0,
+        "y": 652,
+        "width": 120,
+        "height": 185
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_4",
+      "file": "unit_frame_4.png",
+      "ngui_rect_top_left": {
+        "x": 647,
+        "y": 896,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_4_l",
+      "file": "unit_frame_4_l.png",
+      "ngui_rect_top_left": {
+        "x": 0,
+        "y": 839,
+        "width": 120,
+        "height": 185
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_5",
+      "file": "unit_frame_5.png",
+      "ngui_rect_top_left": {
+        "x": 374,
+        "y": 636,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_5_l",
+      "file": "unit_frame_5_l.png",
+      "ngui_rect_top_left": {
+        "x": 122,
+        "y": 466,
+        "width": 120,
+        "height": 185
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 1,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_6",
+      "file": "unit_frame_6.png",
+      "ngui_rect_top_left": {
+        "x": 777,
+        "y": 766,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_6_l",
+      "file": "unit_frame_6_l.png",
+      "ngui_rect_top_left": {
+        "x": 0,
+        "y": 279,
+        "width": 120,
+        "height": 184
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 1,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_7",
+      "file": "unit_frame_7.png",
+      "ngui_rect_top_left": {
+        "x": 777,
+        "y": 896,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_7_l",
+      "file": "unit_frame_7_l.png",
+      "ngui_rect_top_left": {
+        "x": 122,
+        "y": 93,
+        "width": 120,
+        "height": 184
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_8",
+      "file": "unit_frame_8.png",
+      "ngui_rect_top_left": {
+        "x": 387,
+        "y": 896,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_8_l",
+      "file": "unit_frame_8_l.png",
+      "ngui_rect_top_left": {
+        "x": 122,
+        "y": 840,
+        "width": 120,
+        "height": 184
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 1,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_9",
+      "file": "unit_frame_9.png",
+      "ngui_rect_top_left": {
+        "x": 647,
+        "y": 766,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    },
+    {
+      "name": "unit_frame_9_l",
+      "file": "unit_frame_9_l.png",
+      "ngui_rect_top_left": {
+        "x": 0,
+        "y": 92,
+        "width": 120,
+        "height": 185
+      },
+      "border": {
+        "left": 30,
+        "right": 30,
+        "top": 30,
+        "bottom": 30
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_alert",
+      "file": "unit_frame_alert.png",
+      "ngui_rect_top_left": {
+        "x": 244,
+        "y": 883,
+        "width": 141,
+        "height": 141
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 2,
+        "right": 1,
+        "top": 2,
+        "bottom": 1
+      }
+    },
+    {
+      "name": "unit_frame_white",
+      "file": "unit_frame_white.png",
+      "ngui_rect_top_left": {
+        "x": 244,
+        "y": 623,
+        "width": 128,
+        "height": 128
+      },
+      "border": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      },
+      "padding": {
+        "left": 0,
+        "right": 0,
+        "top": 0,
+        "bottom": 0
+      }
+    }
+  ]
+}

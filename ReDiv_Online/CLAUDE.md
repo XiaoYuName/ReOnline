@@ -67,6 +67,16 @@ Excel 源表在 `ExcelTool/LubanTools/DataTables/Datas/*.xlsx`，生成的 C# �
 
 编辑器菜单：`Tools > XFramework > 配置 > LuaConfig`（快捷键 **F6**）。
 
+### 一键生成配置的依赖关系
+
+`ConfigTools` 的「一键生成配置」有 5 步，其中**只有一条依赖**：
+第 3 步（LubanManager）需要第 1 步的导出产物和第 2 步的常量。
+第 4 步 UIKeys 读 `UIPageConfiguration` 资产、第 5 步 AudioKeys 读 `AudioConfiguration` 资产，
+**都和 Luban 无关**，前面失败也照样执行（2026-08-22 修：以前是一步失败就整体中断，
+而工程里暂时没有 Luban 表类 ⇒ 第 3 步必然失败 ⇒ UIKeys 永远生成不出来）。
+
+跑完看日志里的汇总（成功 / 失败 / 跳过各是哪几步），别只看有没有报错。
+
 ### 改 Excel 必须用 ExcelTable.ps1，不要用 openpyxl 之类
 
 `ExcelTool/LubanTools/ExcelTable.ps1` 走 **Excel COM 自动化**。原因写在脚本头部：
@@ -98,8 +108,20 @@ Excel 源表在 `ExcelTool/LubanTools/DataTables/Datas/*.xlsx`，生成的 C# �
 | 自动打包 Addressable | `Assets/Editor/AddressableTools/AddressableBuild.cs` |
 | 清空 Addressable 标签内容 | 同上 |
 
-`Tools > XFramework > UI > 生成 UIKeys` 从 Addressables 条目生成
+`Tools > XFramework > UI > 生成 UIKeys` 从 **`UIPageConfiguration` 资产**生成
 `Assets/Scripts/Game/Scripts/AddressableKeys/UIKeys.cs`，**是生成物**。
+（以前读的是 Luban 导出的 `tbuipagedata.json`，UI 配置独立成 ScriptableObject 后不再依赖 Luban。）
+
+### Addressable Key 约定：完整资源路径
+
+`AddressableBuild` 的 `UseAssetPathAsAddress = true`，所以**地址就是资源的完整路径**
+（`AssetKeys` 里全是 `Assets/AddressableAssets/Remote/...`）。加载接口收的 key 也是这个。
+
+⚠️ 唯一的例外是 UI 配置表：`UIPageData.PagePath` 因为 Odin 的
+`[FilePath(ParentFolder = "Assets/AddressableAssets/Remote")]` 存的是**相对路径**。
+所以加载时必须用 `UIPageData.PageKey`（它会补上前缀），**不要直接用 PagePath** ——
+直接用的话编辑器下会解析不到、拿到 null，然后在 `Instantiate` 处炸成一句和资源
+毫无关系的 `ArgumentException: The Object you want to instantiate is null`。
 
 ### 编辑器菜单约定
 
@@ -145,32 +167,64 @@ Assets/Scripts/Net/
 `FrameTick()`，WebGL 下还靠它跑消息解析协程，是**必需**组件）。
 **不要再手动挂第二个** —— 它是单例，重复挂会抛异常。
 
-连上后 Console 应出现：
+连上后 Console 应出现（订阅由各系统自己建，所以这里没有「订阅已生效」）：
 
 ```
 [Stdb] 正在连接 http://127.0.0.1:2383 / rediv
 [Stdb] 已连接，identity=...
-[Stdb] 订阅已生效
+[Auth] 未登录，等玩家输入账号        ← 或「[Auth] 免密恢复登录：<用户名>」
+[Version] 版本一致：0.0.1
 ```
 
-### 账号系统（客户端这半还没做）
+> `SpacetimeConnection` **不再调 `SubscribeToAllTables`**。订阅按官方建议「按生命周期分组」，
+> 谁要数据谁订阅（账号相关的在 `AuthManager` 里）。
 
-服务端已有用户名 + 口令的注册 / 登录 / 会话（`Register` / `Login` / `Logout`，
-绑定已生成）。Unity 侧**还没有**登录界面和封装。要接的时候记住三件事，
-细节和完整契约在 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「账号系统」一节：
+### 账号系统
 
-1. **订阅必须先建立再调 `Login`**，否则成功那一行的 `OnInsert` 会漏。至少要订阅
-   `session` 和 `session_closed` 里自己 identity 的行。
-   现在的 `Subscribe()` 用的是 `SubscribeToAllTables()`，是试通阶段的写法，接登录时要改。
-2. **失败文案走 Reducer 回调**：`Conn.Reducers.OnLogin += ctx => ...`，
-   从 `ctx.Event.Status` 的 `Status.Failed(var reason)` 里取，reason 是中文，直接显示。
-   成功不看回调，看 `Session` 表里有没有自己那一行。
-3. **连上后别直接跳登录界面**：服务端会按 Identity 免密恢复登录态（AuthToken 存在
-   PlayerPrefs 里），订阅生效时 `Session` 里已经有自己那行就直接进游戏。
-   收到 `SessionClosed` 且 `Reason = KickedByNewLogin` 就是被顶号了。
+用户名 + 口令的注册 / 登录 / 登出已经打通，服务端在 `../ReDiv_Server/spacetimedb/Auth/`。
+
+```
+Assets/Scripts/Net/
+├── SpacetimeConnection.cs   只管连接生命周期 + ServerLinkState，**不建立任何订阅**
+├── AuthManager.cs           账号门面（纯 C# 单例，不用挂场景）
+├── AuthValidation.cs        服务端 AuthRules 的客户端镜像
+└── ModuleBindings/          生成物
+```
+
+UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonUI`
+（服务器状态 + 账号栏 + 版本号 + 点屏幕的三种走向：已登录进游戏 / 未登录弹 LoginUI /
+连不上弹重试）。
+
+`AuthManager` 是 UI 唯一要打交道的类，不要在界面里碰 `Conn`：
+
+| 成员 | 用途 |
+|---|---|
+| `LinkState` / `LinkStateChanged` | 服务器连接状态 |
+| `IsAuthReady` / `AuthReady` | 订阅是否生效。**为 false 时 `IsLoggedIn` 不可信** |
+| `IsLoggedIn` / `Username` / `AccountId` / `LoginStateChanged` | 登录态 |
+| `SessionClosedByServer` | 被顶号 / 被登出的通知（带原因枚举） |
+| `VersionMismatch` / `VersionMessage` / `VersionMismatched` | 版本校验，见第 8 节 |
+| `RegisterAsync` / `LoginAsync` / `LogoutAsync` | 返回 `AuthResult { Ok, Message }`，Message 是可直接显示的中文 |
+| `RetryConnect()` | 断线重连 |
+
+四条实现约束，改的时候别破坏（踩过）：
+
+1. **订阅必须在调 Login 之前建立**，否则成功那一行的 `OnInsert` 会漏。
+   `AuthManager` 在连上时就订阅了 `session` / `session_closed` 里自己 identity 的行。
+   identity 在订阅 SQL 里是十六进制字面量，**要带 `0x` 前缀**
+   （`Identity.ToString()` 给的是不带前缀的大写 hex）。
+2. **登录成功看 `Session` 表里有没有自己这条连接的行**，判断用
+   `ConnectionId == Conn.ConnectionId`，不是 identity —— 同一 identity 可能有多条连接。
+3. **失败文案从 `ctx.Event.Status` 的 `Status.Failed(reason)` 取**，
+   reason 是服务端抛的中文原文，直接显示。
+4. **连上后别直接弹登录界面**：服务端会按 Identity 免密恢复登录态，
+   `AuthReady` 时 `IsLoggedIn` 已经是 true 就直接进游戏。
 
 > ⚠️ 改 `companyName` / `productName` 会换掉 PlayerPrefs 位置 ⇒ AuthToken 丢 ⇒ 拿到新
 > Identity ⇒ 免密登录失效，得重新输口令。见第 8 节。
+
+> `Logout` 会同时解除服务端的免密绑定。prefab 里还没有登出按钮，
+> 加了之后 Bind 到 `CommonUI.Logout` 即可。
 
 ### 服务端操作面板
 
@@ -239,6 +293,31 @@ Recorder、MemoryProfiler、Luban、UIEffect、UnmaskForUGUI、UniTask、Spine 4
 
 **Assets/Plugins**：DOTween Pro（Demigiant）、Odin Inspector（Sirenix）、
 Febucci Text Animator、DamageNumbersPro、PathologicalGames
+
+---
+
+## 8.5 版本号（客户端三处 + 服务端一处必须一致）
+
+客户端连上服务器后会立刻调 `CheckVersion(Application.version)` 对一次版本号，
+不一致就弹窗提示并禁止登录（详见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「版本号」一节）。
+所以版本号改一处不够，客户端这**三处**要一起改：
+
+| 位置 | 作用 |
+|---|---|
+| `ProjectSettings/ProjectSettings.asset` 的 `bundleVersion` | `Application.version` 读的就是它，**校验用的是这个值** |
+| `Assets/Settings/Build Profiles/PC.asset` | 这个 profile 自带一份 PlayerSettings 覆盖快照 |
+| `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 的 `Version` | 出包时会写回 PlayerSettings，是**出包时的真正权威** |
+
+加上服务端 `ReDiv_Server/spacetimedb/Version.cs` 的 `Module.ServerVersion`（改完要 publish），
+一共四处。2026-08-22 之前这四处是 `1.0` / `0.1` / `0.1` / 无，界面上还写死显示 `0.0.1`，
+四个值互不相同 —— 现在统一成 `0.0.1`。
+
+编辑器开着时**不要手改** `ProjectSettings.asset` 和 profile 的 YAML 快照（会被编辑器内存值盖回），
+走 API：`PlayerSettings.bundleVersion`；profile 的覆盖用
+`SerializedObject(profile.playerSettings)` 改完再调 `SerializePlayerSettings()`（都是 internal，用反射）。
+
+界面右下角的版本号由 `CommonUI.RefreshVersion()` 从 `Application.version` 刷，
+**不要再往 prefab 里写死**，否则又会和校验值对不上。
 
 ---
 
