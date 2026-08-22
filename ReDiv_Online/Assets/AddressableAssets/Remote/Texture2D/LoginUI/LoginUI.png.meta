@@ -1,0 +1,453 @@
+fileFormatVersion: 2
+guid: d065b97807f791149ae1ab65b836549f
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -2343248182180869615
+    second: LoginUI_0
+  - first:
+      213: -7831160265662137303
+    second: LoginUI_1
+  - first:
+      213: -19029653865801826
+    second: LoginUI_2
+  - first:
+      213: -769149582345996574
+    second: LoginUI_3
+  - first:
+      213: 5359946625078648047
+    second: LoginUI_4
+  - first:
+      213: 388556552680173137
+    second: LoginUI_5
+  - first:
+      213: -8513353278419951382
+    second: LoginUI_6
+  - first:
+      213: 6407043360642211064
+    second: LoginUI_7
+  - first:
+      213: 2907626379962401064
+    second: LoginUI_8
+  - first:
+      213: -4169411300097219579
+    second: LoginUI_9
+  - first:
+      213: 1934978931097093838
+    second: LoginUI_10
+  - first:
+      213: -454329946518376167
+    second: LoginUI_11
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: LoginUI_0
+      rect:
+        serializedVersion: 2
+        x: 94
+        y: 599
+        width: 64
+        height: 73
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11a8780813c1b7fd0800000000000000
+      internalID: -2343248182180869615
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_1
+      rect:
+        serializedVersion: 2
+        x: 290
+        y: 601
+        width: 451
+        height: 72
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 92cfd0aca31225390800000000000000
+      internalID: -7831160265662137303
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_2
+      rect:
+        serializedVersion: 2
+        x: 817
+        y: 266
+        width: 813
+        height: 557
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 290, y: 122, z: 308, w: 123}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e97512171a46cbff0800000000000000
+      internalID: -19029653865801826
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_3
+      rect:
+        serializedVersion: 2
+        x: 93
+        y: 502
+        width: 75
+        height: 83
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e6702da78e6355f0800000000000000
+      internalID: -769149582345996574
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_4
+      rect:
+        serializedVersion: 2
+        x: 165
+        y: 516
+        width: 79
+        height: 52
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fecdddaae0b526a40800000000000000
+      internalID: 5359946625078648047
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_5
+      rect:
+        serializedVersion: 2
+        x: 287
+        y: 505
+        width: 457
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 15ee6a1402e646500800000000000000
+      internalID: 388556552680173137
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_6
+      rect:
+        serializedVersion: 2
+        x: 91
+        y: 419
+        width: 202
+        height: 74
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ae02f588c4e7ad980800000000000000
+      internalID: -8513353278419951382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_7
+      rect:
+        serializedVersion: 2
+        x: 101
+        y: 207
+        width: 633
+        height: 81
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8fc9a939df36ae850800000000000000
+      internalID: 6407043360642211064
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_8
+      rect:
+        serializedVersion: 2
+        x: 601
+        y: 419
+        width: 158
+        height: 78
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 821c63d89c6f95820800000000000000
+      internalID: 2907626379962401064
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_9
+      rect:
+        serializedVersion: 2
+        x: 94
+        y: 302
+        width: 667
+        height: 113
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 504a43753864326c0800000000000000
+      internalID: -4169411300097219579
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_10
+      rect:
+        serializedVersion: 2
+        x: 1314
+        y: 72
+        width: 137
+        height: 158
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ec648ebf51d6ada10800000000000000
+      internalID: 1934978931097093838
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_11
+      rect:
+        serializedVersion: 2
+        x: 1447
+        y: 17
+        width: 162
+        height: 212
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 91133fe1255e1b9f0800000000000000
+      internalID: -454329946518376167
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LoginUI_12
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 837
+        width: 90
+        height: 92
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bbd1b931132125b43ac028cde8503115
+      internalID: -1625850657
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: a9d0a782cffb4f744923f5d7689edc73
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      LoginUI_0: -2343248182180869615
+      LoginUI_1: -7831160265662137303
+      LoginUI_10: 1934978931097093838
+      LoginUI_11: -454329946518376167
+      LoginUI_12: -1625850657
+      LoginUI_13: 536064329
+      LoginUI_2: -19029653865801826
+      LoginUI_3: -769149582345996574
+      LoginUI_4: 5359946625078648047
+      LoginUI_5: 388556552680173137
+      LoginUI_6: -8513353278419951382
+      LoginUI_7: 6407043360642211064
+      LoginUI_8: 2907626379962401064
+      LoginUI_9: -4169411300097219579
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
