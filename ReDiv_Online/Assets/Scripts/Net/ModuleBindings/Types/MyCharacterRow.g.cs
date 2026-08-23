@@ -20,6 +20,10 @@ namespace ReDiv.Net.Bindings
         public string Name;
         [DataMember(Name = "job_id")]
         public uint JobId;
+        [DataMember(Name = "spec_id")]
+        public uint SpecId;
+        [DataMember(Name = "form_stage")]
+        public int FormStage;
         [DataMember(Name = "level")]
         public uint Level;
         [DataMember(Name = "exp")]
@@ -33,6 +37,8 @@ namespace ReDiv.Net.Bindings
             ulong CharacterId,
             string Name,
             uint JobId,
+            uint SpecId,
+            int FormStage,
             uint Level,
             ulong Exp,
             SpacetimeDB.Timestamp CreatedAt,
@@ -42,6 +48,8 @@ namespace ReDiv.Net.Bindings
             this.CharacterId = CharacterId;
             this.Name = Name;
             this.JobId = JobId;
+            this.SpecId = SpecId;
+            this.FormStage = FormStage;
             this.Level = Level;
             this.Exp = Exp;
             this.CreatedAt = CreatedAt;

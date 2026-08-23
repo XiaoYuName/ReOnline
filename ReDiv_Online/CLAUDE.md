@@ -258,6 +258,26 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
 - **现在只能传 `jobId = 1`**（职业表里唯一那行占位数据）。真实职业列表还没定，
   界面上的职业选项先别硬编码。
 
+三层结构（配置在 `ExcelTool/LubanTools/DataTables/`）：
+
+```
+CharacterJob        角色 / 职业（凯露）—— 建角色时选，之后不变
+  └ JobSpecialization  专职（魔法士…）—— 一个角色多个可用，同时只一个生效，可切换
+      └ SpecializationForm  形态 —— 每个专职 3 个（专职名 / 觉醒名 / 一次觉醒名）
+```
+
+界面要怎么取数据：
+
+- 职业名 / 副标题 / 排序 → `TbCharacterJob`（客户端专属列）
+- 专职卡的名字和图标 → `TbJobSpecialization`；`UnlockLevel` 用来把没解锁的画成灰的
+- **立绘和头像在形态上**（觉醒会换外观）：`TbSpecializationForm.Get(specId, stage)`
+  拿 `NameKey` / `ArtKey` / `IconKey`
+- **当前形态别自己算** —— `MyCharacter` View 的 `FormStage` 就是服务端按等级算好的，
+  客户端再算一遍两边迟早对不上。切专职调 `SwitchSpecialization(characterId, specId)`。
+
+⚠️ `ArtKey` / `IconKey` 填的是 **Addressable 完整资源路径**（见第 4 节的 key 约定），
+不是相对路径。
+
 ### 服务端操作面板
 
 **`Tools > XFramework > 服务端 > SpacetimeDB 控制台`** —— 一站式：发布模块、生成绑定、

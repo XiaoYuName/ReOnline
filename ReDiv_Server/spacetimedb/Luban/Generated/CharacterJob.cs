@@ -17,8 +17,8 @@ public sealed partial class CharacterJob : Luban.BeanBase
     public CharacterJob(ByteBuf _buf) 
     {
         JobId = _buf.ReadInt();
-        ParentJobId = _buf.ReadInt();
         Creatable = _buf.ReadBool();
+        DefaultSpecId = _buf.ReadInt();
         StartLevel = _buf.ReadInt();
     }
 
@@ -28,8 +28,8 @@ public sealed partial class CharacterJob : Luban.BeanBase
     }
 
     public readonly int JobId;
-    public readonly int ParentJobId;
     public readonly bool Creatable;
+    public readonly int DefaultSpecId;
     public readonly int StartLevel;
    
     public const int __ID__ = -1278902284;
@@ -43,8 +43,8 @@ public sealed partial class CharacterJob : Luban.BeanBase
     {
         return "{ "
         + "JobId:" + JobId + ","
-        + "ParentJobId:" + ParentJobId + ","
         + "Creatable:" + Creatable + ","
+        + "DefaultSpecId:" + DefaultSpecId + ","
         + "StartLevel:" + StartLevel + ","
         + "}";
     }

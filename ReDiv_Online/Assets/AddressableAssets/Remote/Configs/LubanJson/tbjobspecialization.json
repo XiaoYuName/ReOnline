@@ -1,0 +1,18 @@
+[
+  {
+    "SpecId": 101,
+    "JobId": 1,
+    "UnlockLevel": 0,
+    "NameKey": "Spec_Mage",
+    "IconKey": "",
+    "SortOrder": 1
+  },
+  {
+    "SpecId": 102,
+    "JobId": 1,
+    "UnlockLevel": 20,
+    "NameKey": "Spec_Placeholder_02",
+    "IconKey": "",
+    "SortOrder": 2
+  }
+]

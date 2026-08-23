@@ -20,8 +20,17 @@ namespace XFramework
         public const string UIButtonCancel02Path = "Assets/AddressableAssets/Remote/Audio/Common/UI_Button_Cancel_02.wav";
         public const string UIButtonClick02Path = "Assets/AddressableAssets/Remote/Audio/Common/UI_Button_Click_02.wav";
         public const string UIButtonDisable02Path = "Assets/AddressableAssets/Remote/Audio/Common/UI_Button_Disable_02.wav";
+        public const string _100211S38AtlasPath = "Assets/AddressableAssets/Remote/Character/优衣/1/100211_s38.atlas.txt";
+        public const string _100211S38Path = "Assets/AddressableAssets/Remote/Character/优衣/1/100211_s38.json";
+        public const string _100211S38Path2 = "Assets/AddressableAssets/Remote/Character/优衣/1/100211_s38.png";
+        public const string _100211S38AtlasPath2 = "Assets/AddressableAssets/Remote/Character/优衣/1/100211_s38_Atlas.asset";
+        public const string _100211S38MaterialPath = "Assets/AddressableAssets/Remote/Character/优衣/1/100211_s38_Material.mat";
+        public const string _100211S38SkeletonDataPath = "Assets/AddressableAssets/Remote/Character/优衣/1/100211_s38_SkeletonData.asset";
         public const string AudioConfigurationPath = "Assets/AddressableAssets/Remote/Configs/Audio/AudioConfiguration.asset";
         public const string XMixerPath = "Assets/AddressableAssets/Remote/Configs/Audio/XMixer.mixer";
+        public const string TbcharacterjobPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbcharacterjob.json";
+        public const string TbjobspecializationPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbjobspecialization.json";
+        public const string TbspecializationformPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbspecializationform.json";
         public const string UIPageConfigurationPath = "Assets/AddressableAssets/Remote/Configs/UI/UIPageConfiguration.asset";
         public const string MusicSourcePath = "Assets/AddressableAssets/Remote/Prefabs/AudioItem/MusicSource.prefab";
         public const string CommonUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/CommonUI.prefab";
@@ -55,11 +64,19 @@ namespace XFramework
         public const string Sepcialillust26IntroPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/Texture2D/sepcialillust_26 - Intro.png";
         public const string Sepcialillust26Path = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/Texture2D/sepcialillust_26.png";
         public const string TouchpointPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/Texture2D/touchpoint.png";
+        public const string CharacterHeadSlotPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/CharacterHeadSlot.prefab";
+        public const string CreatCharacterUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/CreatCharacterUI.prefab";
+        public const string ImagePath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/Image.prefab";
+        public const string BsmCharaFull106001LPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/bsm_chara_full_106001_l.png";
+        public const string CharaName1078Path = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/chara_name_1078.png";
+        public const string IconUnit106011Path = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/icon_unit_106011.png";
+        public const string UnitPlate106011Path = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/unit_plate_106011.png";
         public const string RedivLoginBackground2kPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoadingUI/rediv-login-background-2k.png";
         public const string RedivLoginPopupSpritesheetPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoadingUI/rediv-login-popup-spritesheet.png";
         public const string LoginUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoginUI/LoginUI.prefab";
         public const string PopDialogueUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopDialogueUI/PopDialogueUI.prefab";
         public const string PopLoadingUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopLoadingUI/PopLoadingUI.prefab";
+        public const string SelectCharacterUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/SelectCharacterUI/SelectCharacterUI.prefab";
         public const string AtlasManifestPath = "Assets/AddressableAssets/Remote/Texture2D/Common/Data/atlas_manifest.json";
         public const string CommonAtlasPath = "Assets/AddressableAssets/Remote/Texture2D/Common/Data/common_atlas.png";
         public const string BalloonDungeonEventPath = "Assets/AddressableAssets/Remote/Texture2D/Common/balloon_dungeon_event.png";
@@ -682,6 +699,12 @@ namespace XFramework
         public const string AtlasManifestPath2 = "Assets/AddressableAssets/Remote/Texture2D/Farme/atlas_manifest.json";
         public const string CommonframePath = "Assets/AddressableAssets/Remote/Texture2D/Farme/commonframe.png";
         public const string LoginUIPath2 = "Assets/AddressableAssets/Remote/Texture2D/LoginUI/LoginUI.png";
+        public const string ChatGPTImage2026年8月22日175020Path = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/ChatGPT Image 2026年8月22日 17_50_20.png";
+        public const string ChatGPTImage2026年8月23日161057Path = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/ChatGPT Image 2026年8月23日 16_10_57.png";
+        public const string ChatGPTImage2026年8月23日163924Path = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/ChatGPT Image 2026年8月23日 16_39_24.png";
+        public const string SelectedCharacterUIPath = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/SelectedCharacterUI.png";
+        public const string AtlasManifestPath3 = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/atlas_manifest.json";
+        public const string AtlascooptopPath = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/atlascooptop.png";
         public const string LoadingPath = "Assets/AddressableAssets/Remote/Video/Loading/Loading.asset";
     }
 }

@@ -229,6 +229,7 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 | 账号（注册 / 登录 / 登出 / 会话 / 顶号 / 免密重连） | ✅ | ✅ | [ReDiv_Server/README.md](ReDiv_Server/README.md) 「账号系统」 |
 | 版本校验（不一致弹窗 + 禁止登录） | ✅ | ✅ | 同上「版本号」 |
 | 角色（多角色 / 创建 / 软删 / 选择 / 选角状态） | ✅ | ❌ **还没写** | 同上「角色系统」 |
+| 专职与形态（职业 → 专职 → 3 形态，可切专职，形态按等级现算） | ✅ | ❌ **还没写** | 同上「角色系统」 |
 | 配置表通路（Excel → Luban → 编进 wasm） | ✅ | ✅（原有） | 同上「配置表」 |
 
 客户端 UI 现状：`CommonUI`（标题界面：服务器状态 / 账号栏 / 版本号 / 点屏幕）、
@@ -240,8 +241,9 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 
 1. **客户端选人界面**：订阅 `my_character` / `my_account_profile`（View，不用带 where），
    调 `CreateCharacter` / `DeleteCharacter` / `SelectCharacter`，选完进城镇。
-2. **真实职业列表**：`ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/CharacterJob.xlsx` 现在只有一行占位数据
-   （`JobId=1 / Job_Placeholder_01`），**不是玩法设定**，等定了替换。
+2. **真实职业 / 专职列表**：`ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下的
+   `CharacterJob.xlsx`（角色）、`JobSpecialization.xlsx`（专职）、`SpecializationForm.xlsx`（形态）
+   现在全是占位数据，**不是玩法设定**，等定了替换。表结构和字段分组见服务端 README「配置表」。
 3. 城镇 / 地图 / 角色玩法态表 —— 还没设计，**要动手前先问**。
 
 ### 本地测试数据（开发库 `rediv` 里现成的）
@@ -252,7 +254,7 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 | `Carol_01` | `carol123` | 名下 1 个角色「苍之骑士」 |
 | `bob_2` | `密码123带空格 ok` | 用来验证中文 + 空格口令能过 |
 
-角色栏位默认 4，职业只能填 `1`（占位那行）。清库重来：
+角色栏位默认 4，职业只能填 `1`（占位那行），专职 101 / 102 也是占位。清库重来：
 `spacetime publish --delete-data=always --yes`。
 
 ### 哪些东西是「有意没做」，别当成漏掉了

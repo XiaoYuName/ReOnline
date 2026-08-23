@@ -17,16 +17,28 @@ public partial class Tables
     /// 职业配置表（结构在 Defines/character.xml，字段带 group 区分客户端/服务端）
     /// </summary>
     public TbCharacterJob TbCharacterJob {get; }
+    /// <summary>
+    /// 专职表（结构在 Defines/character.xml）
+    /// </summary>
+    public TbJobSpecialization TbJobSpecialization {get; }
+    /// <summary>
+    /// 专职形态表，联合主键 SpecId+Stage（结构在 Defines/character.xml）
+    /// </summary>
+    public TbSpecializationForm TbSpecializationForm {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
         TbCharacterJob = new TbCharacterJob(loader("tbcharacterjob"));
+        TbJobSpecialization = new TbJobSpecialization(loader("tbjobspecialization"));
+        TbSpecializationForm = new TbSpecializationForm(loader("tbspecializationform"));
         ResolveRef();
     }
     
     private void ResolveRef()
     {
         TbCharacterJob.ResolveRef(this);
+        TbJobSpecialization.ResolveRef(this);
+        TbSpecializationForm.ResolveRef(this);
     }
 }
 

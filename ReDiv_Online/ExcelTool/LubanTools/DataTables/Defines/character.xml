@@ -1,33 +1,89 @@
 <!--
-  角色相关的配置表结构。
+  角色相关的配置表结构，三层：
+
+    CharacterJob        角色 / 职业（凯露）—— 建角色时选的就是这一层
+      └ JobSpecialization  专职（魔法士…）—— 一个角色可解锁多个，同时只有一个生效
+          └ SpecializationForm  形态 —— 每个专职 3 个（专职名 / 觉醒名 / 一次觉醒名）
 
   为什么结构写在 XML 而不是 Excel 表头（read_schema_from_file=false）：
-  只有 XML 能给**字段**标 group —— group="c" 的列只会进客户端生成的代码和数据，
-  group="s" 的只进服务端，不写 group 的两边都有。
-  这样一份 Excel 供两端各取所需：客户端不必把初始数值编进包，服务端不必把图标路径编进 wasm。
+  只有 XML 能给**字段**标 group —— group="c" 的列只进客户端生成的代码和数据，
+  group="s" 的只进服务端，不写 group 的两端都有。
+  客户端配置（立绘、头像、排序）比服务端多得多，靠这个把它们挡在 wasm 外面。
 
   服务端的数据是 cs-bin 生成、以嵌入资源编进 wasm 的（模块里没有文件系统），
-  所以改了 s 组的列或数据，必须重新生成 + spacetime publish 才生效。
+  所以改了 s 组的列或数据，必须重新导出 + spacetime publish 才生效。
 -->
 <module name="">
 
+    <!--
+      第一层：角色 / 职业。建角色时选它，一个账号可以建多个不同职业的角色。
+      注意角色**名字是玩家自己起的**（服务端全服唯一），这里的 NameKey 是职业名（凯露），
+      两者是两回事，别混。
+    -->
     <bean name="CharacterJob">
-        <!-- 不标 group = 两端都有。索引字段必须两端都在。 -->
         <var name="JobId" type="int"/>
 
-        <!-- 职业树：0 表示这是基础职业，否则指向父职业的 JobId。转职就是把角色的 JobId 改成子职业。 -->
-        <var name="ParentJobId" type="int"/>
-
-        <!-- 能否在创建角色界面里选。客户端用来筛选可选项，服务端用来拒绝非法创建，两端都要。 -->
+        <!-- 能否在创建角色界面里选。客户端筛选可选项，服务端拒绝非法创建，两端都要。 -->
         <var name="Creatable" type="bool"/>
+
+        <!--
+          建角色时默认解锁并生效的专职。服务端建角色时要按它写初始专职，
+          客户端建角色预览也要拿它显示默认形象，所以两端都要。
+        -->
+        <var name="DefaultSpecId" type="int"/>
 
         <!-- 只有服务端能信的初始值 -->
         <var name="StartLevel" type="int" group="s"/>
 
-        <!-- 只有客户端要的展示信息 -->
+        <!-- 客户端展示 -->
+        <var name="NameKey" type="string" group="c"/>
+        <var name="SubtitleKey" type="string" group="c"/>
+        <var name="SortOrder" type="int" group="c"/>
+    </bean>
+
+    <!--
+      第二层：专职。一个角色多个，玩家可在已解锁的专职之间切换（同时只有一个生效）。
+    -->
+    <bean name="JobSpecialization">
+        <var name="SpecId" type="int"/>
+
+        <!-- 属于哪个角色 -->
+        <var name="JobId" type="int"/>
+
+        <!--
+          解锁条件：达到这个等级才能解锁这个专职，0 表示一开始就可用。
+          服务端切换专职时要校验，客户端要把没解锁的画成灰的，所以两端都要。
+        -->
+        <var name="UnlockLevel" type="int"/>
+
+        <!-- 客户端展示：专职选择卡上的图标和名字 -->
         <var name="NameKey" type="string" group="c"/>
         <var name="IconKey" type="string" group="c"/>
         <var name="SortOrder" type="int" group="c"/>
+    </bean>
+
+    <!--
+      第三层：形态。每个专职 3 行（Stage 1/2/3 = 专职名 / 觉醒名 / 一次觉醒名）。
+      联合主键 SpecId+Stage，代码里是 TbSpecializationForm.Get(specId, stage)。
+      拆成行而不是在专职表上开 Form1Art/Form2Art… 一排列：立绘头像这些客户端字段一多，
+      横向会爆；而且以后加第四形态只是多一行，不用改表结构。
+
+      形态**不存进度**：当前形态由服务端按 UnlockLevel 现算（角色等级到了就是到了）。
+      以后想改成「做完任务才觉醒」，就得在角色侧加存储，那时再说。
+    -->
+    <bean name="SpecializationForm">
+        <var name="SpecId" type="int"/>
+
+        <!-- 1 = 专职（初始），2 = 觉醒，3 = 一次觉醒 -->
+        <var name="Stage" type="int"/>
+
+        <!-- 解锁等级。Stage=1 通常是 0（一解锁专职就是这个形态）。 -->
+        <var name="UnlockLevel" type="int"/>
+
+        <!-- 客户端展示：这一形态的名字和外观。觉醒会换外观，所以立绘/头像挂在形态而不是专职上。 -->
+        <var name="NameKey" type="string" group="c"/>
+        <var name="ArtKey" type="string" group="c"/>
+        <var name="IconKey" type="string" group="c"/>
     </bean>
 
 </module>

@@ -636,6 +636,7 @@ namespace ReDiv.Net.Bindings
                 Reducer.Ping args => Reducers.InvokePing(eventContext, args),
                 Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
                 Reducer.SelectCharacter args => Reducers.InvokeSelectCharacter(eventContext, args),
+                Reducer.SwitchSpecialization args => Reducers.InvokeSwitchSpecialization(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }

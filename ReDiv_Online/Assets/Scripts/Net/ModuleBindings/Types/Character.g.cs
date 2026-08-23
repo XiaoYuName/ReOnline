@@ -34,6 +34,8 @@ namespace ReDiv.Net.Bindings
         public SpacetimeDB.Timestamp? LastPlayedAt;
         [DataMember(Name = "deleted_at")]
         public SpacetimeDB.Timestamp? DeletedAt;
+        [DataMember(Name = "spec_id")]
+        public uint SpecId;
 
         public Character(
             ulong CharacterId,
@@ -45,7 +47,8 @@ namespace ReDiv.Net.Bindings
             ulong Exp,
             SpacetimeDB.Timestamp CreatedAt,
             SpacetimeDB.Timestamp? LastPlayedAt,
-            SpacetimeDB.Timestamp? DeletedAt
+            SpacetimeDB.Timestamp? DeletedAt,
+            uint SpecId
         )
         {
             this.CharacterId = CharacterId;
@@ -58,6 +61,7 @@ namespace ReDiv.Net.Bindings
             this.CreatedAt = CreatedAt;
             this.LastPlayedAt = LastPlayedAt;
             this.DeletedAt = DeletedAt;
+            this.SpecId = SpecId;
         }
 
         public Character()

@@ -60,6 +60,9 @@ public static partial class Module
             throw CharacterRules.Reject("这个职业暂时不能创建");
         }
 
+        // 初始专职来自职业配置，配置写错了在这里就拒绝，别让角色建出来没有专职
+        uint specId = RequireDefaultSpecId(job);
+
         var inserted = ctx.Db.Character.Insert(new Character
         {
             CharacterId = 0, // AutoInc 占位
@@ -67,6 +70,7 @@ public static partial class Module
             NameKey = nameKey,
             Name = name.Trim(),
             JobId = jobId,
+            SpecId = specId,
             Level = (uint)job.StartLevel,
             Exp = 0,
             CreatedAt = ctx.Timestamp,
@@ -75,7 +79,7 @@ public static partial class Module
         });
 
         Log.Info($"[Character] 创建角色 character={inserted.CharacterId} name={inserted.Name} " +
-                 $"job={jobId} account={accountId}");
+                 $"job={jobId} spec={specId} account={accountId}");
     }
 
     /// <summary>
@@ -131,6 +135,7 @@ public static partial class Module
             CharacterId = characterId,
             CharacterName = character.Name,
             JobId = character.JobId,
+            SpecId = ResolveSpecId(character),
             Level = character.Level,
             EnteredAt = ctx.Timestamp,
         });

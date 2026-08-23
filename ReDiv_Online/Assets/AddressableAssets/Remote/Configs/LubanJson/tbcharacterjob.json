@@ -1,0 +1,10 @@
+[
+  {
+    "JobId": 1,
+    "Creatable": true,
+    "DefaultSpecId": 101,
+    "NameKey": "Job_Kyaru",
+    "SubtitleKey": "Job_Kyaru_Sub",
+    "SortOrder": 1
+  }
+]

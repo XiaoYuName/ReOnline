@@ -58,9 +58,11 @@ public static partial class Module
         public string Name;
 
         /// <summary>
-        /// 职业 id，对应配置表 <c>TbCharacterJob</c>。
-        /// 职业树（基础职业 → 转职）在配置里用 ParentJobId 描述，转职就是把这个值改成子职业，
-        /// 所以这里只需要一个字段，将来加多层转职也不用改表。
+        /// 职业 id（也就是「角色」那一层，凯露 / …），对应配置表 <c>TbCharacterJob</c>。
+        /// 建角色时选定，之后不变。
+        ///
+        /// 注意这和玩家自己起的 <see cref="Name"/> 是两回事：职业名来自配置、大家都一样，
+        /// 角色名是玩家输入的、全服唯一。
         /// </summary>
         public uint JobId;
 
@@ -79,6 +81,22 @@ public static partial class Module
         /// 统一走 <c>IsAlive</c> 判断，别在各处手写。
         /// </summary>
         public Timestamp? DeletedAt;
+
+        /// <summary>
+        /// 当前生效的专职（配置表 <c>TbJobSpecialization</c> 的 SpecId）。
+        ///
+        /// 一个角色可以有多个可用专职，但同时只有一个生效，玩家可以切换（SwitchSpecialization）。
+        /// 「哪些专职可用」**不存库**：由配置里的 UnlockLevel 和角色等级现算 ——
+        /// 以后要改成「做完任务才解锁」就得加存储，那时再说。
+        /// 形态（专职名 / 觉醒名 / 一次觉醒名）同理不存，见 CurrentFormStage。
+        ///
+        /// ⚠️ 这个字段**必须留在结构体末尾**：SpacetimeDB 只支持在末尾追加列，
+        /// 插到中间会被判成 reorder，直接要求手工迁移（实测撞过）。
+        /// <c>[Default(0u)]</c> 让已有角色行拿到 0；0 表示「老数据还没有专职」，
+        /// 读到 0 就退回该职业的 DefaultSpecId（见 ResolveSpecId），不用清库。
+        /// </summary>
+        [Default(0u)]
+        public uint SpecId;
     }
 
     /// <summary>
@@ -118,5 +136,9 @@ public static partial class Module
         public uint Level;
 
         public Timestamp EnteredAt;
+
+        /// <summary>当前专职。在线列表要靠它显示正确的形象。末尾追加，理由同上。</summary>
+        [Default(0u)]
+        public uint SpecId;
     }
 }

@@ -26,6 +26,19 @@ public static partial class Module
         public ulong CharacterId;
         public string Name;
         public uint JobId;
+
+        /// <summary>当前生效的专职。客户端据此显示形象、并高亮专职选择卡。</summary>
+        public uint SpecId;
+
+        /// <summary>
+        /// 当前形态（1 = 专职，2 = 觉醒，3 = 一次觉醒…）。
+        ///
+        /// 由服务端按配置的 UnlockLevel 和角色等级现算，**客户端别自己再算一遍** ——
+        /// 两份实现迟早对不上。客户端拿它去 TbSpecializationForm.Get(SpecId, FormStage)
+        /// 取名字、立绘、头像。0 表示配置有问题（比如漏了 Stage=1）。
+        /// </summary>
+        public int FormStage;
+
         public uint Level;
         public ulong Exp;
         public Timestamp CreatedAt;
@@ -65,11 +78,16 @@ public static partial class Module
                 continue;
             }
 
+            // 老角色可能还没有专职字段，或者配置里那个专职被删了，统一走容错解析
+            uint specId = ResolveSpecId(character);
+
             rows.Add(new MyCharacterRow
             {
                 CharacterId = character.CharacterId,
                 Name = character.Name,
                 JobId = character.JobId,
+                SpecId = specId,
+                FormStage = CurrentFormStage(specId, character.Level),
                 Level = character.Level,
                 Exp = character.Exp,
                 CreatedAt = character.CreatedAt,

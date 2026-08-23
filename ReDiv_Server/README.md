@@ -59,6 +59,7 @@ ReDiv_Server/
     │   ├── CharacterTables.cs    Character（私有）/ CharacterSelection（公开）
     │   ├── CharacterReducers.cs  CreateCharacter / DeleteCharacter / SelectCharacter / LeaveCharacter
     │   ├── CharacterRules.cs     角色名规则（允许中文，按显示宽度限长）
+    │   ├── CharacterSpecialization.cs  专职切换 + 形态计算（都按配置现算）
     │   └── CharacterViews.cs     MyCharacter / MyAccountProfile（per-subscriber View）
     ├── Security/           口令哈希（自己写的，原因见「已知坑」）
     │   ├── Sha256.cs
@@ -260,12 +261,40 @@ spacetime sql rediv "SELECT account_id, username_key, username FROM account"
 一个账号多个角色（DNF 那种），登录后进选人界面，选完角色才进城镇。
 源码在 `spacetimedb/Character/`。
 
+### 三层结构（职业 → 专职 → 形态）
+
+```
+CharacterJob        角色 / 职业（凯露）—— 建角色时选的就是这一层，之后不变
+  └ JobSpecialization  专职（魔法士…）—— 一个角色多个可用，同时只有一个生效、可切换
+      └ SpecializationForm  形态 —— 每个专职 3 个（专职名 / 觉醒名 / 一次觉醒名）
+```
+
+**职业名和角色名是两回事**：职业名（凯露）来自配置、所有玩家一样；
+角色名是玩家自己输入的、全服唯一。别把两者混起来。
+
+**可用专职和当前形态都不存库**，由配置里的 `UnlockLevel` 和角色等级现算：
+
+| 存的 | 算的 |
+|---|---|
+| `Character.JobId`（建角色时定，不变） | 哪些专职可用（等级 ≥ 专职的 UnlockLevel） |
+| `Character.SpecId`（当前生效的专职，可切换） | 当前形态（等级 ≥ 形态的 UnlockLevel，取 Stage 最大的那个） |
+
+好处是改平衡只要改 Excel + 重发布，不用写数据迁移；代价是解锁条件只能是「能从现有数据推出来」的东西。
+以后要做「做完任务才觉醒」，得在角色侧加存储，那时再动。
+
+形态由**服务端**算并通过 `MyCharacter` View 的 `FormStage` 下发，
+**客户端别自己再算一遍** —— 两份实现迟早对不上。客户端拿 `(SpecId, FormStage)`
+去 `TbSpecializationForm.Get()` 取名字 / 立绘 / 头像。
+
 ### 表
 
 | 表 | 公开性 | 说明 |
 |---|---|---|
-| `Character` | **私有** | 角色档案。`AccountId`（索引）/ `NameKey`（唯一）/ `Name` / `JobId` / `Level` / `Exp` / `DeletedAt` |
-| `CharacterSelection` | 公开 | 这条连接当前选了哪个角色，主键 `ConnectionId`。天然就是在线角色列表 |
+| `Character` | **私有** | 角色档案。`AccountId`（索引）/ `NameKey`（唯一）/ `Name` / `JobId` / `SpecId` / `Level` / `Exp` / `DeletedAt` |
+| `CharacterSelection` | 公开 | 这条连接当前选了哪个角色，主键 `ConnectionId`。带 `SpecId`，天然就是在线角色列表 |
+
+⚠️ **新字段只能追加到 struct 末尾**。`SpecId` 一开始被我插在中间，publish 直接报
+`Reordering table character requires a manual migration` —— SpacetimeDB 只支持在末尾加列。
 
 `Account` 上加了 `CharacterSlots`（默认 4，上限常量 8），栏位可扩展所以存在账号上。
 这个字段是用 `[Default(4)]` **兼容追加**的，已有账号行自动拿到默认值，不用清库。
@@ -281,6 +310,7 @@ spacetime sql rediv "SELECT account_id, username_key, username FROM account"
 | `DeleteCharacter(characterId)` | `delete_character` | **软删**：打 `DeletedAt`，同时把名字释放出来 |
 | `SelectCharacter(characterId)` | `select_character` | 选完才算进城镇，写 `CharacterSelection` |
 | `LeaveCharacter()` | `leave_character` | 回选人界面，只清选角状态不影响登录态 |
+| `SwitchSpecialization(characterId, specId)` | `switch_specialization` | 切当前专职。校验：属于该角色的职业 + 等级够 |
 
 鉴权一律走**当前连接的 Session 行**（`RequireAccountId`）：必须有活会话才能动角色数据。
 「角色不存在」和「不属于你」回同一句文案，否则拿 characterId 挨个试就能探出别人有哪些角色。
@@ -291,7 +321,7 @@ spacetime sql rediv "SELECT account_id, username_key, username FROM account"
 
 | View | 内容 |
 |---|---|
-| `MyCharacter` | 自己账号下未删除的角色（PK = CharacterId） |
+| `MyCharacter` | 自己账号下未删除的角色（PK = CharacterId），含 `SpecId` 和服务端算好的 `FormStage` |
 | `MyAccountProfile` | 账号名 + 栏位数（客户端画选人格子要） |
 
 为什么不做成公开表让客户端按 `account_id` 订阅：**AccountId 是自增整数，太好猜**，
@@ -416,16 +446,41 @@ ExcelTool/LubanTools/DataTables/
    它要求 csproj 开 `<AllowUnsafeBlocks>`（ByteBuf 有两个 `*_Unsafe` 优化方法用了指针）——
    开这个开关是为了让 vendored 文件和上游**逐字节一致**，升级时直接覆盖，不用重打补丁。
    wasm 里的指针出不了线性内存沙箱，也不影响 Reducer 的确定性。
-4. **字段级 group 可用。** 一张表按列分给两端：
+4. **字段级 group 可用。** 一张表按列分给两端。角色这三张表是这么切的
+   （结构在 `Defines/character.xml`，相对 DataTables 目录）：
+
+**`CharacterJob`（角色 / 职业，建角色时选）**
 
 | 列 | group | 谁用 |
 |---|---|---|
-| `JobId` / `ParentJobId` / `Creatable` | 不标（两端都有） | 客户端画职业树，服务端校验合法性 |
-| `StartLevel` | `s` | 只有服务端能信的初始值 |
-| `NameKey` / `IconKey` / `SortOrder` | `c` | 只有客户端要，不进 wasm |
+| `JobId` / `Creatable` / `DefaultSpecId` | 不标（两端都有） | 服务端校验合法性并定初始专职，客户端筛选可选项 |
+| `StartLevel` | `s` | 只有服务端能信 |
+| `NameKey` / `SubtitleKey` / `SortOrder` | `c` | 职业名（凯露）、副标题、排序 |
 
-分组写在 `Defines/character.xml`（相对上面那个 DataTables 目录）而不是 Excel 表头（`read_schema_from_file=false`）——
-只有 XML 能给**字段**标 group。
+**`JobSpecialization`（专职，一个角色多个）**
+
+| 列 | group | 谁用 |
+|---|---|---|
+| `SpecId` / `JobId` / `UnlockLevel` | 不标 | 服务端校验能不能切，客户端把没解锁的画灰 |
+| `NameKey` / `IconKey` / `SortOrder` | `c` | 专职选择卡的名字和图标 |
+
+**`SpecializationForm`（形态，每个专职 3 行）**
+
+| 列 | group | 谁用 |
+|---|---|---|
+| `SpecId` / `Stage` / `UnlockLevel` | 不标 | 服务端算当前形态 |
+| `NameKey` / `ArtKey` / `IconKey` | `c` | 形态名（专职名 / 觉醒名 / 一次觉醒名）、立绘、头像 |
+
+**立绘和头像挂在形态而不是专职上** —— 觉醒会换外观。专职只挂选择卡图标。
+
+分组只能写在 XML 里（`read_schema_from_file=false`），Excel 表头给不了字段级 group。
+
+形态表是 `mode = list` + 联合主键（`__tables__.xlsx` 的 index 列写 `SpecId+Stage`）。
+⚠️ 联合主键的表**不能用 `mode = map`**，Luban 会报「是单主键表，index 不能包含多个 key」。
+代码里访问是 `TbSpecializationForm.Get(specId, stage)`。
+
+拆成三张表而不是在专职表上开 `Form1Art` / `Form2Art` … 一排列：客户端字段一多横向会爆，
+而且以后加第四形态只是多一行，不用改表结构。
 
 ### 限制与约定
 
@@ -435,12 +490,19 @@ ExcelTool/LubanTools/DataTables/
   那时客户端可以直接订阅配置表，两端彻底同源。现阶段没必要。
 - 建议把「改了 `s` 组配置」纳入版本号语义，bump 一下版本 —— 版本校验就能挡住配置不一致的旧客户端。
 
-### ⚠️ 职业表现在只有一行占位数据
+### ⚠️ 三张表现在都是占位数据
 
-`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/CharacterJob.xlsx` 里目前是
-`JobId=1 / NameKey=Job_Placeholder_01`，
-纯粹为了把通路跑通，**不是玩法设定**。真的职业列表定了之后替换掉它
-（`ParentJobId=0` 表示基础职业，转职就是把角色的 `JobId` 改成子职业的 id）。
+`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下：
+
+| 表 | 现有内容 |
+|---|---|
+| `CharacterJob.xlsx` | `JobId=1`（NameKey=`Job_Kyaru`），DefaultSpecId=101 |
+| `JobSpecialization.xlsx` | `SpecId=101`（`Spec_Mage`，0 级可用）、`SpecId=102`（占位，20 级解锁，纯为测切换） |
+| `SpecializationForm.xlsx` | 101 和 102 各 3 行，解锁等级 0/30/60 与 0/40/70 |
+
+这些**只是把通路跑通用的，不是玩法设定**。真实职业 / 专职列表定了就替换：
+`NameKey` 那些是多语言 key，要和客户端本地化表的命名对齐；`ArtKey` / `IconKey`
+填 Addressable 的完整资源路径（本工程的地址约定是完整路径，见客户端文档第 4 节）。
 
 ---
 
