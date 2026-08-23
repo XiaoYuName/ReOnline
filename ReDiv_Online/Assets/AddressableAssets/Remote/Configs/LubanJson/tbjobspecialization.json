@@ -3,7 +3,7 @@
     "SpecId": 101,
     "JobId": 1,
     "UnlockLevel": 0,
-    "NameKey": "Spec_Mage",
+    "Name": "魔法士",
     "IconKey": "",
     "SortOrder": 1
   },
@@ -11,7 +11,7 @@
     "SpecId": 102,
     "JobId": 1,
     "UnlockLevel": 20,
-    "NameKey": "Spec_Placeholder_02",
+    "Name": "占位专职",
     "IconKey": "",
     "SortOrder": 2
   }

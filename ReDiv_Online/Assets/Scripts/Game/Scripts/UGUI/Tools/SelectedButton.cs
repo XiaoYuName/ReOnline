@@ -3,7 +3,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
-using UnityEngine.Localization.Components;
 using UnityEngine.UI;
 
 public class SelectedButton : Button
@@ -58,21 +57,16 @@ public class SelectedButton : Button
     [SerializeField]
     private TextMeshProUGUI ButtonText;
 
-    private LocalizeStringEvent BtnStringEvent;
-    
     [SerializeField]
     public Color enterTextColor;
     [SerializeField]
     public Color exitTextColor;
     
-    public void SetLabel(LocalSelectedData label)
+    /// <summary>设置按钮文字。项目是纯中文，直接传中文原文。</summary>
+    public void SetLabel(string label)
     {
         if (ButtonText == null) return;
-        if (BtnStringEvent == null)
-        {
-            BtnStringEvent = ButtonText.GetComponent<LocalizeStringEvent>();
-        }
-        BtnStringEvent.StringReference.SetReference(label.Table,label.Value);
+        ButtonText.text = label;
     }
     
     

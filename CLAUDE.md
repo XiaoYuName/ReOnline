@@ -214,6 +214,10 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
   `Application.version`），不一致客户端会弹窗并禁止登录。改版本号要动四处，
   见 [ReDiv_Server/README.md](ReDiv_Server/README.md) 的「版本号」一节
 - 补间动画用 **DOTween Pro**（`Assets/Plugins/Demigiant/`），**不是** PrimeTween
+- **项目纯中文，不要再引入多语言**。2026-08-23 整套移除了 Unity Localization /
+  gpt-localization / LanguageManager / locale 与 String Table 资产。界面文字和配置表里
+  直接写中文原文，别再造「多语言 key」那一层，详见
+  [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 1 节
 - 提交与推送只在用户明确要求时做（现在是单仓库，一次提交即可覆盖两边）
 
 ---
@@ -254,7 +258,8 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 | `Carol_01` | `carol123` | 名下 1 个角色「苍之骑士」 |
 | `bob_2` | `密码123带空格 ok` | 用来验证中文 + 空格口令能过 |
 
-角色栏位默认 4，职业只能填 `1`（占位那行），专职 101 / 102 也是占位。清库重来：
+角色栏位默认 4，职业只能填 `1`（占位那行，Name=凯露），专职 101（魔法士）/ 102（占位）。
+配置表里的名字都是**中文原文**，没有多语言 key。清库重来：
 `spacetime publish --delete-data=always --yes`。
 
 ### 哪些东西是「有意没做」，别当成漏掉了

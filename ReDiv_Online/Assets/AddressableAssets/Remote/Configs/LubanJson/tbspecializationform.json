@@ -3,7 +3,7 @@
     "SpecId": 101,
     "Stage": 1,
     "UnlockLevel": 0,
-    "NameKey": "Spec_Mage_Form1",
+    "Name": "魔法士",
     "ArtKey": "",
     "IconKey": ""
   },
@@ -11,7 +11,7 @@
     "SpecId": 101,
     "Stage": 2,
     "UnlockLevel": 30,
-    "NameKey": "Spec_Mage_Form2",
+    "Name": "魔法士(觉醒名待定)",
     "ArtKey": "",
     "IconKey": ""
   },
@@ -19,7 +19,7 @@
     "SpecId": 101,
     "Stage": 3,
     "UnlockLevel": 60,
-    "NameKey": "Spec_Mage_Form3",
+    "Name": "魔法士(一次觉醒名待定)",
     "ArtKey": "",
     "IconKey": ""
   },
@@ -27,7 +27,7 @@
     "SpecId": 102,
     "Stage": 1,
     "UnlockLevel": 0,
-    "NameKey": "Spec_Placeholder_02_Form1",
+    "Name": "占位专职",
     "ArtKey": "",
     "IconKey": ""
   },
@@ -35,7 +35,7 @@
     "SpecId": 102,
     "Stage": 2,
     "UnlockLevel": 40,
-    "NameKey": "Spec_Placeholder_02_Form2",
+    "Name": "占位专职(觉醒)",
     "ArtKey": "",
     "IconKey": ""
   },
@@ -43,7 +43,7 @@
     "SpecId": 102,
     "Stage": 3,
     "UnlockLevel": 70,
-    "NameKey": "Spec_Placeholder_02_Form3",
+    "Name": "占位专职(一次觉醒)",
     "ArtKey": "",
     "IconKey": ""
   }

@@ -33,7 +33,6 @@ namespace XFramework
             DontDestroyOnLoad(gameObject);
             _popLoadingUI.Init();
             AssetsManager.Instance.SetLoadMode(assetsLoadMode);
-            LanguageManager.Instance.Initialized().Forget();
             ResolutionManager.Instance.Initialized().Forget();
         }
 

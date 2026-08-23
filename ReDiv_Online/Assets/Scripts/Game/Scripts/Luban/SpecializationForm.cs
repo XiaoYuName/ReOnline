@@ -23,7 +23,7 @@ public sealed partial class SpecializationForm : Luban.BeanBase
         SpecId = (int)_obj.GetValue("SpecId");
         Stage = (int)_obj.GetValue("Stage");
         UnlockLevel = (int)_obj.GetValue("UnlockLevel");
-        NameKey = (string)_obj.GetValue("NameKey");
+        Name = (string)_obj.GetValue("Name");
         ArtKey = (string)_obj.GetValue("ArtKey");
         IconKey = (string)_obj.GetValue("IconKey");
     }
@@ -36,7 +36,7 @@ public sealed partial class SpecializationForm : Luban.BeanBase
     public readonly int SpecId;
     public readonly int Stage;
     public readonly int UnlockLevel;
-    public readonly string NameKey;
+    public readonly string Name;
     public readonly string ArtKey;
     public readonly string IconKey;
 
@@ -54,7 +54,7 @@ public sealed partial class SpecializationForm : Luban.BeanBase
         + "SpecId:" + SpecId + ","
         + "Stage:" + Stage + ","
         + "UnlockLevel:" + UnlockLevel + ","
-        + "NameKey:" + NameKey + ","
+        + "Name:" + Name + ","
         + "ArtKey:" + ArtKey + ","
         + "IconKey:" + IconKey + ","
         + "}";

@@ -23,8 +23,8 @@ public sealed partial class CharacterJob : Luban.BeanBase
         JobId = (int)_obj.GetValue("JobId");
         Creatable = (bool)_obj.GetValue("Creatable");
         DefaultSpecId = (int)_obj.GetValue("DefaultSpecId");
-        NameKey = (string)_obj.GetValue("NameKey");
-        SubtitleKey = (string)_obj.GetValue("SubtitleKey");
+        Name = (string)_obj.GetValue("Name");
+        Subtitle = (string)_obj.GetValue("Subtitle");
         SortOrder = (int)_obj.GetValue("SortOrder");
     }
 
@@ -36,8 +36,8 @@ public sealed partial class CharacterJob : Luban.BeanBase
     public readonly int JobId;
     public readonly bool Creatable;
     public readonly int DefaultSpecId;
-    public readonly string NameKey;
-    public readonly string SubtitleKey;
+    public readonly string Name;
+    public readonly string Subtitle;
     public readonly int SortOrder;
 
 
@@ -54,8 +54,8 @@ public sealed partial class CharacterJob : Luban.BeanBase
         + "JobId:" + JobId + ","
         + "Creatable:" + Creatable + ","
         + "DefaultSpecId:" + DefaultSpecId + ","
-        + "NameKey:" + NameKey + ","
-        + "SubtitleKey:" + SubtitleKey + ","
+        + "Name:" + Name + ","
+        + "Subtitle:" + Subtitle + ","
         + "SortOrder:" + SortOrder + ","
         + "}";
     }

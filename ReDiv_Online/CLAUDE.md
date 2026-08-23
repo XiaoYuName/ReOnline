@@ -17,9 +17,17 @@ Unity 客户端。服务端在 `../ReDiv_Server`（SpacetimeDB 模块）。
 | 配置表 | Luban（Excel → C#） |
 | 补间动画 | **DOTween Pro**（`Assets/Plugins/Demigiant/`） |
 | 网络 | SpacetimeDB C# SDK 2.8.2（**内嵌**在 `Packages/` 下） |
+| 语言 | **纯中文，没有多语言** —— 2026-08-23 已把 Unity Localization / gpt-localization / LanguageManager 整套移除 |
 
 > ⚠️ 补间只用 DOTween Pro。PrimeTween 包不在 manifest 里，工程里也没任何代码用它，
 > 那份遗留的 `.claude/skills/primetween/` 已于 2026-08-20 删除。
+
+> ⚠️ **不要再引入多语言。** 2026-08-23 整套移除了：`com.unity.localization`、
+> `com.redgame.gpt-localization`、`LanguageManager` / `LocalizationFontAsset` 等框架代码、
+> `Assets/Editor/Localization/`、locale 与 String Table 资产、Addressables 的
+> Localization-Locales 组、`EditorBuildSettings` 里的两条 localization 配置项。
+> 界面文字和配置表里**直接写中文原文**，不要再造「多语言 key」这一层。
+> `CustomButton.SetLabel` / `SelectedButton.SetLabel` 现在只有 `(string)` 一个重载。
 
 ---
 
@@ -31,7 +39,7 @@ Assets/Scripts/
 │   ├── Addressable/    资源加载封装（AssetsManager）
 │   ├── Basic/          UI 基类：UIBase / UISystem / UIPageConfiguration / UIBackground
 │   ├── Interfaces/
-│   ├── Scripts/        Attribute / Game / Localization / Tools
+│   ├── Scripts/        Attribute / Game / Tools
 │   └── Editor/         asmdef: UnityFramework.Editor
 ├── Game/               无 asmdef → 进 Assembly-CSharp   ← 游戏逻辑
 │   ├── Input/
@@ -40,7 +48,6 @@ Assets/Scripts/
 │       ├── AddressableKeys/   UIKeys.cs 等（生成物，见第 4 节）
 │       ├── Audio/             AudioManager
 │       ├── Backgrounds/
-│       ├── Localization/
 │       ├── Luban/             Tables.cs 等（生成物，见第 3 节）
 │       ├── Resolution/
 │       ├── Save/
@@ -55,7 +62,7 @@ Assets/Scripts/
 ```
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
-`AddressableTools/`、`BuildTools/`、`Luban/`、`Localization/`、`Tools/`、`UGUI/`。
+`AddressableTools/`、`BuildTools/`、`Luban/`、`ServerTools/`、`Tools/`、`UGUI/`。
 
 > 注意 `Framework` 有 asmdef，`Game` 和 `Net` 没有。所以 `Game`/`Net` 可以引用
 > `UnityFramework`，反过来不行。往 `Framework` 里加代码时别引用 `Game` 的类型。
@@ -89,9 +96,10 @@ Excel 源表在 `ExcelTool/LubanTools/DataTables/Datas/*.xlsx`，生成的 C# �
 ### 改 Excel 必须用 ExcelTable.ps1，不要用 openpyxl 之类
 
 `ExcelTool/LubanTools/ExcelTable.ps1` 走 **Excel COM 自动化**。原因写在脚本头部：
-表里大量单元格是公式（`iconName` / `NameKey` / `DescKey` 用 `=CONCATENATE(...)`，
-枚举表用 `=J45*2` 之类的自增），而 Luban 通过 ExcelDataReader **只读公式的缓存值、
-不重新计算**。用不打开真正 Excel 的库写完保存，缓存值会丢，Luban 读到空。
+表里可能有公式单元格（拼接列用 `=CONCATENATE(...)`，枚举表用 `=J45*2` 之类的自增），
+而 Luban 通过 ExcelDataReader **只读公式的缓存值、不重新计算**。用不打开真正 Excel 的库
+写完保存，缓存值会丢，Luban 读到空。现在的表虽然还没有公式，这条规则也照样守 ——
+哪天加了公式再想起来就晚了。
 
 代价：本机必须装 Microsoft Excel，执行期间会后台起一个不可见的 EXCEL.EXE。
 
@@ -271,7 +279,7 @@ CharacterJob        角色 / 职业（凯露）—— 建角色时选，之后�
 - 职业名 / 副标题 / 排序 → `TbCharacterJob`（客户端专属列）
 - 专职卡的名字和图标 → `TbJobSpecialization`；`UnlockLevel` 用来把没解锁的画成灰的
 - **立绘和头像在形态上**（觉醒会换外观）：`TbSpecializationForm.Get(specId, stage)`
-  拿 `NameKey` / `ArtKey` / `IconKey`
+  拿 `Name` / `ArtKey` / `IconKey`
 - **当前形态别自己算** —— `MyCharacter` View 的 `FormStage` 就是服务端按等级算好的，
   客户端再算一遍两边迟早对不上。切专职调 `SwitchSpecialization(characterId, specId)`。
 
@@ -335,11 +343,9 @@ SDK 编进程序集 `com.clockworklabs.spacetimedbsdk`（来自 `src/*.asmdef`�
 ## 7. 第三方依赖
 
 **Packages（UPM）**：Addressables 2.9.1、Cinemachine 3.1.7、URP 17.4.0、
-Localization 1.5.12、InputSystem 1.19.0、Timeline 1.8.13、Test Framework 1.6.0、
+InputSystem 1.19.0、Timeline 1.8.13、Test Framework 1.6.0、
 Recorder、MemoryProfiler、Luban、UIEffect、UnmaskForUGUI、UniTask、Spine 4.3（4 个包）、
 `com.unity.pipeline` 0.5.0-exp.1、`com.coplaydev.unity-mcp`
-
-**本地包**：`com.redgame.gpt-localization`（`file:` 引用，在仓库内，可以改）
 
 **私有 registry**：`http://192.168.10.226:4873`（Verdaccio），scope `com.lumino` / `com.kyrylokuzyk`
 

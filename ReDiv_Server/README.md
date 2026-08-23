@@ -455,21 +455,21 @@ ExcelTool/LubanTools/DataTables/
 |---|---|---|
 | `JobId` / `Creatable` / `DefaultSpecId` | 不标（两端都有） | 服务端校验合法性并定初始专职，客户端筛选可选项 |
 | `StartLevel` | `s` | 只有服务端能信 |
-| `NameKey` / `SubtitleKey` / `SortOrder` | `c` | 职业名（凯露）、副标题、排序 |
+| `Name` / `Subtitle` / `SortOrder` | `c` | 职业名（凯露）、副标题、排序 —— **直接写中文原文** |
 
 **`JobSpecialization`（专职，一个角色多个）**
 
 | 列 | group | 谁用 |
 |---|---|---|
 | `SpecId` / `JobId` / `UnlockLevel` | 不标 | 服务端校验能不能切，客户端把没解锁的画灰 |
-| `NameKey` / `IconKey` / `SortOrder` | `c` | 专职选择卡的名字和图标 |
+| `Name` / `IconKey` / `SortOrder` | `c` | 专职选择卡的名字（中文原文）和图标 |
 
 **`SpecializationForm`（形态，每个专职 3 行）**
 
 | 列 | group | 谁用 |
 |---|---|---|
 | `SpecId` / `Stage` / `UnlockLevel` | 不标 | 服务端算当前形态 |
-| `NameKey` / `ArtKey` / `IconKey` | `c` | 形态名（专职名 / 觉醒名 / 一次觉醒名）、立绘、头像 |
+| `Name` / `ArtKey` / `IconKey` | `c` | 形态名（专职名 / 觉醒名 / 一次觉醒名，中文原文）、立绘、头像 |
 
 **立绘和头像挂在形态而不是专职上** —— 觉醒会换外观。专职只挂选择卡图标。
 
@@ -496,13 +496,14 @@ ExcelTool/LubanTools/DataTables/
 
 | 表 | 现有内容 |
 |---|---|
-| `CharacterJob.xlsx` | `JobId=1`（NameKey=`Job_Kyaru`），DefaultSpecId=101 |
-| `JobSpecialization.xlsx` | `SpecId=101`（`Spec_Mage`，0 级可用）、`SpecId=102`（占位，20 级解锁，纯为测切换） |
+| `CharacterJob.xlsx` | `JobId=1`（Name=`凯露`，Subtitle 空着），DefaultSpecId=101 |
+| `JobSpecialization.xlsx` | `SpecId=101`（`魔法士`，0 级可用）、`SpecId=102`（`占位专职`，20 级解锁，纯为测切换） |
 | `SpecializationForm.xlsx` | 101 和 102 各 3 行，解锁等级 0/30/60 与 0/40/70 |
 
-这些**只是把通路跑通用的，不是玩法设定**。真实职业 / 专职列表定了就替换：
-`NameKey` 那些是多语言 key，要和客户端本地化表的命名对齐；`ArtKey` / `IconKey`
-填 Addressable 的完整资源路径（本工程的地址约定是完整路径，见客户端文档第 4 节）。
+这些**只是把通路跑通用的，不是玩法设定**。真实职业 / 专职列表定了就替换。
+两个填表约定：`Name` 类字段**直接写中文原文**（项目纯中文，没有多语言这一层）；
+`ArtKey` / `IconKey` 填 Addressable 的**完整资源路径**（见客户端文档第 4 节的 key 约定）。
+形态表里 Stage 2/3 的名字现在是 `魔法士(觉醒名待定)` 这种占位，等你给真名。
 
 ---
 

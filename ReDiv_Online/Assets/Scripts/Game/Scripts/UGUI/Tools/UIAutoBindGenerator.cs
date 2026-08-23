@@ -84,7 +84,6 @@ public class UIAutoBindGenerator : MonoBehaviour
         "InputField",
         "TextMeshProUGUI",
         "TMP_Text",
-        "LocalizeStringEvent",
         "Image",
         "RawImage",
         "RectTransform",

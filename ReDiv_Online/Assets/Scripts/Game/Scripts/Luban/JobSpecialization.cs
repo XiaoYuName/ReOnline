@@ -23,7 +23,7 @@ public sealed partial class JobSpecialization : Luban.BeanBase
         SpecId = (int)_obj.GetValue("SpecId");
         JobId = (int)_obj.GetValue("JobId");
         UnlockLevel = (int)_obj.GetValue("UnlockLevel");
-        NameKey = (string)_obj.GetValue("NameKey");
+        Name = (string)_obj.GetValue("Name");
         IconKey = (string)_obj.GetValue("IconKey");
         SortOrder = (int)_obj.GetValue("SortOrder");
     }
@@ -36,7 +36,7 @@ public sealed partial class JobSpecialization : Luban.BeanBase
     public readonly int SpecId;
     public readonly int JobId;
     public readonly int UnlockLevel;
-    public readonly string NameKey;
+    public readonly string Name;
     public readonly string IconKey;
     public readonly int SortOrder;
 
@@ -54,7 +54,7 @@ public sealed partial class JobSpecialization : Luban.BeanBase
         + "SpecId:" + SpecId + ","
         + "JobId:" + JobId + ","
         + "UnlockLevel:" + UnlockLevel + ","
-        + "NameKey:" + NameKey + ","
+        + "Name:" + Name + ","
         + "IconKey:" + IconKey + ","
         + "SortOrder:" + SortOrder + ","
         + "}";

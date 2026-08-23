@@ -12,12 +12,15 @@
 
   服务端的数据是 cs-bin 生成、以嵌入资源编进 wasm 的（模块里没有文件系统），
   所以改了 s 组的列或数据，必须重新导出 + spacetime publish 才生效。
+
+  ⚠️ 本项目**纯中文，没有多语言**（多语言那套已于 2026-08-23 整体移除）。
+  所以 Name / Subtitle 这些列里**直接写中文原文**，不是多语言 key。
 -->
 <module name="">
 
     <!--
       第一层：角色 / 职业。建角色时选它，一个账号可以建多个不同职业的角色。
-      注意角色**名字是玩家自己起的**（服务端全服唯一），这里的 NameKey 是职业名（凯露），
+      注意角色**名字是玩家自己起的**（服务端全服唯一），这里的 Name 是职业名（凯露），
       两者是两回事，别混。
     -->
     <bean name="CharacterJob">
@@ -36,8 +39,8 @@
         <var name="StartLevel" type="int" group="s"/>
 
         <!-- 客户端展示 -->
-        <var name="NameKey" type="string" group="c"/>
-        <var name="SubtitleKey" type="string" group="c"/>
+        <var name="Name" type="string" group="c"/>
+        <var name="Subtitle" type="string" group="c"/>
         <var name="SortOrder" type="int" group="c"/>
     </bean>
 
@@ -57,7 +60,7 @@
         <var name="UnlockLevel" type="int"/>
 
         <!-- 客户端展示：专职选择卡上的图标和名字 -->
-        <var name="NameKey" type="string" group="c"/>
+        <var name="Name" type="string" group="c"/>
         <var name="IconKey" type="string" group="c"/>
         <var name="SortOrder" type="int" group="c"/>
     </bean>
@@ -81,7 +84,7 @@
         <var name="UnlockLevel" type="int"/>
 
         <!-- 客户端展示：这一形态的名字和外观。觉醒会换外观，所以立绘/头像挂在形态而不是专职上。 -->
-        <var name="NameKey" type="string" group="c"/>
+        <var name="Name" type="string" group="c"/>
         <var name="ArtKey" type="string" group="c"/>
         <var name="IconKey" type="string" group="c"/>
     </bean>

@@ -221,7 +221,7 @@ namespace XFramework
             }
 
             // 排除 Luban Bean 类型：
-            // 例如：public sealed partial class TbLocalzationKeyData : Luban.BeanBase
+            // 例如：public sealed partial class CharacterJob : Luban.BeanBase
             if (Regex.IsMatch(content, $@"\bclass\s+{Regex.Escape(className)}\b[\s\S]*?:\s*Luban\.BeanBase"))
             {
                 return false;

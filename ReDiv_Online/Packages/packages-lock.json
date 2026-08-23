@@ -93,15 +93,6 @@
       },
       "hash": "80ace5172a73e72b83296ed1fbf9d7e6d7ffa301"
     },
-    "com.redgame.gpt-localization": {
-      "version": "file:com.redgame.gpt-localization",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.2.2",
-        "com.unity.localization": "1.5.12"
-      }
-    },
     "com.unity.2d.animation": {
       "version": "14.0.4",
       "depth": 1,
@@ -318,16 +309,6 @@
       "source": "registry",
       "dependencies": {
         "com.unity.modules.uielements": "1.0.0"
-      },
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.localization": {
-      "version": "1.5.12",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.addressables": "1.25.0",
-        "com.unity.nuget.newtonsoft-json": "3.0.2"
       },
       "url": "https://packages.unity.com"
     },

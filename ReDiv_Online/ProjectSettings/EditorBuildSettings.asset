@@ -13,5 +13,3 @@ EditorBuildSettings:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 99f9c9493070a9d4c979a8fec7c5a8d3, type: 2}
     com.unity.input.settings: {fileID: 11400000, guid: 2a19880a9891fc8469c8930ba9bf478f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 270fa6724e059f14f88d8235627c9b02, type: 3}
-    com.unity.localization.addressable-group-rules: {fileID: 11400000, guid: 4b951d3ac93fead49a388a249e95043d, type: 2}
-    com.unity.localization.settings: {fileID: 11400000, guid: 77aa4df6cd2a1fb4da4ae576a36e139c, type: 2}

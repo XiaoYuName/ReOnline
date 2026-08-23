@@ -3,8 +3,8 @@
     "JobId": 1,
     "Creatable": true,
     "DefaultSpecId": 101,
-    "NameKey": "Job_Kyaru",
-    "SubtitleKey": "Job_Kyaru_Sub",
+    "Name": "凯露",
+    "Subtitle": "",
     "SortOrder": 1
   }
 ]
