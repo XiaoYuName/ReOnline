@@ -19,7 +19,7 @@
 5. ReDiv Unity 工程使用 **Unity `6000.4.8f1`**。它与上一条的原游戏 Bundle 回退版本不是一回事。
 6. 复杂分类时用户已经授权**直接移动**。当前分类完成，共移动 294,327 个文件，复核项 0，移动失败 0。
 7. NGUI 上次批量生成的独立 `*_切割PNG` 已按要求删除；原始图集 PNG 和 `atlas_manifest.json` 保留。不要把批量切图重新塞回整理目录。
-8. Spine 角色已经完成 730 个 `sdnormal` 外观的 3.6 → 3.8.99 → 4.3.23 批处理。**骨架 Scale 必须在 3.8 导入阶段设为 `0.5`，且只应用一次。**
+8. Spine 角色已经按正确基准重新完成 730 个 `sdnormal` 外观的 3.6 → 3.8.99 → 4.3.23 批处理。**骨架 Scale 必须在 3.8 导入阶段设为 `0.5`，且只应用一次；创建 3.8 和升级 4.3 时必须暂时隐藏图片，之后才恢复完整画布并导出。**
 9. 怪物已经组装为 Spine 3.6 的“一怪物一文件夹”，但**尚未批量升级到 4.3**。当前 4.3 脚本只识别角色目录布局，不能直接声称也支持怪物。
 10. `VariantCard.shader` 和通用材质一键还原工具已在 Unity 中工作；`still_unit_105831` 是已验证样例。完整视觉还依赖正确的通用纹理、PathID 映射、导入设置及原始参数。
 
@@ -367,9 +367,9 @@ Spine 4.3.23 曾因 NVIDIA 信息浮窗/游戏内覆盖导致启动异常。已�
 Set-Location 'D:\AssetsStudio\Rediv\download'
 & '.\.venv\Scripts\python.exe' '.\batch_export_cn_spine.py' status
 & '.\.venv\Scripts\python.exe' '.\batch_export_cn_spine.py' prepare
-& '.\.venv\Scripts\python.exe' '.\batch_export_cn_spine.py' unpack
 & '.\.venv\Scripts\python.exe' '.\batch_export_cn_spine.py' project38
 & '.\.venv\Scripts\python.exe' '.\batch_export_cn_spine.py' project43
+& '.\.venv\Scripts\python.exe' '.\batch_export_cn_spine.py' unpack
 & '.\.venv\Scripts\python.exe' '.\batch_export_cn_spine.py' export43
 ```
 
@@ -378,12 +378,14 @@ Set-Location 'D:\AssetsStudio\Rediv\download'
 各阶段含义：
 
 1. `prepare`：3.6 二进制转 JSON。
-2. `unpack`：根据 atlas 的 `orig` 和 `offset` 恢复散图原始透明画布。
-3. `project38`：以 **Scale `0.5`** 导入 JSON，生成 3.8.99 `.spine` 工程。
-4. `project43`：用 4.3.23 打开 3.8 工程并保存 `.4.3.spine`；**此处不得再次缩放**。
-5. `export43`：导出 4.3 JSON、`atlas.txt` 和 PNG。
+2. `project38`：脚本临时隐藏 `images`，以 **Scale `0.5`** 导入 JSON，生成 3.8.99 `.spine` 工程；这样 Spine 不会按裁切图或完整画布尺寸重写 JSON 附件几何。
+3. `project43`：脚本继续临时隐藏 `images`，用 4.3.23 打开 3.8 工程并保存 `.4.3.spine`；**此处不得再次缩放**。
+4. `unpack`：工程生成后，使用 Spine 4.3 根据 atlas 的 `orig` 和 `offset` 恢复散图原始透明画布。
+5. `export43`：放回完整画布后导出 4.3 JSON、`atlas.txt` 和 PNG。
 
-此前“贴图全部堆叠、骨骼看似错位”的根因不是单纯骨骼缩放，而是散图丢失 atlas 的 `orig` 画布和 `offset`。当前脚本在 Scale 0.5 前重建透明画布，解决贴图位置堆叠；0.5 仍然是正确导入比例，但不能代替 atlas packing 信息修复。
+此前“贴图全部堆叠、骨骼看似错位”的根因不是单纯骨骼缩放，而是散图丢失 atlas 的 `orig` 画布和 `offset`。进一步以用户确认正确的 `SpineScaleCheck\fixed_output\优衣_100201\外观\100211_sdnormal` 做字段级对照后确认：工程创建时也不能让 Spine 看到图片，否则会改写部分工程数据。最终正确顺序是“隐藏图片建 3.8 → 隐藏图片升 4.3 → 恢复完整画布 → 导出”。Scale 0.5 仍然是正确导入比例，但不能代替画布和步骤顺序修复。
+
+`batch_export_cn_spine.py all --force` 已固化上述顺序。单独执行阶段时也应严格按本节顺序，不得把 `unpack` 提前到 `project38` 之前。
 
 ### 8.3 当前角色输出状态
 
@@ -405,7 +407,13 @@ images\             # 恢复透明画布后的散图
 _intermediate\<id>.3.6.json
 ```
 
-已验证计数：730 个 3.8 工程、730 个 4.3 工程、730 个最终 JSON、730 个 atlas.txt；角色外观共 730 个。图像文件总量包含 730 张打包图集和大量 `images` 散图。
+2026-08-24 20:44 已按正确基准强制重建并验证：730 个 3.8 工程、730 个 4.3 工程、730 个最终 JSON、730 个 atlas.txt，`images_full_canvas=730`，失败 0，staging/tmp 残留 0。图像文件总量包含 730 张打包图集和大量 `images` 散图。
+
+正式优衣 `100211_sdnormal` 与正确基准做递归 JSON 对照，只剩 `skeleton.audio`、`skeleton.images` 的输出目录和由路径产生的 `skeleton.hash` 三项差异，骨架/动画无其他差异；最终 atlas 和 PNG 的 SHA-256 完全相同。修复报告：
+
+```text
+D:\AssetsStudio\Rediv\CN_分类完成\Spine导出完成_4.3\_画布与工程顺序修复验证.json
+```
 
 批处理状态：
 
@@ -528,6 +536,7 @@ AA 原包已经自包含，因此原则上可以继续恢复粒子、材质、Me
 2. 查看 `D:\GitLab\REDIV` 的 `git status`，保留用户已有修改；未经要求不要提交、回退或删除。
 3. 查看 `_原始数据\数据说明.txt`、分类统计和目标子流程报告，确认当前版本与完成数。
 4. 若继续角色 Spine，先运行 `batch_export_cn_spine.py status`；不要再次 Scale。
+   `images_full_canvas` 必须等于 `items`，且项目创建/升级阶段必须隐藏图片。
 5. 若继续怪物 Spine，先改脚本以支持怪物布局，抽样验证后再全量。
 6. 若继续 Shader/Material，优先用通用一键工具和 PathID map，不再写死单个 105831。
 7. 若继续 Prefab/粒子，从 AA 对象图和依赖关系出发，不能只看扁平 PNG/bin。
@@ -539,4 +548,3 @@ AA 原包已经自包含，因此原则上可以继续恢复粒子、材质、Me
 - 为任意 `still_unit_xxxxxx` 做更多 VariantCard 样本回归，验证纹理和参数映射覆盖率。
 - 编写可重复的全量 UnityPy 解包与复杂分类脚本；当前只有结果和权威报告，脚本本身未保留。
 - 选择一个粒子/Prefab 样本，实现从 AA PPtr 依赖到 Unity Prefab 的端到端恢复。
-
