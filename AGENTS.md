@@ -240,7 +240,18 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 
 ## 5. 当前进度与下一步（**新对话先看这节**）
 
-最后更新：2026-08-23。
+最后更新：2026-08-24。
+
+### 国服资源管线（素材任务必须先读）
+
+国服 AA 下载、UnityPy/AnimeStudio 解包、复杂分类、NGUI、Spine 3.6 → 4.3、
+怪物状态、VariantCard Shader/Material 与 Prefab/粒子后续路线的完整交接见
+[ReDiv_Online/Docs/CN资源解包与还原工作流.md](ReDiv_Online/Docs/CN资源解包与还原工作流.md)。
+
+当前基线是 CN Android `202608171854`；自包含原包在
+`D:\AssetsStudio\Rediv\CN_分类完成\_原始数据`。角色 Spine 730 个外观已经完成
+4.3，怪物只完成到 3.6。Spine 导入比例 `0.5` 只在 3.8 工程创建时应用一次。
+原游戏 Bundle 回退版本 `6000.0.58f2` 与本工程 Unity `6000.4.8f1` 不可混用。
 
 ### 已经能用的
 

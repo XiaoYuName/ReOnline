@@ -586,3 +586,17 @@ Febucci Text Animator、DamageNumbersPro、PathologicalGames
 **不要再往 prefab 里写死**，否则又会和校验值对不上。
 
 ---
+
+## 10. 国服资源解包与还原
+
+国服 AA 下载、UnityPy/AnimeStudio 解包、复杂分类目录、JSON/二进制伴随数据、
+NGUI Border/Padding、Spine 3.6 → 3.8.99 → 4.3.23、怪物状态以及
+VariantCard Shader/Material 的长期交接文档在：
+
+[Docs/CN资源解包与还原工作流.md](Docs/CN资源解包与还原工作流.md)
+
+素材相关的新对话必须先读该文档。尤其不要忘记：原 Bundle 的解析回退版本是
+`6000.0.58f2`，本 Unity 工程版本是 `6000.4.8f1`；Spine 的 Scale `0.5`
+只在 3.8 工程创建阶段应用一次。
+
+---

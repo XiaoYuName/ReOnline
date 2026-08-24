@@ -118,5 +118,6 @@ cd ReDiv_Online && unity command editor_play
 
 - [CLAUDE.md](CLAUDE.md) —— AI 协作总纲：工具链规则、硬约束
 - [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) —— 客户端技术文档
+- [ReDiv_Online/Docs/CN资源解包与还原工作流.md](ReDiv_Online/Docs/CN资源解包与还原工作流.md) —— 国服 AA 下载、解包、复杂分类、NGUI、Spine 与 Shader 还原的完整交接记忆
 - [ReDiv_Server/README.md](ReDiv_Server/README.md) —— 服务端技术文档
 - [ReDiv_Server/CLAUDE.md](ReDiv_Server/CLAUDE.md) —— SpacetimeDB 2.8 官方 AI 规则（`spacetime init` 生成，勿手改）
