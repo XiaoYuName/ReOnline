@@ -40,3 +40,15 @@ MonoBehaviour:
     IsTween: 0
     IsMouseRightHide: 0
     Description: "\u5916\u4E3B\u754C\u9762"
+  - PageID: SelectCharacterUI
+    PagePath: Prefabs/UGUI/SelectCharacterUI/SelectCharacterUI.prefab
+    UIParent: 0
+    IsTween: 0
+    IsMouseRightHide: 0
+    Description: "\u9009\u62E9\u89D2\u8272\u754C\u9762"
+  - PageID: CreatCharacterUI
+    PagePath: Prefabs/UGUI/CreatCharacterUI/CreatCharacterUI.prefab
+    UIParent: 0
+    IsTween: 0
+    IsMouseRightHide: 0
+    Description: "\u521B\u5EFA\u89D2\u8272\u754C\u9762"

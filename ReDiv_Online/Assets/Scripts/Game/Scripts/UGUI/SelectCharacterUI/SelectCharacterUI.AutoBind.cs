@@ -5,17 +5,30 @@ using UnityEngine;
 
 public partial class SelectCharacterUI
 {
-    private UnityEngine.UI.ScrollRect scrollView;
     private UnityEngine.UI.Button cancelButton;
     private UnityEngine.UI.Button enterButton;
     private UnityEngine.UI.Button quitButton;
+    private List<CharacterSlotUI> content;
 
     private void InitAutoBind()
     {
-        scrollView = Get<UnityEngine.UI.ScrollRect>("UIMask/CharacterList/Scroll View");
         cancelButton = Get<UnityEngine.UI.Button>("UIMask/Buttons/CancelButton");
         enterButton = Get<UnityEngine.UI.Button>("UIMask/Buttons/EnterButton");
         quitButton = Get<UnityEngine.UI.Button>("UIMask/Buttons/QuitButton");
+        content = Get<Transform>("UIMask/CharacterList/Scroll View/Viewport/Content").GetComponentsInChildren<CharacterSlotUI>(true).Where(item => item.transform != Get<Transform>("UIMask/CharacterList/Scroll View/Viewport/Content")).ToList();
 
+        foreach (CharacterSlotUI element in content)
+        {
+            InitBoundUI(element);
+        }
+
+    }
+
+    private static void InitBoundUI(XFramework.UIBase target)
+    {
+        if (target != null)
+        {
+            target.Init();
+        }
     }
 }

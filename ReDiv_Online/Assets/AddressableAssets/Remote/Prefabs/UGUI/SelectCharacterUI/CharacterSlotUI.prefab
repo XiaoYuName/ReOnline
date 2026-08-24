@@ -385,6 +385,13 @@ MonoBehaviour:
     FieldName: characterLevel
     Path: CharacterLevel
     AutoInit: 1
+  - Target: {fileID: 5189821031079435228}
+    BindMode: 0
+    ComponentTypeName: UnityEngine.RectTransform, UnityEngine.CoreModule, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    FieldName: skeletonPoint
+    Path: SkeletonPoint
+    AutoInit: 1
 --- !u!114 &-2993546069139856929
 MonoBehaviour:
   m_ObjectHideFlags: 0

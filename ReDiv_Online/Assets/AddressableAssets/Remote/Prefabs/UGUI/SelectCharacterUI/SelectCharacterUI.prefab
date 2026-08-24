@@ -1257,13 +1257,6 @@ MonoBehaviour:
   overwriteExisting: 1
   attachGeneratedComponent: 1
   bindItems:
-  - Target: {fileID: 605682935341270542}
-    BindMode: 0
-    ComponentTypeName: UnityEngine.UI.ScrollRect, UnityEngine.UI, Version=1.0.0.0,
-      Culture=neutral, PublicKeyToken=null
-    FieldName: scrollView
-    Path: UIMask/CharacterList/Scroll View
-    AutoInit: 1
   - Target: {fileID: 8244034799158743298}
     BindMode: 0
     ComponentTypeName: UnityEngine.UI.Button, UnityEngine.UI, Version=1.0.0.0, Culture=neutral,
@@ -1284,6 +1277,13 @@ MonoBehaviour:
       PublicKeyToken=null
     FieldName: quitButton
     Path: UIMask/Buttons/QuitButton
+    AutoInit: 1
+  - Target: {fileID: 6837142833320578899}
+    BindMode: 1
+    ComponentTypeName: CharacterSlotUI, Assembly-CSharp, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    FieldName: content
+    Path: UIMask/CharacterList/Scroll View/Viewport/Content
     AutoInit: 1
 --- !u!114 &4318896333458486942
 MonoBehaviour:
