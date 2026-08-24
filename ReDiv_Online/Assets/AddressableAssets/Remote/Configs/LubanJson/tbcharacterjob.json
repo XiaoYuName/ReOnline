@@ -4,7 +4,13 @@
     "Creatable": true,
     "Name": "凯露",
     "SortOrder": 1,
-    "MaxStar": 6,
-    "Subtitle": ""
+    "MaxStar": 6
+  },
+  {
+    "JobId": 2,
+    "Creatable": true,
+    "Name": "优衣",
+    "SortOrder": 2,
+    "MaxStar": 6
   }
 ]

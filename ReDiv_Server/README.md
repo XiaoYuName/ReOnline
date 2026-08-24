@@ -427,9 +427,10 @@ spacetime call rediv character_config_self_test
 基础线 `FormId=1` 魔法士（1 星）/ `2` 魔导士（3 星、30 级）/ `3` 黑魔法师（6 星、60 级），
 爆发线 `FormId=101` 公主 / `102` 暗黑圣灵。
 
-⚠️ 资源路径**已经填了**（`IconKey` / `ArtKey` / `SpineKey` / `VideoKey`，用的是
-`Character/100002/` 那套图），但 `IdleAnimation` 还是空的，
-觉醒等级 30 / 60 和 `CharacterJob.Subtitle` 还是占位的。
+⚠️ 美术资源**不在配置表里**（2026-08-24 挪进 ScriptableObject 了，见「配置表」一节）。
+凯露的资源已经配好（`Character/100002/` 那套图），但待机动画名还是空的、
+`CharacterJob.Subtitle` 也还空着。**优衣（JobId=2）刚加进 CharacterJob 表，形态一行都还没配**
+—— 自检现在就报着这条。
 
 ⚠️ 2026-08-24 因为改形态设定**清过一次库**。现在库里是 `alice` / `Carol_01` / `bob_2`
 三个账号，alice 名下有「影狼」（60 级 / 6 星 / 二觉）和「祭星者」（1 级 / 1 星 / 基础）。
@@ -527,12 +528,21 @@ ExcelTool/LubanTools/DataTables/
 |---|---|---|
 | `JobId` / `FormId` / `FormType` / `UnlockStar` / `UnlockLevel` | 不标 | 服务端算当前形态、判觉醒条件；客户端把没解锁的画灰 |
 | `Name` / `SortOrder` | `c` | 形态名（中文原文）、同一条线内的排序 |
-| `IconKey` / `ArtKey` / `SpineKey` / `IdleAnimation` / `VideoKey` | `c` | 头像 / 立绘 / 战斗 Spine / 待机动画名 / 视频，都填 **Addressable 完整路径** |
+| `IconKey` / `ArtKey` / `SpineKey` / `VideoStartKey` / `VideoLoopKey` | `c` | 头像 / 立绘 / 战斗 Spine / 启动视频 / 循环视频，都填 **Addressable 完整路径** |
+
+⚠️ 资源列**别手打路径**：客户端有个
+`Tools > XFramework > 配置 > 角色资源配置` 窗口，拖资产、算路径、写回 Excel，
+详见 [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 4 节。
+（2026-08-23 和 08-24 各试过一次把资源整套挪进 ScriptableObject，两次都退回来了 ——
+**结论是数据留在 Excel，只把录入体验做成窗口**，别再提议搬走。）
+
+**服务端完全看不到这些资源**（它们是 `group="c"`），所以自检 Reducer 查不了它们 ——
+资源那半边的校验在那个窗口里，两边互补。
 
 `FormId` 只要求**在同一个角色内唯一**，约定基础线用 1~99、爆发线从 101 起。
 两条线按 `FormType` 分，各自的填法不一样：
 
-| 形态线 | 行 | UnlockStar / UnlockLevel | 资源 |
+| 形态线 | 行 | UnlockStar / UnlockLevel | 资源（在 SO 里配，不在表里） |
 |---|---|---|---|
 | 基础线 `FormType=1` | 基础形态 | 1 / 0 | **填立绘**，不填视频 |
 | | 一觉 | 3 / 觉醒要求的等级 | **不填立绘**，填视频 |
@@ -542,8 +552,6 @@ ExcelTool/LubanTools/DataTables/
 爆发形态**靠战斗中装备爆发宝石解锁和切换**，和星级 / 等级无关 —— 所以它的
 `UnlockLevel` 必须填 0（填了非 0 自检会报），`UnlockStar` 填 6 只表示「它是 6 星形态」，
 不参与解锁判定。
-
-`VideoKey` 填 AVPro 的 **MediaReference 资源**完整路径（工程里 `Video/Loading/Loading.asset` 就是一个）。
 
 ⚠️ 每个角色的基础线至少要有一行 `UnlockStar` 不高于 `CharacterJob.StartStar`，否则刚建出来的
 角色算不出形态，客户端取不到任何资源 —— `CreateCharacter` 会直接拒绝创建。**自检 Reducer 会查这条。**
@@ -620,15 +628,16 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 `Assets/AddressableAssets/Remote/Character/100002/` 那套图：`0Common` 给基础形态、
 `201` 给觉醒线、`202` 给爆发线）。但这些还没定：
 
-- **`IdleAnimation` 全是空的**（Spine 里的待机动画名）
-- **觉醒等级是占位数字** —— 一觉 30 级、二觉 60 级
+- **待机动画名全是空的**（在 SO 里，不在表里）
+- **觉醒等级是占位数字**
 - `CharacterJob.Subtitle`（选人界面职业名下面那行小字）还空着
-- 只有一个角色（`JobId=1`），美术资源目录里已经有 `Character/100001/` 那一套还没进表
+- **`JobId=2`（优衣）刚加进 CharacterJob 表，形态一行都还没配** —— 自检现在就报这条。
+  美术资源在 `Character/100001/` 下已经有了
+- **启动视频全是空的** —— 现在的素材每个形态只有一支（文件名后缀 `_000002`，是循环那支）
 
 填表约定：`Name` / `Subtitle` **直接写中文原文**（项目纯中文，没有多语言这一层）；
-`*Key` 列填 Addressable 的**完整资源路径**（见客户端文档第 4 节的 key 约定）；
-`VideoKey` 填 AVPro 的 MediaReference 资源路径。
-哪一行填哪些资源见上面那张「两条线的填法」表。
+资源列填 Addressable **完整路径**，但**别手打** —— 用客户端的
+`Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，它会写回 Excel。
 
 改完跑一次 `spacetime call rediv character_config_self_test`。
 
@@ -862,7 +871,8 @@ Unity 侧的登录逻辑已经完成，入口都在 `../ReDiv_Online/Assets/Scri
 - 登录相关的补齐项：改密码 / 找回密码 / 删号、失败次数锁定（要改错误回报方式，
   见「账号系统 → 有意没做的事」）
 - 角色相关的补齐项：改名、软删角色的恢复入口、扩栏位的入口（付费 / 活动）、敏感词过滤
-- **角色配置的 `IdleAnimation` 和觉醒等级还是空的 / 占位的**，见「配置表」最后一节
+- **角色配置的启动视频和觉醒等级还是空的 / 占位的**，`JobId=2` 整个还没配，见「配置表」最后一节
+- **待机动画名那一列已删**（2026-08-24）：以后改成挂预制体引用，动画名在预制体里预先编好
 - **升星（1→2、3→4→5）还没有接口** —— 那是养成系统的事（材料 / 碎片来源都没定）。
   现在只有觉醒能推星级，测试时用 SQL 直接改
 - **爆发宝石**：爆发形态的配置已就绪，但「装备宝石切形态」是战斗内行为，

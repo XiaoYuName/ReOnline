@@ -25,7 +25,6 @@ public sealed partial class CharacterJob : Luban.BeanBase
         Name = (string)_obj.GetValue("Name");
         SortOrder = (int)_obj.GetValue("SortOrder");
         MaxStar = (int)_obj.GetValue("MaxStar");
-        Subtitle = (string)_obj.GetValue("Subtitle");
     }
 
     public static CharacterJob DeserializeCharacterJob(JToken _buf)
@@ -53,10 +52,6 @@ public sealed partial class CharacterJob : Luban.BeanBase
     /// 星级上限。有二觉填6，没二觉填5
     /// </summary>
     public readonly int MaxStar;
-    /// <summary>
-    /// 职业名下面那行小字-中文原文
-    /// </summary>
-    public readonly string Subtitle;
 
 
     public const int __ID__ = -1278902284;
@@ -74,7 +69,6 @@ public sealed partial class CharacterJob : Luban.BeanBase
         + "Name:" + Name + ","
         + "SortOrder:" + SortOrder + ","
         + "MaxStar:" + MaxStar + ","
-        + "Subtitle:" + Subtitle + ","
         + "}";
     }
 }

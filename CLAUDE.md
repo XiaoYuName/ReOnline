@@ -266,7 +266,9 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
    不用带 where），调 `CreateCharacter` / `DeleteCharacter` / `SelectCharacter` /
    `AwakenCharacter`，选完进城镇。资源按 `(JobId, FormId)` 去 `TbCharacterForm` 取。
 2. **补角色配置的占位数值**：结构和资源路径都填好了（用的是 `Character/100002/` 那套图），
-   但觉醒等级 30 / 60、`CharacterJob.Subtitle`、`IdleAnimation` 还是空的 / 占位的。
+   但启动视频、`CharacterJob.Subtitle` 还是空的，觉醒等级也还是占位数字；
+   **`JobId=2`（优衣）刚加进职业表，形态一行都还没配**，服务端自检现在就报着这条。
+   资源列**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产写回 Excel。
    改完跑 `spacetime call rediv character_config_self_test` 自检。
 3. **升星**：现在只有觉醒（1→3→6 星），4 / 5 星没有来源 —— 普通升星要靠养成系统
    （材料 / 碎片），那套还没定，**要动手前先问**。

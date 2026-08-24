@@ -403,6 +403,31 @@ public class ConfigTools : OdinEditorWindow
     /// 那个 bat 曾经指着旧工程的 Assets/Scripts/XFramework/C#/Luban，于是表 C# 落到一个不存在的
     /// 目录，而第 3 步在另一个目录扫表，LubanManager.Generated.cs 一直是空的。
     /// </summary>
+    /// <summary>
+    /// 给**别的编辑器工具**调：重新导出客户端 + 服务端配置，参数照样取自 ConfigToolsSettings。
+    ///
+    /// 现在的调用方是角色资源配置窗口（写完 Excel 顺手重新导出）。
+    /// 有这个入口是为了别在各处另写一份 dotnet Luban.dll 的调用 —— 那样输出目录迟早对不上，
+    /// 这个坑踩过（见 <see cref="RunLuban"/> 上面的注释）。
+    ///
+    /// 这里 CreateInstance 一个不显示的窗口实例只是为了拿到那两个实例方法，用完就销毁。
+    /// </summary>
+    public static bool ExportForExternalTool()
+    {
+        ConfigTools tools = CreateInstance<ConfigTools>();
+
+        try
+        {
+            bool client = tools.RunLubanExport();
+            bool server = tools.RunLubanServerExport();
+            return client && server;
+        }
+        finally
+        {
+            DestroyImmediate(tools);
+        }
+    }
+
     /// <summary>客户端配置：cs-newtonsoft-json + json，落进 Unity 工程。</summary>
     private bool RunLubanExport()
     {

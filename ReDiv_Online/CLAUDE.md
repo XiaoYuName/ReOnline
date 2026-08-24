@@ -191,45 +191,82 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 直接用的话编辑器下会解析不到、拿到 null，然后在 `Instantiate` 处炸成一句和资源
 毫无关系的 `ArgumentException: The Object you want to instantiate is null`。
 
-### 角色美术资源在 Luban 的形态表里
+### 角色美术资源在 Luban 的形态表里，但用窗口录入
 
-头像 / 立绘 / 战斗 Spine / 待机动画名 / 视频都在 `CharacterForm`（形态表）的
-客户端列上，填 **Addressable 完整资源路径**（见上面的 key 约定）。
+头像 / 立绘 / 战斗 Spine / 启动视频 / 循环视频都在 `CharacterForm`（形态表）的客户端列上，
+填 **Addressable 完整资源路径**（见上面的 key 约定）。**Excel 是唯一真相源。**
 
-（2026-08-23 一度改成 Odin ScriptableObject 配置 + 编辑器窗口，后来按需求回退到 Luban。
-所以别再找 `CharacterResourceConfiguration` —— 那套已经删干净了。）
+⚠️ 但**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，
+它算好路径再写回 Excel。手打的话打错没提示、资源改名不同步，只在运行时表现成「加载不出来」。
+
+> 2026-08-23 曾把资源整套挪进 Odin ScriptableObject，当天回退；
+> 2026-08-24 又挪过去一次，当天又退回来了。**现在的结论是：数据留在 Excel，
+> 只把「录入体验」做成窗口。** 别再提议整套搬进 SO —— 来回搬过两次了。
 
 两层的资源分布：
 
 | 层 | 表 | 有什么资源 |
 |---|---|---|
 | 角色 / 职业 | `CharacterJob` | 无（只有名字 / 副标题 / 星级上限 / 排序） |
-| 形态 | `CharacterForm` | 头像 / 立绘 / Spine / 待机动画名 / 视频 |
+| 形态 | `CharacterForm` | 头像 / 立绘 / Spine / 启动视频 / 循环视频 |
 
 形态分两条线，靠 `FormType` 区分：**基础线（1）** 是「基础形态 → 一觉 → 二觉」，
 按角色**星级**现算当前是哪个；**爆发线（2）** 一个角色可以有多个、不分阶段，
-战斗中装备爆发宝石才切。**只有基础形态那行填立绘**，觉醒 / 爆发形态不填立绘、填视频。
+战斗中装备爆发宝石才切。
 
 取资源：`TbCharacterForm.Get(jobId, formId)`。基础线的 `formId` 就是服务端
 `MyCharacter` View 下发的 `FormId`，**客户端不要自己按星级算形态**；
-爆发线自己从配置里筛 `FormType=2`、按 `SortOrder` 排。
+爆发线自己从配置里筛 `FormType=2` 按 `SortOrder` 排。
 
-⚠️ 2026-08-24 这套设定改过一次：原来中间还有一层「专职」（`JobSpecialization` /
-`SpecId` / `Stage` / `SwitchSpecialization` / `FormStage`），**现在没有专职了**，
-那些表和 Reducer 都已删干净，别照着旧提交或旧文档写。
+按形态分两种填法：
 
-⚠️ 路径是手填字符串，**资源改名不会有任何提示**，只会在运行时表现成「加载不出来」。
-改完配置（尤其改了 id）跑一次服务端自检，它查表之间的引用关系：
+| 列 | 基础形态（UnlockStar 最低那行） | 觉醒形态 / 爆发形态 |
+|---|---|---|
+| `IconKey` 头像 | 有 | 有 |
+| `ArtKey` 立绘 | **有** | 空 |
+| `SpineKey` 战斗 Spine | 有 | 有 |
+| `VideoStartKey` 启动视频 | 空 | 可空（播一次的入场动画） |
+| `VideoLoopKey` 循环视频 | 空 | **有**（启动视频播完之后一直循环的那支） |
 
-```bash
-spacetime call rediv character_config_self_test
+视频列填 AVPro 的 **MediaReference 资源**完整路径（工程里 `Video/Loading/Loading.asset`
+就是一个），运行时赋给 `MediaPlayer._mediaReference`。取不到的列会是空串，**要判空**。
+
+⚠️ 现在的视频素材每个形态只有一支（文件名后缀 `_000002`，按素材约定是**循环**那支），
+所以 `VideoStartKey` 全是空的，等启动视频（`_000001`）补齐再填。
+
+> **待机动画名（`IdleAnimation`）已经去掉了**（2026-08-24）。以后改成挂预制体引用，
+> 动画名相关配置在预制体里提前编好，不再进配置表。
+
+#### 配置窗口：`Tools > XFramework > 配置 > 角色资源配置`
+
+实现在 `Assets/Editor/CharacterTools/CharacterResourceWindow.cs`。数据流是个闭环：
+
+```
+CharacterForm.xlsx --(Luban 导出)--> tbcharacterform.json --(窗口读)--> 界面拖资产
+                   <--(ExcelTable.ps1 UpdateRows)-- 「写入 Excel」按钮
 ```
 
-视频列填 AVPro 的 **MediaReference 资源**完整路径（工程里 `Video/Loading/Loading.asset` 就是一个），
-运行时赋给 `MediaPlayer._mediaReference`。
+窗口做三件事：
 
-要加跑 / 攻击 / 受击动画：用 `ExcelTable.ps1 -Action AddColumn` 给形态表加列。
-Excel 的强项是列，往一个单元格里塞「用途:名字」的结构化列表反而难维护。
+1. **形态行从 Luban 导出的 json 读**，不是手敲 —— 表里有几个形态就是几行，形态名 / 形态线 /
+   星级门槛都照着显示，配不出表里不存在的 FormId；
+2. **拖拽录入**：头像 / 立绘收 `Sprite`（带预览图），Spine 收 `SkeletonDataAsset`，
+   两个视频收 AVPro 的 `MediaReference` —— 类型不对拖不进去，路径由 `AssetDatabase` 算；
+3. **校验**：路径指向的资产还在不在、有没有形态没配头像、该填立绘/循环视频的行填没填。
+   这和服务端自检**互补** —— 那边查表间引用和星级门槛，查不了资源（资源列是 `group="c"`，
+   服务端根本看不到）。
+
+「写入 Excel」按 `JobId+FormId` 定位行，**只写那 5 个资源列**，不碰 Excel 里的数值 / 名字 /
+排序（那些还是在 Excel 里维护）。默认勾着「写完自动重新导出配置」，会顺手跑一次
+`ConfigTools.ExportForExternalTool()`（客户端 + 服务端两份）。
+
+⚠️ 窗口显示的是**上次导出**的内容。有人绕过窗口直接改了 Excel 又没导出的话窗口看不到 ——
+好在写回只动那 5 列、按联合主键定位，不会覆盖别人改的其它列。
+
+⚠️ 服务端那份配置改完仍然要 `spacetime publish` 才生效。
+
+要加跑 / 攻击 / 受击这类资源：给形态表 `AddColumn`（记得带 `-Group c`），
+再在窗口的 `FormRow` 上加一对「路径字段 + 拖拽属性」，Odin 的 TableList 会自动多出一列。
 
 ### 编辑器菜单约定
 
@@ -382,21 +419,25 @@ CharacterJob（角色 / 职业，凯露）—— 建角色时选，之后不变
 | 职业名（凯露）/ 副标题 / 排序 | `TbCharacterJob` |
 | 星级上限（画「3/6 星」那排星的分母） | `TbCharacterJob.MaxStar`（有二觉 6、没二觉 5）|
 | 当前星级 | `MyCharacter` View 的 `Star` |
-| 当前形态的头像 / 立绘 / Spine / 待机动画 / 视频 | `TbCharacterForm.Get(JobId, FormId)`，`FormId` 取 View 下发的 |
+| 形态名 / 排序 / 星级门槛 / 觉醒等级 | `TbCharacterForm.Get(JobId, FormId)`，`FormId` 取 View 下发的 |
 | 该角色有哪些爆发形态 | 从 `TbCharacterForm` 筛 `JobId` 相同且 `FormType == 2`，按 `SortOrder` 排 |
+| 头像 / 立绘 / Spine / 启动视频 / 循环视频 | 同上，也在 `TbCharacterForm` 的行上（填 Addressable 完整路径）|
 
-形态行上的资源列，按形态分两种填法：
+⚠️ 资源列**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，
+它算好路径写回 Excel。详见第 4 节。
 
-| 列 | 基础形态（UnlockStar=1） | 觉醒形态 / 爆发形态 |
+按形态分两种填法：
+
+| 列 | 基础形态（UnlockStar 最低那行） | 觉醒形态 / 爆发形态 |
 |---|---|---|
 | `IconKey` 头像 | 有 | 有 |
 | `ArtKey` 立绘 | **有** | 空 |
 | `SpineKey` 战斗 Spine | 有 | 有 |
-| `IdleAnimation` 待机动画名 | 有 | 有 |
-| `VideoKey` 视频 | 空 | **有** |
+| `VideoStartKey` 启动视频 | 空 | 可空（播一次的入场动画） |
+| `VideoLoopKey` 循环视频 | 空 | **有** |
 
-`VideoKey` 填 AVPro 的 **MediaReference 资源**完整路径（工程里 `Video/Loading/Loading.asset`
-就是一个），运行时赋给 `MediaPlayer._mediaReference`。取不到的列会是空串，**要判空**。
+视频列指向 AVPro 的 **MediaReference 资源**（工程里 `Video/Loading/Loading.asset`
+就是一个），运行时赋给 `MediaPlayer._mediaReference`。没配的列是空串，**要判空**。
 
 - **当前形态别自己算** —— `MyCharacter` View 的 `FormId` 就是服务端按星级算好的，
   客户端再算一遍两边迟早对不上。注意 4 / 5 星在配置里**没有单独的行**，
@@ -406,13 +447,16 @@ CharacterJob（角色 / 职业，凯露）—— 建角色时选，之后不变
   任务系统做好后在服务端那一处加，客户端不用管。
 - 觉醒**不可逆**，没有反向接口，界面上别做「切回上一形态」。
 
-⚠️ 所有 `*Key` 列填的都是 **Addressable 完整资源路径**（见第 4 节的 key 约定），不是相对路径。
-路径是手填字符串，**资源改名不会有任何提示**。改完配置跑
-`spacetime call rediv character_config_self_test` —— 它查表间引用和星级门槛，
-但**查不了路径对不对**，那个只有客户端跑起来才知道。
+两处校验，各管一半，都要跑：
 
-⚠️ 资源路径已经填了（用的是 `Assets/AddressableAssets/Remote/Character/100002/` 那套图），
-但 `IdleAnimation` 还全是空的，觉醒等级 30 / 60 和 `CharacterJob.Subtitle` 也还是占位的。
+- `spacetime call rediv character_config_self_test` —— 查 Excel 里表间的引用和星级门槛，
+  **查不了资源**（那些已经不在服务端能看到的列里了）。
+- `Tools > XFramework > 配置 > 角色资源配置` 窗口的「重新校验」 —— 查资源：
+  路径指向的资产还在不在、有没有形态没配头像、该填立绘/循环视频的行填没填。
+
+⚠️ 凯露（JobId=1）的资源都配好了（`Character/100002/` 那套图），但**启动视频全是空的**
+（素材只有循环那一支）、`CharacterJob.Subtitle` 也还空着。
+**优衣（JobId=2）刚加进 CharacterJob 表，形态和资源都还没配** —— 服务端自检现在就报着这一条。
 
 ### 服务端操作面板
 

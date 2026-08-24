@@ -36,10 +36,13 @@
 #      未出现的列留空；出现了表里不存在的列名会报错并列出合法列名，防止手误）：
 #      & ExcelTool/LubanTools/ExcelTable.ps1 -Action AddRows -Workbook <路径> -Sheet <sheet名> -File <JSON路径>
 #
-#   2b) 改已有数据行的某几个单元格（按主键列——##var 行的第一个字段列，通常是 Id——定位行，
-#      -File JSON 数组每项形如 {"Id": 10001, "DescKey": "TestObj1Desc"}，只写出现的列，其余列不动；
+#   2b) 改已有数据行的某几个单元格（按主键列定位行，-File JSON 数组每项形如
+#      {"Id": 10001, "DescKey": "TestObj1Desc"}，只写出现的列，其余列不动；
 #      主键找不到或列名写错都会报错且整份不保存）：
 #      & ExcelTool/LubanTools/ExcelTable.ps1 -Action UpdateRows -Workbook <路径> -Sheet <sheet名> -File <JSON路径>
+#      ⚠️ 默认按 ##var 行的**第一个字段列**定位。**联合主键的表必须传 -KeyColumns**，
+#      比如形态表 -KeyColumns "JobId,FormId" —— 它第一列 JobId 在多行里重复，
+#      不传的话所有项都会命中同一行，把数据改错。
 #
 #   3) 给已有 sheet 末尾追加一列（表头各行一次写好；-Default 给已有数据行填初值，不传则留空。
 #      表里有 ##group 行时 **-Group 必填**，免得又漏掉分组）：
@@ -93,7 +96,8 @@ param(
     [string]$Comment,
     [string]$Default,
     [string]$Keys,
-    [string]$Group
+    [string]$Group,
+    [string]$KeyColumns
 )
 
 $ErrorActionPreference = 'Stop'
@@ -308,18 +312,43 @@ try {
     elseif ($Action -eq 'UpdateRows') {
         $ws = $wb.Worksheets.Item($Sheet)
         $ext = Get-UsedExtent $ws
-        $cols = Get-VarColumns $ws 1 $ext.LastCol
+        $header = Get-HeaderRows $ws
+        $cols = Get-VarColumns $ws $header['##var'] $ext.LastCol
         $dataStart = Get-DataStartRow $ws
 
-        # 主键 = ##var 行的第一个字段列（本仓库的表一律是 Id）
-        $keyName = $cols[0].Name
-        $keyCol = $cols[0].Col
+        # 定位行用的主键列：默认是 ##var 行的第一个字段列；
+        # **联合主键的表必须显式传 -KeyColumns**（比如形态表是 "JobId,FormId" ——
+        # 它第一列 JobId 在多行里重复，只按第一列定位会全部命中同一行，改错数据）。
+        $keyCols = @()
+        if ([string]::IsNullOrWhiteSpace($KeyColumns)) {
+            $keyCols += $cols[0]
+        }
+        else {
+            foreach ($n in ($KeyColumns -split ',')) {
+                $name = $n.Trim()
+                if ($name -eq '') { continue }
+                $col = $cols | Where-Object { $_.Name -eq $name }
+                if (-not $col) {
+                    throw "-KeyColumns 里的「$name」不是 sheet「$Sheet」的列，合法列名：$(($cols | ForEach-Object { $_.Name }) -join ', ')"
+                }
+                $keyCols += $col
+            }
+        }
+        $keyNames = @($keyCols | ForEach-Object { $_.Name })
+
+        function Get-RowKey($values) { return ($values -join "`u{241F}") }  # 用一个正文里不可能出现的分隔符拼
 
         $rowByKey = @{}
         for ($r = $dataStart; $r -le $ext.LastRow; $r++) {
-            $v = $ws.Cells.Item($r, $keyCol).Value2
-            if ($null -eq $v -or "$v".Trim() -eq '') { continue }
-            $rowByKey["$v".Trim()] = $r
+            $parts = @()
+            $blank = $false
+            foreach ($kc in $keyCols) {
+                $v = $ws.Cells.Item($r, $kc.Col).Value2
+                if ($null -eq $v -or "$v".Trim() -eq '') { $blank = $true; break }
+                $parts += "$v".Trim()
+            }
+            if ($blank) { continue }
+            $rowByKey[(Get-RowKey $parts)] = $r
         }
 
         $updates = Read-JsonFile $File
@@ -327,15 +356,19 @@ try {
         $rowCount = 0
         $cellCount = 0
         foreach ($row in $updates) {
-            $keyProp = $row.PSObject.Properties[$keyName]
-            if (-not $keyProp) { throw "每项都要带主键列「$keyName」用来定位行，未改动。" }
-            $key = "$($keyProp.Value)".Trim()
+            $parts = @()
+            foreach ($name in $keyNames) {
+                $keyProp = $row.PSObject.Properties[$name]
+                if (-not $keyProp) { throw "每项都要带主键列「$name」用来定位行，未改动。" }
+                $parts += "$($keyProp.Value)".Trim()
+            }
+            $key = Get-RowKey $parts
             if (-not $rowByKey.ContainsKey($key)) {
-                throw "sheet「$Sheet」里找不到 $keyName = $key 的数据行，未改动。"
+                throw "sheet「$Sheet」里找不到 $(($keyNames -join '+')) = $($parts -join '+') 的数据行，未改动。"
             }
             $target = $rowByKey[$key]
             foreach ($p in $row.PSObject.Properties) {
-                if ($p.Name -eq $keyName) { continue }
+                if ($keyNames -contains $p.Name) { continue }
                 $col = $cols | Where-Object { $_.Name -eq $p.Name }
                 if (-not $col) {
                     throw "列「$($p.Name)」不存在于 sheet「$Sheet」，合法列名：$($validNames -join ', ')"

@@ -30,8 +30,8 @@ public sealed partial class CharacterForm : Luban.BeanBase
         IconKey = (string)_obj.GetValue("IconKey");
         ArtKey = (string)_obj.GetValue("ArtKey");
         SpineKey = (string)_obj.GetValue("SpineKey");
-        IdleAnimation = (string)_obj.GetValue("IdleAnimation");
-        VideoKey = (string)_obj.GetValue("VideoKey");
+        VideoStartKey = (string)_obj.GetValue("VideoStartKey");
+        VideoLoopKey = (string)_obj.GetValue("VideoLoopKey");
     }
 
     public static CharacterForm DeserializeCharacterForm(JToken _buf)
@@ -80,13 +80,13 @@ public sealed partial class CharacterForm : Luban.BeanBase
     /// </summary>
     public readonly string SpineKey;
     /// <summary>
-    /// 待机动画名(Spine里的动画名)
+    /// 启动视频-AVPro MediaReference完整路径(播一次，可空)
     /// </summary>
-    public readonly string IdleAnimation;
+    public readonly string VideoStartKey;
     /// <summary>
-    /// 视频-AVPro MediaReference完整路径(觉醒/爆发形态填)
+    /// 循环视频-AVPro MediaReference完整路径(觉醒/爆发形态要有)
     /// </summary>
-    public readonly string VideoKey;
+    public readonly string VideoLoopKey;
 
 
     public const int __ID__ = -991383699;
@@ -109,8 +109,8 @@ public sealed partial class CharacterForm : Luban.BeanBase
         + "IconKey:" + IconKey + ","
         + "ArtKey:" + ArtKey + ","
         + "SpineKey:" + SpineKey + ","
-        + "IdleAnimation:" + IdleAnimation + ","
-        + "VideoKey:" + VideoKey + ","
+        + "VideoStartKey:" + VideoStartKey + ","
+        + "VideoLoopKey:" + VideoLoopKey + ","
         + "}";
     }
 }
