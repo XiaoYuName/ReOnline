@@ -10,7 +10,7 @@
     "IconKey": "Assets/AddressableAssets/Remote/Character/1/0Common/Texture2D/Unit/icon_unit_106011.png",
     "UnitPlateIconKey": "Assets/AddressableAssets/Remote/Character/1/0Common/Texture2D/UnitPlate/unit_plate_106011.png",
     "NameIconKey": "Assets/AddressableAssets/Remote/Character/1/0Common/Texture2D/Name/chara_name_1078.png",
-    "ArtImage": "Assets/AddressableAssets/Remote/Character/1/0Common/Texture2D/UnitPlate/unit_plate_106011.png",
+    "ArtImage": "Assets/AddressableAssets/Remote/Character/1/0Common/Texture2D/CharacterFull/bsm_chara_full_106001_l.png",
     "StillUnitPrefab": "",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/1/0Common/Prefab/Skeleton/106011_UI.prefab",
     "SkeletonScreen": ""

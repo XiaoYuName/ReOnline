@@ -172,8 +172,8 @@ namespace XFramework
         public const string Sepcialillust26Path = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/Texture2D/sepcialillust_26.png";
         public const string TouchpointPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/Texture2D/touchpoint.png";
         public const string CharacterHeadSlotPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/CharacterHeadSlot.prefab";
+        public const string CharacterJobSlotUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/CharacterJobSlotUI.prefab";
         public const string CreatCharacterUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/CreatCharacterUI.prefab";
-        public const string ImagePath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CreatCharacterUI/Image.prefab";
         public const string RedivLoginBackground2kPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoadingUI/rediv-login-background-2k.png";
         public const string RedivLoginPopupSpritesheetPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoadingUI/rediv-login-popup-spritesheet.png";
         public const string LoginUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoginUI/LoginUI.prefab";
