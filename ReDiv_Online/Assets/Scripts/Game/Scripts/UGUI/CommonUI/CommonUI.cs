@@ -304,6 +304,8 @@ public partial class CommonUI : UIBase
     {
         await UIUtility.FadeInAsync(1,FadeLayer.All);
         Close();
+        // 登录后点屏幕先进选人界面，选完角色才进城镇（服务端要求 SelectCharacter 之后才算进游戏）
+        UISystem.Instance.OpenUI(UIKeys.SelectCharacterUI);
         await UIUtility.FadeOutAsync(1, FadeLayer.All);
 
     }

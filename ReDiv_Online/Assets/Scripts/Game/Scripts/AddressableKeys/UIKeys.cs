@@ -21,5 +21,13 @@ namespace XFramework
         /// 外主界面 (CommonUI)
         /// </summary>
         public const string CommonUI = "CommonUI";
+        /// <summary>
+        /// 选择角色界面 (SelectCharacterUI)
+        /// </summary>
+        public const string SelectCharacterUI = "SelectCharacterUI";
+        /// <summary>
+        /// 创建角色界面 (CreatCharacterUI)
+        /// </summary>
+        public const string CreatCharacterUI = "CreatCharacterUI";
     }
 }

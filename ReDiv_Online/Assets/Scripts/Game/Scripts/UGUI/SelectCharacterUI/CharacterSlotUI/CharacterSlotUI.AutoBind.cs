@@ -8,12 +8,14 @@ public partial class CharacterSlotUI
     private TMPro.TextMeshProUGUI characterName;
     private TMPro.TextMeshProUGUI characterLevel;
     private UnityEngine.RectTransform skeletonPoint;
+    private UnityEngine.UI.Image selected;
 
     private void InitAutoBind()
     {
         characterName = Get<TMPro.TextMeshProUGUI>("CharacterName");
         characterLevel = Get<TMPro.TextMeshProUGUI>("CharacterLevel");
         skeletonPoint = Get<UnityEngine.RectTransform>("SkeletonPoint");
+        selected = Get<UnityEngine.UI.Image>("Selected");
 
     }
 }

@@ -33,7 +33,7 @@ public sealed partial class CharacterForm : Luban.BeanBase
     /// </summary>
     public readonly int JobId;
     /// <summary>
-    /// 形态ID(同一角色内唯一，约定 基础线1~99 / 爆发线101起)
+    /// 形态ID
     /// </summary>
     public readonly int FormId;
     /// <summary>
@@ -41,7 +41,7 @@ public sealed partial class CharacterForm : Luban.BeanBase
     /// </summary>
     public readonly int FormType;
     /// <summary>
-    /// 星级门槛。基础线:达到该星级即切到这一形态(1基础/3一觉/6二觉)；爆发线:填6只表示它是6星形态
+    /// 门槛
     /// </summary>
     public readonly int UnlockStar;
     /// <summary>

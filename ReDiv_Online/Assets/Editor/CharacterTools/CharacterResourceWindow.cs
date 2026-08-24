@@ -6,10 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Newtonsoft.Json.Linq;
-using RenderHeads.Media.AVProVideo;
 using Sirenix.OdinInspector;
 using Sirenix.OdinInspector.Editor;
-using Spine.Unity;
 using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
@@ -19,7 +17,8 @@ namespace XFramework
     /// <summary>
     /// 角色资源配置窗口 —— 拖资产，一键写回 Excel。
     ///
-    /// 解决的问题：`CharacterForm` 表里的 IconKey / ArtKey / SpineKey / VideoStartKey / VideoLoopKey 是
+    /// 解决的问题：`CharacterForm` 表里那一排资源列（头像 / 略缩图 / 名字图 / 立绘 /
+    /// 预览图预制体 / UI展示预制体 / 战斗Spine预制体）填的是
     /// Addressable 完整路径，在 Excel 里只能手打，打错没提示、资源改名不同步，
     /// 只在运行时表现成「加载不出来」。这里拖资产，路径由工具算。
     ///
@@ -35,7 +34,7 @@ namespace XFramework
     ///
     /// ⚠️ 界面上显示的是**上次导出**的内容。如果有人绕过窗口直接改了 Excel 又没导出，
     /// 窗口是看不到的 —— 所以打开窗口时会先提示你「先导出一次再改」。
-    /// 好在写回只动那 5 列、按 JobId+FormId 定位，不会碰别人改的其它列。
+    /// 好在写回只动那几个资源列、按 JobId+FormId 定位，不会碰别人改的其它列。
     /// </summary>
     public class CharacterResourceWindow : OdinEditorWindow
     {
@@ -120,10 +119,12 @@ namespace XFramework
                     UnlockStar = unlockStar,
                     IsBaseForm = formType == FormTypeBase && unlockStar == lowestBaseStar,
                     IconKey = (string)f["IconKey"] ?? string.Empty,
-                    ArtKey = (string)f["ArtKey"] ?? string.Empty,
-                    SpineKey = (string)f["SpineKey"] ?? string.Empty,
-                    VideoStartKey = (string)f["VideoStartKey"] ?? string.Empty,
-                    VideoLoopKey = (string)f["VideoLoopKey"] ?? string.Empty,
+                    UnitPlateIconKey = (string)f["UnitPlateIconKey"] ?? string.Empty,
+                    NameIconKey = (string)f["NameIconKey"] ?? string.Empty,
+                    ArtImage = (string)f["ArtImage"] ?? string.Empty,
+                    StillUnitPrefab = (string)f["StillUnitPrefab"] ?? string.Empty,
+                    SkeletonUI = (string)f["SkeletonUI"] ?? string.Empty,
+                    SkeletonScreen = (string)f["SkeletonScreen"] ?? string.Empty,
                 });
             }
 
@@ -179,38 +180,42 @@ namespace XFramework
                 string where = $"形态 {row.FormId}「{row.FormName}」";
 
                 CheckAssetExists(where, "头像", row.IconKey);
-                CheckAssetExists(where, "立绘", row.ArtKey);
-                CheckAssetExists(where, "战斗Spine", row.SpineKey);
-                CheckAssetExists(where, "启动视频", row.VideoStartKey);
-                CheckAssetExists(where, "循环视频", row.VideoLoopKey);
+                CheckAssetExists(where, "略缩图", row.UnitPlateIconKey);
+                CheckAssetExists(where, "名字图", row.NameIconKey);
+                CheckAssetExists(where, "立绘", row.ArtImage);
+                CheckAssetExists(where, "预览图预制体", row.StillUnitPrefab);
+                CheckAssetExists(where, "UI展示预制体", row.SkeletonUI);
+                CheckAssetExists(where, "战斗Spine预制体", row.SkeletonScreen);
 
                 if (string.IsNullOrEmpty(row.IconKey))
                 {
                     problems.Add($"{where} 没有头像 —— 每个形态都该有。");
                 }
 
-                // 填法约定：基础形态（基础线里星级门槛最低那行）填立绘不填视频，其余反过来。
+                if (string.IsNullOrEmpty(row.SkeletonUI))
+                {
+                    problems.Add($"{where} 没有 UI展示预制体 —— 选人界面的格子上就不会有形象。");
+                }
+                else if (AssetDatabase.LoadAssetAtPath<GameObject>(row.SkeletonUI) is { } uiPrefab &&
+                         uiPrefab.GetComponent<CharacterGraphicUI>() == null)
+                {
+                    // 光有预制体不够：待机动画名编在 CharacterGraphicUI 上，没这个组件就播不了动画
+                    problems.Add($"{where} 的 UI展示预制体上没有 CharacterGraphicUI 组件，播不了待机动画。");
+                }
+
+                // 填法约定：立绘只有基础形态那一行填，觉醒 / 爆发形态用预览图预制体
                 if (row.IsBaseForm)
                 {
-                    if (string.IsNullOrEmpty(row.ArtKey))
+                    if (string.IsNullOrEmpty(row.ArtImage))
                     {
                         problems.Add($"{where} 是基础形态，应该填立绘。");
-                    }
-                    if (!string.IsNullOrEmpty(row.VideoLoopKey) || !string.IsNullOrEmpty(row.VideoStartKey))
-                    {
-                        problems.Add($"{where} 是基础形态，一般不填视频（现在填了）。");
                     }
                 }
                 else
                 {
-                    if (!string.IsNullOrEmpty(row.ArtKey))
+                    if (!string.IsNullOrEmpty(row.ArtImage))
                     {
                         problems.Add($"{where} 是觉醒/爆发形态，一般不填立绘（现在填了）。");
-                    }
-                    // 启动视频是可选的（播一次的入场动画），循环视频才是必须的
-                    if (string.IsNullOrEmpty(row.VideoLoopKey))
-                    {
-                        problems.Add($"{where} 是觉醒/爆发形态，应该填循环视频。");
                     }
                 }
             }
@@ -260,8 +265,7 @@ namespace XFramework
 
         [TitleGroup("写回")]
         [Button("写入 Excel", ButtonSizes.Gigantic), GUIColor(0.4f, 0.8f, 0.95f)]
-        [PropertyTooltip("按 JobId+FormId 定位行，只写 IconKey / ArtKey / SpineKey / VideoStartKey / VideoLoopKey 这 5 列，" +
-                         "不碰 Excel 里的其它列。")]
+        [PropertyTooltip("按 JobId+FormId 定位行，只写那 7 个资源列，不碰 Excel 里的数值 / 名字 / 排序。")]
         [DisableIf("@Rows.Count == 0")]
         private void WriteToExcel()
         {
@@ -270,7 +274,7 @@ namespace XFramework
                 return;
             }
 
-            // 只写这 5 个资源列，按联合主键定位 —— 别的列（数值、名字、排序）是在 Excel 里维护的，不能碰。
+            // 只写那几个资源列，按联合主键定位 —— 别的列（数值、名字、排序）是在 Excel 里维护的，不能碰。
             var payload = new JArray();
 
             foreach (FormRow row in Rows)
@@ -280,10 +284,12 @@ namespace XFramework
                     ["JobId"] = JobId,
                     ["FormId"] = row.FormId,
                     ["IconKey"] = row.IconKey ?? string.Empty,
-                    ["ArtKey"] = row.ArtKey ?? string.Empty,
-                    ["SpineKey"] = row.SpineKey ?? string.Empty,
-                    ["VideoStartKey"] = row.VideoStartKey ?? string.Empty,
-                    ["VideoLoopKey"] = row.VideoLoopKey ?? string.Empty,
+                    ["UnitPlateIconKey"] = row.UnitPlateIconKey ?? string.Empty,
+                    ["NameIconKey"] = row.NameIconKey ?? string.Empty,
+                    ["ArtImage"] = row.ArtImage ?? string.Empty,
+                    ["StillUnitPrefab"] = row.StillUnitPrefab ?? string.Empty,
+                    ["SkeletonUI"] = row.SkeletonUI ?? string.Empty,
+                    ["SkeletonScreen"] = row.SkeletonScreen ?? string.Empty,
                 });
             }
 
@@ -408,54 +414,76 @@ namespace XFramework
             [HideInTables]
             public string FormName;
 
-            [TableColumnWidth(80, Resizable = false)]
-            [ShowInInspector, PreviewField(58), LabelText("头像"), PropertyOrder(1)]
+            [TableColumnWidth(76, Resizable = false)]
+            [ShowInInspector, PreviewField(54), LabelText("头像"), PropertyOrder(1)]
             public Sprite IconAsset
             {
                 get => Load<Sprite>(IconKey);
                 set => IconKey = PathOf(value);
             }
 
-            [TableColumnWidth(80, Resizable = false)]
-            [ShowInInspector, PreviewField(58), LabelText("立绘"), PropertyOrder(2)]
+            [TableColumnWidth(76, Resizable = false)]
+            [ShowInInspector, PreviewField(54), LabelText("略缩图"), PropertyOrder(2)]
+            public Sprite UnitPlateAsset
+            {
+                get => Load<Sprite>(UnitPlateIconKey);
+                set => UnitPlateIconKey = PathOf(value);
+            }
+
+            [TableColumnWidth(76, Resizable = false)]
+            [ShowInInspector, PreviewField(54), LabelText("名字图"), PropertyOrder(3)]
+            public Sprite NameIconAsset
+            {
+                get => Load<Sprite>(NameIconKey);
+                set => NameIconKey = PathOf(value);
+            }
+
+            /// <summary>立绘。只有基础形态那一行填，觉醒 / 爆发形态用预览图预制体。</summary>
+            [TableColumnWidth(76, Resizable = false)]
+            [ShowInInspector, PreviewField(54), LabelText("立绘"), PropertyOrder(4)]
             public Sprite ArtAsset
             {
-                get => Load<Sprite>(ArtKey);
-                set => ArtKey = PathOf(value);
+                get => Load<Sprite>(ArtImage);
+                set => ArtImage = PathOf(value);
             }
 
-            [TableColumnWidth(150)]
-            [ShowInInspector, LabelText("战斗Spine"), PropertyOrder(3)]
-            public SkeletonDataAsset SpineAsset
+            [TableColumnWidth(140)]
+            [ShowInInspector, LabelText("预览图预制体"), PropertyOrder(5)]
+            public GameObject StillUnitAsset
             {
-                get => Load<SkeletonDataAsset>(SpineKey);
-                set => SpineKey = PathOf(value);
+                get => Load<GameObject>(StillUnitPrefab);
+                set => StillUnitPrefab = PathOf(value);
             }
 
-            /// <summary>启动视频：进这个形态时播一次的入场动画，**可空**。</summary>
-            [TableColumnWidth(150)]
-            [ShowInInspector, LabelText("启动视频"), PropertyOrder(4)]
-            public MediaReference VideoStartAsset
+            /// <summary>
+            /// UI 展示预制体 —— **选人界面格子上用的就是它**。
+            /// 待机动画名编在预制体的 <c>CharacterGraphicUI</c> 组件上，所以配置表里不存动画名。
+            /// </summary>
+            [TableColumnWidth(140)]
+            [ShowInInspector, LabelText("UI展示预制体"), PropertyOrder(6)]
+            public GameObject SkeletonUIAsset
             {
-                get => Load<MediaReference>(VideoStartKey);
-                set => VideoStartKey = PathOf(value);
+                get => Load<GameObject>(SkeletonUI);
+                set => SkeletonUI = PathOf(value);
             }
 
-            /// <summary>循环视频：启动视频播完之后一直循环的那支。觉醒 / 爆发形态要有。</summary>
-            [TableColumnWidth(150)]
-            [ShowInInspector, LabelText("循环视频"), PropertyOrder(5)]
-            public MediaReference VideoLoopAsset
+            /// <summary>战斗里用的 Spine 预制体。选人界面不碰它。</summary>
+            [TableColumnWidth(140)]
+            [ShowInInspector, LabelText("战斗Spine预制体"), PropertyOrder(7)]
+            public GameObject SkeletonScreenAsset
             {
-                get => Load<MediaReference>(VideoLoopKey);
-                set => VideoLoopKey = PathOf(value);
+                get => Load<GameObject>(SkeletonScreen);
+                set => SkeletonScreen = PathOf(value);
             }
 
             // 真正写回 Excel 的就是这几个字符串
             [HideInTables] public string IconKey;
-            [HideInTables] public string ArtKey;
-            [HideInTables] public string SpineKey;
-            [HideInTables] public string VideoStartKey;
-            [HideInTables] public string VideoLoopKey;
+            [HideInTables] public string UnitPlateIconKey;
+            [HideInTables] public string NameIconKey;
+            [HideInTables] public string ArtImage;
+            [HideInTables] public string StillUnitPrefab;
+            [HideInTables] public string SkeletonUI;
+            [HideInTables] public string SkeletonScreen;
 
             private static T Load<T>(string key) where T : Object =>
                 string.IsNullOrEmpty(key) ? null : AssetDatabase.LoadAssetAtPath<T>(key);

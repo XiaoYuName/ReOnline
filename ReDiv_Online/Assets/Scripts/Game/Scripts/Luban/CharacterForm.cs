@@ -28,10 +28,12 @@ public sealed partial class CharacterForm : Luban.BeanBase
         Name = (string)_obj.GetValue("Name");
         SortOrder = (int)_obj.GetValue("SortOrder");
         IconKey = (string)_obj.GetValue("IconKey");
-        ArtKey = (string)_obj.GetValue("ArtKey");
-        SpineKey = (string)_obj.GetValue("SpineKey");
-        VideoStartKey = (string)_obj.GetValue("VideoStartKey");
-        VideoLoopKey = (string)_obj.GetValue("VideoLoopKey");
+        UnitPlateIconKey = (string)_obj.GetValue("UnitPlateIconKey");
+        NameIconKey = (string)_obj.GetValue("NameIconKey");
+        ArtImage = (string)_obj.GetValue("ArtImage");
+        StillUnitPrefab = (string)_obj.GetValue("StillUnitPrefab");
+        SkeletonUI = (string)_obj.GetValue("SkeletonUI");
+        SkeletonScreen = (string)_obj.GetValue("SkeletonScreen");
     }
 
     public static CharacterForm DeserializeCharacterForm(JToken _buf)
@@ -44,7 +46,7 @@ public sealed partial class CharacterForm : Luban.BeanBase
     /// </summary>
     public readonly int JobId;
     /// <summary>
-    /// 形态ID(同一角色内唯一，约定 基础线1~99 / 爆发线101起)
+    /// 形态ID
     /// </summary>
     public readonly int FormId;
     /// <summary>
@@ -52,7 +54,7 @@ public sealed partial class CharacterForm : Luban.BeanBase
     /// </summary>
     public readonly int FormType;
     /// <summary>
-    /// 星级门槛。基础线:达到该星级即切到这一形态(1基础/3一觉/6二觉)；爆发线:填6只表示它是6星形态
+    /// 门槛
     /// </summary>
     public readonly int UnlockStar;
     /// <summary>
@@ -72,21 +74,29 @@ public sealed partial class CharacterForm : Luban.BeanBase
     /// </summary>
     public readonly string IconKey;
     /// <summary>
-    /// 立绘-Addressable完整路径(只有基础形态填)
+    /// 略缩图路径
     /// </summary>
-    public readonly string ArtKey;
+    public readonly string UnitPlateIconKey;
     /// <summary>
-    /// 战斗Spine-Addressable完整路径
+    /// 名字图片路径
     /// </summary>
-    public readonly string SpineKey;
+    public readonly string NameIconKey;
     /// <summary>
-    /// 启动视频-AVPro MediaReference完整路径(播一次，可空)
+    /// 立绘
     /// </summary>
-    public readonly string VideoStartKey;
+    public readonly string ArtImage;
     /// <summary>
-    /// 循环视频-AVPro MediaReference完整路径(觉醒/爆发形态要有)
+    /// 预览图预制体
     /// </summary>
-    public readonly string VideoLoopKey;
+    public readonly string StillUnitPrefab;
+    /// <summary>
+    /// UI展示预制体
+    /// </summary>
+    public readonly string SkeletonUI;
+    /// <summary>
+    /// 战斗Spine预制体
+    /// </summary>
+    public readonly string SkeletonScreen;
 
 
     public const int __ID__ = -991383699;
@@ -107,10 +117,12 @@ public sealed partial class CharacterForm : Luban.BeanBase
         + "Name:" + Name + ","
         + "SortOrder:" + SortOrder + ","
         + "IconKey:" + IconKey + ","
-        + "ArtKey:" + ArtKey + ","
-        + "SpineKey:" + SpineKey + ","
-        + "VideoStartKey:" + VideoStartKey + ","
-        + "VideoLoopKey:" + VideoLoopKey + ","
+        + "UnitPlateIconKey:" + UnitPlateIconKey + ","
+        + "NameIconKey:" + NameIconKey + ","
+        + "ArtImage:" + ArtImage + ","
+        + "StillUnitPrefab:" + StillUnitPrefab + ","
+        + "SkeletonUI:" + SkeletonUI + ","
+        + "SkeletonScreen:" + SkeletonScreen + ","
         + "}";
     }
 }
