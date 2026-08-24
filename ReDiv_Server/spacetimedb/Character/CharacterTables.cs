@@ -83,20 +83,19 @@ public static partial class Module
         public Timestamp? DeletedAt;
 
         /// <summary>
-        /// 当前生效的专职（配置表 <c>TbJobSpecialization</c> 的 SpecId）。
+        /// 角色星级（1~6，上限看配置 <c>CharacterJob.MaxStar</c>）。
         ///
-        /// 一个角色可以有多个可用专职，但同时只有一个生效，玩家可以切换（SwitchSpecialization）。
-        /// 「哪些专职可用」**不存库**：由配置里的 UnlockLevel 和角色等级现算 ——
-        /// 以后要改成「做完任务才解锁」就得加存储，那时再说。
-        /// 形态（专职名 / 觉醒名 / 一次觉醒名）同理不存，见 CurrentFormStage。
+        /// **当前形态就是从它算出来的**：基础线里 UnlockStar ≤ Star 的那些行中，
+        /// UnlockStar 最高的一行（见 CurrentBaseForm）。1~2 星是基础形态、
+        /// 3~5 星是一觉形态、6 星是二觉形态。
         ///
-        /// ⚠️ 这个字段**必须留在结构体末尾**：SpacetimeDB 只支持在末尾追加列，
-        /// 插到中间会被判成 reorder，直接要求手工迁移（实测撞过）。
-        /// <c>[Default(0u)]</c> 让已有角色行拿到 0；0 表示「老数据还没有专职」，
-        /// 读到 0 就退回该职业的 DefaultSpecId（见 ResolveSpecId），不用清库。
+        /// 为什么星级必须**存库**、不能像旧的专职形态那样纯靠等级现算：
+        /// 觉醒的条件是「等级到 + 完成觉醒任务」，任务完成与否从等级推不出来，
+        /// 而且觉醒是**永久的、回不去**，所以进度只能落在角色行上。
+        ///
+        /// 值由 <c>CreateCharacter</c> 插入时写职业配置的 StartStar（见 RequireStartStar）。
         /// </summary>
-        [Default(0u)]
-        public uint SpecId;
+        public uint Star;
     }
 
     /// <summary>
@@ -137,8 +136,13 @@ public static partial class Module
 
         public Timestamp EnteredAt;
 
-        /// <summary>当前专职。在线列表要靠它显示正确的形象。末尾追加，理由同上。</summary>
-        [Default(0u)]
-        public uint SpecId;
+        /// <summary>
+        /// 当前基础形态的 FormId（服务端按星级算好的，配置表 <c>TbCharacterForm</c>）。
+        /// 在线列表要靠它显示正确的形象，所以冗余在这里，省得再查一次私有的角色表。
+        ///
+        /// 战斗中用爆发宝石切出来的爆发形态**不写这里** —— 那是战斗内的临时状态，
+        /// 等战斗系统定型后单开表。
+        /// </summary>
+        public uint FormId;
     }
 }

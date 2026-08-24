@@ -13,7 +13,7 @@ using Luban;
 namespace ReDiv.Server.Config
 {
 /// <summary>
-/// 职业配置表（结构在 Defines/character.xml，字段带 group 区分客户端/服务端）
+/// 角色/职业表。结构和分组都看 CharacterJob.xlsx 的表头（read_schema_from_file=True）
 /// </summary>
 public partial class TbCharacterJob
 {

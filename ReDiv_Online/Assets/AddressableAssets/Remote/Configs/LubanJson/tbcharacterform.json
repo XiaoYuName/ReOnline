@@ -1,0 +1,72 @@
+[
+  {
+    "JobId": 1,
+    "FormId": 1,
+    "FormType": 1,
+    "UnlockStar": 1,
+    "UnlockLevel": 0,
+    "Name": "魔法士",
+    "SortOrder": 1,
+    "IconKey": "Assets/AddressableAssets/Remote/Character/100002/0Common/Texture2D/Unit/icon_unit_106011.png",
+    "ArtKey": "Assets/AddressableAssets/Remote/Character/100002/0Common/Texture2D/CharacterFull/bsm_chara_full_106001_l.png",
+    "SpineKey": "Assets/AddressableAssets/Remote/Character/100002/0Common/Skeleton/Game/106011_SkeletonData.asset",
+    "IdleAnimation": "",
+    "VideoKey": ""
+  },
+  {
+    "JobId": 1,
+    "FormId": 2,
+    "FormType": 1,
+    "UnlockStar": 3,
+    "UnlockLevel": 30,
+    "Name": "魔导士",
+    "SortOrder": 2,
+    "IconKey": "Assets/AddressableAssets/Remote/Character/100002/201/Texture2D/Unit/icon_unit_106031.png",
+    "ArtKey": "",
+    "SpineKey": "",
+    "IdleAnimation": "",
+    "VideoKey": "Assets/AddressableAssets/Remote/Character/100002/201/Video/106031.asset"
+  },
+  {
+    "JobId": 1,
+    "FormId": 3,
+    "FormType": 1,
+    "UnlockStar": 6,
+    "UnlockLevel": 60,
+    "Name": "黑魔法师",
+    "SortOrder": 3,
+    "IconKey": "Assets/AddressableAssets/Remote/Character/100002/201/Texture2D/Unit/icon_unit_106061.png",
+    "ArtKey": "",
+    "SpineKey": "",
+    "IdleAnimation": "",
+    "VideoKey": "Assets/AddressableAssets/Remote/Character/100002/201/Video/106061.asset"
+  },
+  {
+    "JobId": 1,
+    "FormId": 101,
+    "FormType": 2,
+    "UnlockStar": 6,
+    "UnlockLevel": 0,
+    "Name": "公主",
+    "SortOrder": 1,
+    "IconKey": "Assets/AddressableAssets/Remote/Character/100002/202/Texture2D/Unit/icon_unit_180611.png",
+    "ArtKey": "",
+    "SpineKey": "",
+    "IdleAnimation": "",
+    "VideoKey": "Assets/AddressableAssets/Remote/Character/100002/202/Video/180611.asset"
+  },
+  {
+    "JobId": 1,
+    "FormId": 102,
+    "FormType": 2,
+    "UnlockStar": 6,
+    "UnlockLevel": 0,
+    "Name": "暗黑圣灵",
+    "SortOrder": 2,
+    "IconKey": "Assets/AddressableAssets/Remote/Character/100002/202/Texture2D/Unit/icon_unit_180631.png",
+    "ArtKey": "",
+    "SpineKey": "",
+    "IdleAnimation": "",
+    "VideoKey": "Assets/AddressableAssets/Remote/Character/100002/202/Video/180631.asset"
+  }
+]

@@ -14,31 +14,25 @@ namespace ReDiv.Server.Config
 public partial class Tables
 {
     /// <summary>
-    /// 职业配置表（结构在 Defines/character.xml，字段带 group 区分客户端/服务端）
+    /// 角色/职业表。结构和分组都看 CharacterJob.xlsx 的表头（read_schema_from_file=True）
     /// </summary>
     public TbCharacterJob TbCharacterJob {get; }
     /// <summary>
-    /// 专职表（结构在 Defines/character.xml）
+    /// 角色形态表，联合主键 JobId+FormId。基础线(FormType=1)按星级现算当前形态，爆发线(FormType=2)一个角色可多个。结构看 CharacterForm.xlsx 表头
     /// </summary>
-    public TbJobSpecialization TbJobSpecialization {get; }
-    /// <summary>
-    /// 专职形态表，联合主键 SpecId+Stage（结构在 Defines/character.xml）
-    /// </summary>
-    public TbSpecializationForm TbSpecializationForm {get; }
+    public TbCharacterForm TbCharacterForm {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
         TbCharacterJob = new TbCharacterJob(loader("tbcharacterjob"));
-        TbJobSpecialization = new TbJobSpecialization(loader("tbjobspecialization"));
-        TbSpecializationForm = new TbSpecializationForm(loader("tbspecializationform"));
+        TbCharacterForm = new TbCharacterForm(loader("tbcharacterform"));
         ResolveRef();
     }
     
     private void ResolveRef()
     {
         TbCharacterJob.ResolveRef(this);
-        TbJobSpecialization.ResolveRef(this);
-        TbSpecializationForm.ResolveRef(this);
+        TbCharacterForm.ResolveRef(this);
     }
 }
 

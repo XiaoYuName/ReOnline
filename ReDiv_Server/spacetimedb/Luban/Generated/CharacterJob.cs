@@ -18,8 +18,9 @@ public sealed partial class CharacterJob : Luban.BeanBase
     {
         JobId = _buf.ReadInt();
         Creatable = _buf.ReadBool();
-        DefaultSpecId = _buf.ReadInt();
         StartLevel = _buf.ReadInt();
+        StartStar = _buf.ReadInt();
+        MaxStar = _buf.ReadInt();
     }
 
     public static CharacterJob DeserializeCharacterJob(ByteBuf _buf)
@@ -27,10 +28,26 @@ public sealed partial class CharacterJob : Luban.BeanBase
         return new CharacterJob(_buf);
     }
 
+    /// <summary>
+    /// 角色ID
+    /// </summary>
     public readonly int JobId;
+    /// <summary>
+    /// 能否在创建角色界面选择
+    /// </summary>
     public readonly bool Creatable;
-    public readonly int DefaultSpecId;
+    /// <summary>
+    /// 初始等级
+    /// </summary>
     public readonly int StartLevel;
+    /// <summary>
+    /// 建角色时的初始星级
+    /// </summary>
+    public readonly int StartStar;
+    /// <summary>
+    /// 星级上限。有二觉填6，没二觉填5
+    /// </summary>
+    public readonly int MaxStar;
    
     public const int __ID__ = -1278902284;
     public override int GetTypeId() => __ID__;
@@ -44,8 +61,9 @@ public sealed partial class CharacterJob : Luban.BeanBase
         return "{ "
         + "JobId:" + JobId + ","
         + "Creatable:" + Creatable + ","
-        + "DefaultSpecId:" + DefaultSpecId + ","
         + "StartLevel:" + StartLevel + ","
+        + "StartStar:" + StartStar + ","
+        + "MaxStar:" + MaxStar + ","
         + "}";
     }
 }

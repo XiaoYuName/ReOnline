@@ -3,8 +3,12 @@
 ReDiv 服务端。C# 编写的 **SpacetimeDB 模块**，编译成 WebAssembly 跑在数据库进程内 ——
 **没有独立的游戏服务器进程**。
 
-**当前状态：账号系统 + 角色系统。** 注册 / 登录 / 会话、以及多角色的创建 / 删除 / 选择
-都能用了（见下面两节）。战斗、地图、背包这些玩法表还没有 —— 定型后再往里加。
+**当前状态：账号系统 + 角色系统。** 注册 / 登录 / 会话，多角色的创建 / 删除 / 选择，
+以及形态与觉醒（基础 → 一觉 → 二觉，按星级现算）都能用了（见下面两节）。
+战斗、地图、背包这些玩法表还没有 —— 定型后再往里加。
+
+> ⚠️ 2026-08-24 改过一次形态设定：**「专职」那一层已经废弃**，
+> 现在是「角色 → 形态（基础线 + 爆发线）」两层，见「角色系统」一节。
 
 > ⚠️ 玩法是**自研**的。不要从「像某款已知游戏」去推导表结构和系统设计 —— 需要业务结构时
 > 主动问。详见 [../CLAUDE.md](../CLAUDE.md) 第 0 节。
@@ -59,7 +63,8 @@ ReDiv_Server/
     │   ├── CharacterTables.cs    Character（私有）/ CharacterSelection（公开）
     │   ├── CharacterReducers.cs  CreateCharacter / DeleteCharacter / SelectCharacter / LeaveCharacter
     │   ├── CharacterRules.cs     角色名规则（允许中文，按显示宽度限长）
-    │   ├── CharacterSpecialization.cs  专职切换 + 形态计算（都按配置现算）
+    │   ├── CharacterForms.cs     形态计算（按星级现算）+ AwakenCharacter 觉醒
+    │   ├── CharacterConfigSelfTest.cs  配置表自检（改完 Excel 跑一次）
     │   └── CharacterViews.cs     MyCharacter / MyAccountProfile（per-subscriber View）
     ├── Security/           口令哈希（自己写的，原因见「已知坑」）
     │   ├── Sha256.cs
@@ -261,43 +266,61 @@ spacetime sql rediv "SELECT account_id, username_key, username FROM account"
 一个账号多个角色（DNF 那种），登录后进选人界面，选完角色才进城镇。
 源码在 `spacetimedb/Character/`。
 
-### 三层结构（职业 → 专职 → 形态）
+### 两层结构（角色 → 形态）
 
 ```
-CharacterJob        角色 / 职业（凯露）—— 建角色时选的就是这一层，之后不变
-  └ JobSpecialization  专职（魔法士…）—— 一个角色多个可用，同时只有一个生效、可切换
-      └ SpecializationForm  形态 —— 每个专职 3 个（专职名 / 觉醒名 / 一次觉醒名）
+CharacterJob      角色 / 职业（凯露）—— 建角色时选的就是这一层，之后不变
+  └ CharacterForm   形态 —— 美术资源都挂在这一层，分两条线
+      ├ 基础线 FormType=1  按**星级**现算当前形态，靠觉醒推进，**永久不可逆**
+      │    1~2 星  基础形态（魔法士）    UnlockStar=1，建完角色就在这
+      │    3~5 星  一觉形态（魔导士）    UnlockStar=3，UnlockLevel=30
+      │    6   星  二觉形态（黑魔法师）  UnlockStar=6，UnlockLevel=60
+      │                                  ⚠️ **部分角色没有二觉** —— 不配这行就行，
+      │                                     那样的角色靠养成最高到 5 星
+      └ 爆发线 FormType=2  一个角色**可以有多个**，**不分阶段**，按 SortOrder 排
+           公主 / 暗黑圣灵 …  战斗中装备**爆发宝石**才切，和星级 / 等级无关
 ```
+
+> ⚠️ **2026-08-24 改过设定。** 原来中间还有一层「专职」（`JobSpecialization` /
+> `Character.SpecId` / `SwitchSpecialization` / `FormStage`），觉醒是挂在专职下面的
+> `Stage`。**现在没有专职了**：形态直接挂角色，靠星级推进，另外多出一条爆发线。
+> 那套表、字段和 Reducer 都已删干净 —— 别照着旧提交或旧文档写。
 
 **职业名和角色名是两回事**：职业名（凯露）来自配置、所有玩家一样；
 角色名是玩家自己输入的、全服唯一。别把两者混起来。
 
-**可用专职和当前形态都不存库**，由配置里的 `UnlockLevel` 和角色等级现算：
+### 星级：存的是它，形态是算出来的
 
 | 存的 | 算的 |
 |---|---|
-| `Character.JobId`（建角色时定，不变） | 哪些专职可用（等级 ≥ 专职的 UnlockLevel） |
-| `Character.SpecId`（当前生效的专职，可切换） | 当前形态（等级 ≥ 形态的 UnlockLevel，取 Stage 最大的那个） |
+| `Character.JobId`（建角色时定，不变） | 当前形态（基础线里 UnlockStar ≤ 星级的行中，UnlockStar 最高的那个）|
+| `Character.Star`（星级 1~6，靠觉醒推进） | 星级上限（没配 6 星形态的角色就到不了 6 星）|
 
-好处是改平衡只要改 Excel + 重发布，不用写数据迁移；代价是解锁条件只能是「能从现有数据推出来」的东西。
-以后要做「做完任务才觉醒」，得在角色侧加存储，那时再动。
+为什么星级**必须存库**，不像旧的专职形态那样纯靠等级现算：
+觉醒的条件是「等级到 + **完成觉醒任务**」，任务完成与否从等级推不出来；
+而且觉醒是**永久的、回不去**，所以进度只能落在角色行上。
 
-形态由**服务端**算并通过 `MyCharacter` View 的 `FormStage` 下发，
-**客户端别自己再算一遍** —— 两份实现迟早对不上。客户端拿 `(SpecId, FormStage)`
-去 `TbSpecializationForm.Get()` 取名字 / 立绘 / 头像。
+4 / 5 星在配置里**没有单独的行** —— 形象跟着 3 星那行走（`CurrentBaseFormId` 取的是
+「不超过当前星级的最高那档」）。所以升星养成加星级不用改形态表。
+
+形态由**服务端**算并通过 `MyCharacter` View 的 `FormId` 下发，
+**客户端别自己再算一遍** —— 两份实现迟早对不上。客户端拿 `(JobId, FormId)`
+去 `TbCharacterForm.Get()` 取名字 / 立绘 / 头像 / Spine / 视频。
 
 ### 表
 
 | 表 | 公开性 | 说明 |
 |---|---|---|
-| `Character` | **私有** | 角色档案。`AccountId`（索引）/ `NameKey`（唯一）/ `Name` / `JobId` / `SpecId` / `Level` / `Exp` / `DeletedAt` |
-| `CharacterSelection` | 公开 | 这条连接当前选了哪个角色，主键 `ConnectionId`。带 `SpecId`，天然就是在线角色列表 |
+| `Character` | **私有** | 角色档案。`AccountId`（索引）/ `NameKey`（唯一）/ `Name` / `JobId` / `Level` / `Exp` / `DeletedAt` / `Star` |
+| `CharacterSelection` | 公开 | 这条连接当前选了哪个角色，主键 `ConnectionId`。带 `FormId`，天然就是在线角色列表 |
 
-⚠️ **新字段只能追加到 struct 末尾**。`SpecId` 一开始被我插在中间，publish 直接报
-`Reordering table character requires a manual migration` —— SpacetimeDB 只支持在末尾加列。
+⚠️ **新字段只能追加到 struct 末尾**，插到中间会被判成 reorder（`Reordering table
+character requires a manual migration`）。**删列 SpacetimeDB 根本不支持** ——
+开发期直接清库重发就行，见「已知坑」里那一条。
 
-`Account` 上加了 `CharacterSlots`（默认 4，上限常量 8），栏位可扩展所以存在账号上。
-这个字段是用 `[Default(4)]` **兼容追加**的，已有账号行自动拿到默认值，不用清库。
+`Account` 上有 `CharacterSlots`（默认 4，上限常量 8），栏位可扩展所以存在账号上。
+⚠️ 它由 `Register` 插入时**显式赋值**，不要指望表上的 `[Default]`（那个只在迁移时
+给已有行回填，对新插入的行无效 —— 踩过，见「已知坑」）。
 
 玩法态（地图 / 坐标 / HP / 体力）**故意还没建表**。定型后以 `CharacterId` 为主键单开表，
 别往 `Character` 上堆 —— 那张表只在选人界面读一次。
@@ -306,14 +329,21 @@ CharacterJob        角色 / 职业（凯露）—— 建角色时选的就是�
 
 | 客户端绑定 | CLI | 行为 |
 |---|---|---|
-| `CreateCharacter(name, jobId)` | `create_character` | 校验顺序：会话 → 名字 → 栏位 → 重名 → 职业配置 |
+| `CreateCharacter(name, jobId)` | `create_character` | 校验顺序：会话 → 名字 → 栏位 → 重名 → 职业配置。星级落在配置的 `StartStar` |
 | `DeleteCharacter(characterId)` | `delete_character` | **软删**：打 `DeletedAt`，同时把名字释放出来 |
 | `SelectCharacter(characterId)` | `select_character` | 选完才算进城镇，写 `CharacterSelection` |
 | `LeaveCharacter()` | `leave_character` | 回选人界面，只清选角状态不影响登录态 |
-| `SwitchSpecialization(characterId, specId)` | `switch_specialization` | 切当前专职。校验：属于该角色的职业 + 等级够 |
+| `AwakenCharacter(characterId)` | `awaken_character` | 觉醒：推到基础线的下一档（星级 1~2 → 一觉、3~5 → 二觉） |
 
 鉴权一律走**当前连接的 Session 行**（`RequireAccountId`）：必须有活会话才能动角色数据。
 「角色不存在」和「不属于你」回同一句文案，否则拿 characterId 挨个试就能探出别人有哪些角色。
+
+**觉醒现在只校验等级。** 设定上还要求「完成觉醒任务」，但任务系统还不存在 ——
+那一条在 `CharacterForms.cs` 里留成一处 TODO，任务系统做好后只改那一处，
+别把条件散到别的 Reducer 或客户端。觉醒**没有反向接口**，这是设定，不是漏了。
+
+**升星（1→2、3→4→5）还没有接口。** 那是养成系统的事（材料 / 碎片来源都没定），
+现在测试要调星级直接写 SQL。
 
 ### 角色列表用 View 下发，不用公开表
 
@@ -321,7 +351,7 @@ CharacterJob        角色 / 职业（凯露）—— 建角色时选的就是�
 
 | View | 内容 |
 |---|---|
-| `MyCharacter` | 自己账号下未删除的角色（PK = CharacterId），含 `SpecId` 和服务端算好的 `FormStage` |
+| `MyCharacter` | 自己账号下未删除的角色（PK = CharacterId），含 `Star` 和服务端算好的 `FormId` |
 | `MyAccountProfile` | 账号名 + 栏位数（客户端画选人格子要） |
 
 为什么不做成公开表让客户端按 `account_id` 订阅：**AccountId 是自增整数，太好猜**，
@@ -364,15 +394,45 @@ InvariantGlobalization 下不可靠），白名单已经把易混淆区段挡掉
 ### CLI 测试速查
 
 ```bash
+spacetime call rediv login '"alice"' '"secret123"'
+```
+
+```bash
 spacetime call rediv create_character '"影狼"' '1'
 ```
 
 ```bash
-spacetime sql rediv "SELECT character_id, name, job_id, level FROM my_character"
+spacetime call rediv awaken_character '1'
 ```
 
-`character_selection` 查出来是空的很正常：CLI 每次调用都是新连接，调完就断，
-选角行跟着被清掉。要看它有内容，得用活着的客户端连接。
+```bash
+spacetime sql rediv "SELECT character_id, name, star, form_id, level FROM my_character"
+```
+
+```bash
+spacetime call rediv character_config_self_test
+```
+
+三个坑：
+
+- **每个 `spacetime call` / `spacetime sql` 都是一条新连接**，调完就断。所以
+  `character_selection` 查出来总是空的（选角行随连接清掉），要看它有内容得用活着的客户端。
+- 角色 Reducer 都要求**有活会话**，所以每轮测试先 `login` 一次。
+- 想调星级看形态变化，走觉醒要先满足等级，**直接写 SQL 最省事**：
+  `spacetime sql rediv "UPDATE character SET star = 5 WHERE character_id = 2"`。
+
+### 现在的数据状态（会随开发变，以库里为准）
+
+配置：只有 `JobId=1`（凯露，`MaxStar=6`、`StartLevel=1`、`StartStar=1`）。形态五行 ——
+基础线 `FormId=1` 魔法士（1 星）/ `2` 魔导士（3 星、30 级）/ `3` 黑魔法师（6 星、60 级），
+爆发线 `FormId=101` 公主 / `102` 暗黑圣灵。
+
+⚠️ 资源路径**已经填了**（`IconKey` / `ArtKey` / `SpineKey` / `VideoKey`，用的是
+`Character/100002/` 那套图），但 `IdleAnimation` 还是空的，
+觉醒等级 30 / 60 和 `CharacterJob.Subtitle` 还是占位的。
+
+⚠️ 2026-08-24 因为改形态设定**清过一次库**。现在库里是 `alice` / `Carol_01` / `bob_2`
+三个账号，alice 名下有「影狼」（60 级 / 6 星 / 二觉）和「祭星者」（1 级 / 1 星 / 基础）。
 
 ---
 
@@ -421,9 +481,10 @@ Excel 是**唯一真相源**，客户端和服务端从同一份表各取所需�
 
 ```
 ExcelTool/LubanTools/DataTables/
-├── Defines/character.xml     表结构（字段带 group，见下）
-├── Datas/__tables__.xlsx     表登记
-└── Datas/CharacterJob.xlsx   职业表数据
+├── Defines/builtin.xml       只剩 vector2/3/4（角色表的结构已经不写 XML 了，见下）
+├── Datas/__tables__.xlsx     表登记（read_schema_from_file=True ⇒ 结构看 Excel 表头）
+├── Datas/CharacterJob.xlsx   角色表：结构 + 分组 + 数据全在这
+└── Datas/CharacterForm.xlsx  形态表：同上
         │
         ├─ -t client -c cs-newtonsoft-json -d json → Unity 工程 + Addressables
         └─ -t server -c cs-bin           -d bin    → spacetimedb/Luban/Generated + spacetimedb/Configs
@@ -446,41 +507,91 @@ ExcelTool/LubanTools/DataTables/
    它要求 csproj 开 `<AllowUnsafeBlocks>`（ByteBuf 有两个 `*_Unsafe` 优化方法用了指针）——
    开这个开关是为了让 vendored 文件和上游**逐字节一致**，升级时直接覆盖，不用重打补丁。
    wasm 里的指针出不了线性内存沙箱，也不影响 Reducer 的确定性。
-4. **字段级 group 可用。** 一张表按列分给两端。角色这三张表是这么切的
-   （结构在 `Defines/character.xml`，相对 DataTables 目录）：
+4. **字段级 group 可用。** 一张表按列分给两端。角色这两张表是这么切的
+   （结构就写在各自 Excel 的 `##group` 表头行里，见下面「Excel 就是 schema」）：
 
 **`CharacterJob`（角色 / 职业，建角色时选）**
 
 | 列 | group | 谁用 |
 |---|---|---|
-| `JobId` / `Creatable` / `DefaultSpecId` | 不标（两端都有） | 服务端校验合法性并定初始专职，客户端筛选可选项 |
-| `StartLevel` | `s` | 只有服务端能信 |
+| `JobId` / `Creatable` / `MaxStar` | 不标（两端都有） | 服务端校验合法性和升星上限，客户端筛选可选项、画「x/6 星」那排星 |
+| `StartLevel` / `StartStar` | `s` | 建角色时的初始值，只有服务端能信 |
 | `Name` / `Subtitle` / `SortOrder` | `c` | 职业名（凯露）、副标题、排序 —— **直接写中文原文** |
 
-**`JobSpecialization`（专职，一个角色多个）**
+`MaxStar`：**有二觉填 6，没二觉填 5**。一觉是 3 星，之后靠养成升到 4、5 星（形象不变），
+只有二觉才会推到 6 星，所以没二觉的角色就封顶在 5 星。
+
+**`CharacterForm`（形态，美术资源都在这一层）**
 
 | 列 | group | 谁用 |
 |---|---|---|
-| `SpecId` / `JobId` / `UnlockLevel` | 不标 | 服务端校验能不能切，客户端把没解锁的画灰 |
-| `Name` / `IconKey` / `SortOrder` | `c` | 专职选择卡的名字（中文原文）和图标 |
+| `JobId` / `FormId` / `FormType` / `UnlockStar` / `UnlockLevel` | 不标 | 服务端算当前形态、判觉醒条件；客户端把没解锁的画灰 |
+| `Name` / `SortOrder` | `c` | 形态名（中文原文）、同一条线内的排序 |
+| `IconKey` / `ArtKey` / `SpineKey` / `IdleAnimation` / `VideoKey` | `c` | 头像 / 立绘 / 战斗 Spine / 待机动画名 / 视频，都填 **Addressable 完整路径** |
 
-**`SpecializationForm`（形态，每个专职 3 行）**
+`FormId` 只要求**在同一个角色内唯一**，约定基础线用 1~99、爆发线从 101 起。
+两条线按 `FormType` 分，各自的填法不一样：
 
-| 列 | group | 谁用 |
-|---|---|---|
-| `SpecId` / `Stage` / `UnlockLevel` | 不标 | 服务端算当前形态 |
-| `Name` / `ArtKey` / `IconKey` | `c` | 形态名（专职名 / 觉醒名 / 一次觉醒名，中文原文）、立绘、头像 |
+| 形态线 | 行 | UnlockStar / UnlockLevel | 资源 |
+|---|---|---|---|
+| 基础线 `FormType=1` | 基础形态 | 1 / 0 | **填立绘**，不填视频 |
+| | 一觉 | 3 / 觉醒要求的等级 | **不填立绘**，填视频 |
+| | 二觉（可选） | 6 / 觉醒要求的等级 | 同上 |
+| 爆发线 `FormType=2` | 一个角色可多个 | 6 / **0** | **不填立绘**，填视频 |
 
-**立绘和头像挂在形态而不是专职上** —— 觉醒会换外观。专职只挂选择卡图标。
+爆发形态**靠战斗中装备爆发宝石解锁和切换**，和星级 / 等级无关 —— 所以它的
+`UnlockLevel` 必须填 0（填了非 0 自检会报），`UnlockStar` 填 6 只表示「它是 6 星形态」，
+不参与解锁判定。
 
-分组只能写在 XML 里（`read_schema_from_file=false`），Excel 表头给不了字段级 group。
+`VideoKey` 填 AVPro 的 **MediaReference 资源**完整路径（工程里 `Video/Loading/Loading.asset` 就是一个）。
 
-形态表是 `mode = list` + 联合主键（`__tables__.xlsx` 的 index 列写 `SpecId+Stage`）。
+⚠️ 每个角色的基础线至少要有一行 `UnlockStar` 不高于 `CharacterJob.StartStar`，否则刚建出来的
+角色算不出形态，客户端取不到任何资源 —— `CreateCharacter` 会直接拒绝创建。**自检 Reducer 会查这条。**
+
+### 配置改完跑一次自检
+
+两张表靠 `JobId` / `FormId` / `UnlockStar` 互相引用，**没有任何编译期检查** ——
+配错了不报错，只表现成「建不出角色」「觉醒不了」「客户端没资源」，很难往回追。所以：
+
+```bash
+spacetime call rediv character_config_self_test
+```
+
+查的是表之间的引用和结构：初始星级接不接得住一行基础形态、`MaxStar` 够不够得着最高那档
+（够不着的话那一档永远觉醒不到）、`MaxStar` 是不是 5 或 6、同一角色内 `FormId` 有没有重复、
+基础线有没有两行抢同一个 `UnlockStar`、觉醒等级门槛有没有倒挂（6 星只要 30 级、3 星却要 60 级
+这种）、`FormType` 合不合法、爆发形态的 `UnlockLevel` 是不是 0、形态的 `JobId` 是否悬空。
+
+查不了的：Addressable 路径字符串对不对（那些列是 `group="c"`，服务端根本看不到），
+只能靠客户端跑起来才知道。
+
+### Excel 就是 schema（2026-08-24 起）
+
+两张角色表在 `__tables__.xlsx` 里的 `read_schema_from_file` 都是 **`True`**，
+**字段名 / 类型 / 分组 / 注释全部以 Excel 表头为准**，XML bean 定义已经删掉
+（`Defines/` 现在只剩 `builtin.xml` 的 vector 类型）。
+
+⚠️ 这推翻了本文件之前写的「分组只能写在 XML 里，Excel 表头给不了字段级 group」——
+**那句话是错的**，2026-08-24 实测确认：
+
+| 实测项 | 结果 |
+|---|---|
+| `read_schema_from_file=True` 时 `##group` 行认不认 | ✅ 认。`s` 列只进服务端 bin，`c` 列只进客户端 json |
+| 联合主键（`JobId+FormId`，index 写在 `__tables__` 里） | ✅ 照常，`TbCharacterForm.Get(jobId, formId)` 还在 |
+| `##` 注释行 | ✅ **会变成生成代码的 `/// <summary>`**，XML 那套做不到 |
+
+新加配置表直接建 Excel、在 `__tables__.xlsx` 里把 `read_schema_from_file` 填 `True` 就行。
+
+⚠️ 代价：schema 藏在**二进制 .xlsx 里，git diff 看不见**。以前改 XML 是文本 diff，
+review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelTable.ps1 -Action Dump` 主动查 ——
+改表结构时在提交信息里写清楚。
+
+形态表是 `mode = list` + 联合主键（`__tables__.xlsx` 的 index 列写 `JobId+FormId`）。
 ⚠️ 联合主键的表**不能用 `mode = map`**，Luban 会报「是单主键表，index 不能包含多个 key」。
-代码里访问是 `TbSpecializationForm.Get(specId, stage)`。
+代码里访问是 `TbCharacterForm.Get(jobId, formId)`。
 
-拆成三张表而不是在专职表上开 `Form1Art` / `Form2Art` … 一排列：客户端字段一多横向会爆，
-而且以后加第四形态只是多一行，不用改表结构。
+形态拆成行而不是在角色表上开 `Form1Art` / `Form2Art` … 一排列：客户端字段一多横向会爆，
+而且加一个爆发形态只是多一行，不用改表结构。
 
 ### 限制与约定
 
@@ -489,21 +600,37 @@ ExcelTool/LubanTools/DataTables/
 - 真需要热更数值（不重发就调平衡）时再改成「配置进表 + 导入 Reducer 推进去」，
   那时客户端可以直接订阅配置表，两端彻底同源。现阶段没必要。
 - 建议把「改了 `s` 组配置」纳入版本号语义，bump 一下版本 —— 版本校验就能挡住配置不一致的旧客户端。
+- 改 Excel **必须走 `ExcelTool/LubanTools/ExcelTable.ps1`**（Excel COM 自动化，原因见脚本头部）。
+  它有 `Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddSheet` / `SetHeader` /
+  `AddEnumItems` / `AddEnumType` / `DeleteRows` / `DeleteColumn` / `DeleteSheet` 这些 Action。
+- **Excel 表头是 4 行**：`##var` / `##type` / `##group` / `##`，数据从第 5 行起。
+  `##group` 那一行写 `c` / `s` / `c,s`，所以注释里不用再写「仅客户端」「仅服务端」。
+  `##group` 行就是**权威定义**（`read_schema_from_file=True`），不用再去改 XML。
 
-### ⚠️ 三张表现在都是占位数据
+### ⚠️ 两张表的结构定了，还有几个占位数值
 
-`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下：
+`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下现在是：
 
 | 表 | 现有内容 |
 |---|---|
-| `CharacterJob.xlsx` | `JobId=1`（Name=`凯露`，Subtitle 空着），DefaultSpecId=101 |
-| `JobSpecialization.xlsx` | `SpecId=101`（`魔法士`，0 级可用）、`SpecId=102`（`占位专职`，20 级解锁，纯为测切换） |
-| `SpecializationForm.xlsx` | 101 和 102 各 3 行，解锁等级 0/30/60 与 0/40/70 |
+| `CharacterJob.xlsx` | `JobId=1`（Name=`凯露`、`MaxStar=6`、`StartLevel=1`、`StartStar=1`，Subtitle 空着） |
+| `CharacterForm.xlsx` | 基础线 `1` 魔法士（1 星）/ `2` 魔导士（3 星、30 级）/ `3` 黑魔法师（6 星、60 级）；爆发线 `101` 公主 / `102` 暗黑圣灵 |
 
-这些**只是把通路跑通用的，不是玩法设定**。真实职业 / 专职列表定了就替换。
-两个填表约定：`Name` 类字段**直接写中文原文**（项目纯中文，没有多语言这一层）；
-`ArtKey` / `IconKey` 填 Addressable 的**完整资源路径**（见客户端文档第 4 节的 key 约定）。
-形态表里 Stage 2/3 的名字现在是 `魔法士(觉醒名待定)` 这种占位，等你给真名。
+**结构是最终设计，可以照着往下写代码。** 资源路径也填好了（用的是
+`Assets/AddressableAssets/Remote/Character/100002/` 那套图：`0Common` 给基础形态、
+`201` 给觉醒线、`202` 给爆发线）。但这些还没定：
+
+- **`IdleAnimation` 全是空的**（Spine 里的待机动画名）
+- **觉醒等级是占位数字** —— 一觉 30 级、二觉 60 级
+- `CharacterJob.Subtitle`（选人界面职业名下面那行小字）还空着
+- 只有一个角色（`JobId=1`），美术资源目录里已经有 `Character/100001/` 那一套还没进表
+
+填表约定：`Name` / `Subtitle` **直接写中文原文**（项目纯中文，没有多语言这一层）；
+`*Key` 列填 Addressable 的**完整资源路径**（见客户端文档第 4 节的 key 约定）；
+`VideoKey` 填 AVPro 的 MediaReference 资源路径。
+哪一行填哪些资源见上面那张「两条线的填法」表。
+
+改完跑一次 `spacetime call rediv character_config_self_test`。
 
 ---
 
@@ -574,6 +701,53 @@ Error: Response text: SystemSecurityCryptography_PlatformNotSupported
 （SHA-256 + HMAC + PBKDF2），正确性靠 `auth_self_test` 的测试向量守。
 以后要用别的哈希 / 签名 / 加密，先假定 BCL 那套用不了，**并且必须真的 call 一次验证**，
 光看编译通过说明不了任何问题。
+
+### 表加字段只能加在 struct 末尾
+
+插到中间会被判成列重排，publish 直接拒绝：
+
+```
+Reordering table character requires a manual migration
+```
+
+实测：给 `Character` 加字段时放在 `Exp` 后面就撞了，挪到 struct 末尾就过。
+所以那些字段的顺序**不是随便排的**，别为了「看起来整齐」挪它。
+
+**删列干脆不支持**（`Removing a column spec_id from table character requires a manual
+migration`，2026-08-24 改形态设定时撞的）。**开发期的做法就是清库重发**：
+
+```bash
+spacetime publish --delete-data=always --yes
+```
+
+⚠️ 别为了保住开发库里那点测试数据去留废弃字段、`[Default]` 回填、「读到 0 就退回默认值」
+这类兼容分支 —— 那些东西留下来只会误导后面看代码的人。正式版发布之后再谈迁移。
+
+⚠️ 另外：`[Default(...)]` **只在迁移时给已有行回填，对新插入的行无效**。
+新字段要有初值必须在 Insert 那里显式赋值。踩过：`Account.CharacterSlots` 只标了
+`[Default(4)]`，清库后新注册的账号栏位数是 0，一个角色都建不出来。
+
+### Luban 联合主键的表不能用 `mode = map`
+
+形态表用 `JobId+FormId` 联合主键，`mode` 写 `map` 会报：
+
+```
+是单主键表，index:'JobId+FormId' 不能包含多个 key
+```
+
+改成 `mode = list` + index 写 `JobId+FormId` 就对了，生成的访问器是
+`TbCharacterForm.Get(jobId, formId)`。
+
+### `spacetime sql` 能写，但不支持 `IS NULL`
+
+owner 身份可以直接 `UPDATE` / `DELETE`，调试改数据很方便：
+
+```bash
+spacetime sql rediv "UPDATE character SET level = 30 WHERE character_id = 9"
+```
+
+但 `WHERE x IS NULL` 会 400（`Unsupported expression`）—— 可空列没法用 SQL 过滤，
+这也是角色列表必须走 View 的原因之一（见「角色系统」）。
 
 ### 首次 publish 会下载 535MB 的 WASI SDK
 
@@ -687,7 +861,13 @@ Unity 侧的登录逻辑已经完成，入口都在 `../ReDiv_Online/Assets/Scri
 - 哪些数据公开、哪些私有 + View
 - 登录相关的补齐项：改密码 / 找回密码 / 删号、失败次数锁定（要改错误回报方式，
   见「账号系统 → 有意没做的事」）
-- 角色相关的补齐项：真实职业列表（现在是占位行）、改名、软删角色的恢复入口、
-  扩栏位的入口（付费 / 活动）、敏感词过滤
+- 角色相关的补齐项：改名、软删角色的恢复入口、扩栏位的入口（付费 / 活动）、敏感词过滤
+- **角色配置的 `IdleAnimation` 和觉醒等级还是空的 / 占位的**，见「配置表」最后一节
+- **升星（1→2、3→4→5）还没有接口** —— 那是养成系统的事（材料 / 碎片来源都没定）。
+  现在只有觉醒能推星级，测试时用 SQL 直接改
+- **爆发宝石**：爆发形态的配置已就绪，但「装备宝石切形态」是战斗内行为，
+  装备 / 背包 / 战斗表一张都还没有
+- 「觉醒任务」：现在 `AwakenCharacter` 只校验等级。任务系统做好后在
+  `CharacterForms.cs` 那一处 TODO 加条件，表结构不用动
 - Luban 配置怎么进服务端 —— **已解决**，见「配置表」一节
 - 战斗由谁裁定：服务端全权模拟 / 服务端发种子+校验结果

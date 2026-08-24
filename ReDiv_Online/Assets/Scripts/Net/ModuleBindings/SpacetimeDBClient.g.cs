@@ -627,6 +627,8 @@ namespace ReDiv.Net.Bindings
             return reducer switch
             {
                 Reducer.AuthSelfTest args => Reducers.InvokeAuthSelfTest(eventContext, args),
+                Reducer.AwakenCharacter args => Reducers.InvokeAwakenCharacter(eventContext, args),
+                Reducer.CharacterConfigSelfTest args => Reducers.InvokeCharacterConfigSelfTest(eventContext, args),
                 Reducer.CheckVersion args => Reducers.InvokeCheckVersion(eventContext, args),
                 Reducer.CreateCharacter args => Reducers.InvokeCreateCharacter(eventContext, args),
                 Reducer.DeleteCharacter args => Reducers.InvokeDeleteCharacter(eventContext, args),
@@ -636,7 +638,6 @@ namespace ReDiv.Net.Bindings
                 Reducer.Ping args => Reducers.InvokePing(eventContext, args),
                 Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
                 Reducer.SelectCharacter args => Reducers.InvokeSelectCharacter(eventContext, args),
-                Reducer.SwitchSpecialization args => Reducers.InvokeSwitchSpecialization(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }

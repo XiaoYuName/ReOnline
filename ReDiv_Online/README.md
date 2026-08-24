@@ -12,7 +12,7 @@ Unity 客户端。服务端在同级目录 `../ReDiv_Server`（SpacetimeDB 模�
   服务端那份要走 `Tools > XFramework > 配置` 的第 6 步（导出完还得 `spacetime publish`）
 
 已接好的界面：`CommonUI`（标题：服务器状态 / 账号栏 / 版本号 / 点屏幕）、`LoginUI`、
-`PopDialogueUI`。**选人界面还没做** —— 服务端接口已就绪，契约见
-[CLAUDE.md](CLAUDE.md) 第 5 节「角色系统」。
+`PopDialogueUI`。**选人界面还没做**（`Scripts/Game/Scripts/UGUI/SelectCharacterUI/`
+只有 AutoBind 骨架）—— 服务端接口已就绪，契约见 [CLAUDE.md](CLAUDE.md) 第 5 节「角色系统」。
 
 技术细节看 [CLAUDE.md](CLAUDE.md)；整体进度和下一步看 [../CLAUDE.md](../CLAUDE.md) 第 5 节。

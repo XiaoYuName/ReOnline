@@ -12,6 +12,8 @@ using SpacetimeDB;
 ///   SelectCharacter(characterId)  select_character   —— 选完才算进城镇
 ///   LeaveCharacter()              leave_character    —— 回选人界面
 ///
+/// 觉醒（AwakenCharacter / awaken_character）在 CharacterForms.cs 里。
+///
 /// 鉴权一律走**当前连接的 Session 行**（RequireAccountId）：必须有活会话才能动角色数据。
 /// 这比用 IdentityBinding 严 —— 绑定只说明「这台设备登录过」，而会话说明「现在登录着」。
 /// 读列表那边（View）用的是 IdentityBinding，因为 ViewContext 没有连接概念；
@@ -60,8 +62,9 @@ public static partial class Module
             throw CharacterRules.Reject("这个职业暂时不能创建");
         }
 
-        // 初始专职来自职业配置，配置写错了在这里就拒绝，别让角色建出来没有专职
-        uint specId = RequireDefaultSpecId(job);
+        // 初始星级来自职业配置，配置写错了（基础线接不住这个星级）在这里就拒绝，
+        // 别让角色建出来取不到形象
+        uint star = RequireStartStar(job);
 
         var inserted = ctx.Db.Character.Insert(new Character
         {
@@ -70,16 +73,16 @@ public static partial class Module
             NameKey = nameKey,
             Name = name.Trim(),
             JobId = jobId,
-            SpecId = specId,
             Level = (uint)job.StartLevel,
             Exp = 0,
             CreatedAt = ctx.Timestamp,
             LastPlayedAt = null,
             DeletedAt = null,
+            Star = star,
         });
 
         Log.Info($"[Character] 创建角色 character={inserted.CharacterId} name={inserted.Name} " +
-                 $"job={jobId} spec={specId} account={accountId}");
+                 $"job={jobId} star={star} account={accountId}");
     }
 
     /// <summary>
@@ -135,9 +138,9 @@ public static partial class Module
             CharacterId = characterId,
             CharacterName = character.Name,
             JobId = character.JobId,
-            SpecId = ResolveSpecId(character),
             Level = character.Level,
             EnteredAt = ctx.Timestamp,
+            FormId = CurrentBaseFormId(character.JobId, character.Star),
         });
 
         Log.Info($"[Character] 选择角色 character={characterId} name={character.Name} account={accountId}");

@@ -22,10 +22,10 @@ public sealed partial class CharacterJob : Luban.BeanBase
         JObject _obj = _buf as JObject;
         JobId = (int)_obj.GetValue("JobId");
         Creatable = (bool)_obj.GetValue("Creatable");
-        DefaultSpecId = (int)_obj.GetValue("DefaultSpecId");
         Name = (string)_obj.GetValue("Name");
-        Subtitle = (string)_obj.GetValue("Subtitle");
         SortOrder = (int)_obj.GetValue("SortOrder");
+        MaxStar = (int)_obj.GetValue("MaxStar");
+        Subtitle = (string)_obj.GetValue("Subtitle");
     }
 
     public static CharacterJob DeserializeCharacterJob(JToken _buf)
@@ -33,12 +33,30 @@ public sealed partial class CharacterJob : Luban.BeanBase
         return new CharacterJob(_buf);
     }
 
+    /// <summary>
+    /// 角色ID
+    /// </summary>
     public readonly int JobId;
+    /// <summary>
+    /// 能否在创建角色界面选择
+    /// </summary>
     public readonly bool Creatable;
-    public readonly int DefaultSpecId;
+    /// <summary>
+    /// 角色名
+    /// </summary>
     public readonly string Name;
-    public readonly string Subtitle;
+    /// <summary>
+    /// 排序
+    /// </summary>
     public readonly int SortOrder;
+    /// <summary>
+    /// 星级上限。有二觉填6，没二觉填5
+    /// </summary>
+    public readonly int MaxStar;
+    /// <summary>
+    /// 职业名下面那行小字-中文原文
+    /// </summary>
+    public readonly string Subtitle;
 
 
     public const int __ID__ = -1278902284;
@@ -53,10 +71,10 @@ public sealed partial class CharacterJob : Luban.BeanBase
         return "{ "
         + "JobId:" + JobId + ","
         + "Creatable:" + Creatable + ","
-        + "DefaultSpecId:" + DefaultSpecId + ","
         + "Name:" + Name + ","
-        + "Subtitle:" + Subtitle + ","
         + "SortOrder:" + SortOrder + ","
+        + "MaxStar:" + MaxStar + ","
+        + "Subtitle:" + Subtitle + ","
         + "}";
     }
 }

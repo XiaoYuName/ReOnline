@@ -43,8 +43,8 @@ namespace ReDiv.Net.Bindings
         public global::SpacetimeDB.Col<MyCharacterRow, ulong> CharacterId { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, string> Name { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, uint> JobId { get; }
-        public global::SpacetimeDB.Col<MyCharacterRow, uint> SpecId { get; }
-        public global::SpacetimeDB.Col<MyCharacterRow, int> FormStage { get; }
+        public global::SpacetimeDB.Col<MyCharacterRow, uint> Star { get; }
+        public global::SpacetimeDB.Col<MyCharacterRow, uint> FormId { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, uint> Level { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, ulong> Exp { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, SpacetimeDB.Timestamp> CreatedAt { get; }
@@ -55,8 +55,8 @@ namespace ReDiv.Net.Bindings
             CharacterId = new global::SpacetimeDB.Col<MyCharacterRow, ulong>(tableName, "character_id");
             Name = new global::SpacetimeDB.Col<MyCharacterRow, string>(tableName, "name");
             JobId = new global::SpacetimeDB.Col<MyCharacterRow, uint>(tableName, "job_id");
-            SpecId = new global::SpacetimeDB.Col<MyCharacterRow, uint>(tableName, "spec_id");
-            FormStage = new global::SpacetimeDB.Col<MyCharacterRow, int>(tableName, "form_stage");
+            Star = new global::SpacetimeDB.Col<MyCharacterRow, uint>(tableName, "star");
+            FormId = new global::SpacetimeDB.Col<MyCharacterRow, uint>(tableName, "form_id");
             Level = new global::SpacetimeDB.Col<MyCharacterRow, uint>(tableName, "level");
             Exp = new global::SpacetimeDB.Col<MyCharacterRow, ulong>(tableName, "exp");
             CreatedAt = new global::SpacetimeDB.Col<MyCharacterRow, SpacetimeDB.Timestamp>(tableName, "created_at");

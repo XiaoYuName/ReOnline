@@ -2,9 +2,9 @@
   {
     "JobId": 1,
     "Creatable": true,
-    "DefaultSpecId": 101,
     "Name": "凯露",
-    "Subtitle": "",
-    "SortOrder": 1
+    "SortOrder": 1,
+    "MaxStar": 6,
+    "Subtitle": ""
   }
 ]

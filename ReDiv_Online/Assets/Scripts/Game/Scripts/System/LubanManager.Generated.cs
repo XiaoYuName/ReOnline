@@ -6,6 +6,20 @@ namespace XFramework
 {
     public partial class LubanManager
     {
+        private TbCharacterForm _tbCharacterForm;
+
+        public TbCharacterForm TbCharacterForm
+        {
+            get
+            {
+                return LoadTable(
+                    ref _tbCharacterForm,
+                    AssetKeys.TbcharacterformPath,
+                    json => new TbCharacterForm(json)
+                );
+            }
+        }
+
         private TbCharacterJob _tbCharacterJob;
 
         public TbCharacterJob TbCharacterJob
@@ -20,42 +34,12 @@ namespace XFramework
             }
         }
 
-        private TbJobSpecialization _tbJobSpecialization;
-
-        public TbJobSpecialization TbJobSpecialization
-        {
-            get
-            {
-                return LoadTable(
-                    ref _tbJobSpecialization,
-                    AssetKeys.TbjobspecializationPath,
-                    json => new TbJobSpecialization(json)
-                );
-            }
-        }
-
-        private TbSpecializationForm _tbSpecializationForm;
-
-        public TbSpecializationForm TbSpecializationForm
-        {
-            get
-            {
-                return LoadTable(
-                    ref _tbSpecializationForm,
-                    AssetKeys.TbspecializationformPath,
-                    json => new TbSpecializationForm(json)
-                );
-            }
-        }
-
         partial void ClearGeneratedCache()
         {
+            _tbCharacterForm = null;
+            AssetsManager.Instance.FreeAsset(AssetKeys.TbcharacterformPath);
             _tbCharacterJob = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TbcharacterjobPath);
-            _tbJobSpecialization = null;
-            AssetsManager.Instance.FreeAsset(AssetKeys.TbjobspecializationPath);
-            _tbSpecializationForm = null;
-            AssetsManager.Instance.FreeAsset(AssetKeys.TbspecializationformPath);
         }
     }
 }

@@ -43,7 +43,7 @@ Assets/Scripts/
 │   └── Editor/         asmdef: UnityFramework.Editor
 ├── Game/               无 asmdef → 进 Assembly-CSharp   ← 游戏逻辑
 │   ├── Input/
-│   ├── ScriptableObject/
+│   ├── ScriptableObject/        Odin 配置资源的类型（现在只有 Audio）
 │   └── Scripts/
 │       ├── AddressableKeys/   UIKeys.cs 等（生成物，见第 4 节）
 │       ├── Audio/             AudioManager
@@ -62,7 +62,8 @@ Assets/Scripts/
 ```
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
-`AddressableTools/`、`BuildTools/`、`Luban/`、`ServerTools/`、`Tools/`、`UGUI/`。
+`AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
+`ServerTools/`、`Tools/`、`UGUI/`、`UITools/`、`PathologicalGames/`（第三方）。
 
 > 注意 `Framework` 有 asmdef，`Game` 和 `Net` 没有。所以 `Game`/`Net` 可以引用
 > `UnityFramework`，反过来不行。往 `Framework` 里加代码时别引用 `Game` 的类型。
@@ -87,7 +88,7 @@ Excel 源表在 `ExcelTool/LubanTools/DataTables/Datas/*.xlsx`，生成的 C# �
 **第 6 步「导出服务端配置」** 把同一份 Excel 按 `server` 目标导出成 `cs-bin` 代码 + `bin` 数据，
 落进 `../ReDiv_Server/spacetimedb/`。服务端是 NativeAOT 裁剪过的 wasm，客户端那套
 `cs-newtonsoft-json` 的反射在里面用不了，所以两边 codeTarget 必须不同。
-字段级 group（`ExcelTool/LubanTools/DataTables/Defines/character.xml`）决定哪些列进客户端、哪些进服务端。
+字段级 group（Excel 表头的 `##group` 行）决定哪些列进客户端、哪些进服务端。
 ⚠️ 导出完还要 `spacetime publish` 才生效 —— bin 数据是以嵌入资源编进 wasm 的。
 细节见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「配置表」一节。
 
@@ -109,8 +110,58 @@ Excel 源表在 `ExcelTool/LubanTools/DataTables/Datas/*.xlsx`，生成的 C# �
 & ExcelTool/LubanTools/ExcelTable.ps1 -Action Dump -Workbook <路径> -Sheet <sheet名> -MaxRows 20
 ```
 
-表头约定：第 1 行 `##var`（字段名）、第 2 行 `##type`（Luban 类型）、第 3 行 `##`（中文注释），
-第 4 行起是数据。`__enums__.xlsx` 特殊，同一 sheet 里首尾相接堆了多个枚举块。
+Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddSheet` /
+`SetHeader` / `AddEnumItems` / `AddEnumType` / `DeleteRows` / `DeleteColumn` / `DeleteSheet`。
+`AddSheet` 指向不存在的文件时会新建工作簿；`SetHeader` 改分组 / 注释（表里没有 `##group`
+行会自动补一行）。用法细节全在脚本头部的注释里。
+
+### 表头是 4 行，`##group` 那行不能省
+
+```
+第 1 行  ##var     字段名
+第 2 行  ##type    Luban 类型
+第 3 行  ##group   这一列给谁用：c=仅客户端 / s=仅服务端 / c,s=两端都有（留空同 c,s）
+第 4 行  ##        中文注释
+第 5 行起          数据
+```
+
+有了 `##group` 这一行，注释里就**不用再写「仅客户端」「仅服务端」**了。
+新建表（`AddSheet`）一律建 4 行；`AddColumn` 往有 `##group` 的表加列时 **`-Group` 必填**。
+
+> ⚠️ **表头行号不要写死。** 老表可能只有 3 行（没有 `##group`），`__beans__` 那种元表
+> 还会出现两行 `##var`。脚本里读写表头一律走 `Get-HeaderRows` 按标记定位 ——
+> 2026-08-24 就是因为 `AddColumn` 写死了 1/2/3，给 `CharacterJob` 加
+> `StartStar` / `MaxStar` / `Subtitle` 时把中文注释写进了 `##group` 行。
+>
+> 现在 `CharacterJob` / `CharacterForm` 两张数据表都是 4 行表头。
+> `__tables__` / `__beans__` / `__enums__` 是 Luban 的**元表**，自己有 `group` **列**，
+> 不适用这一行，别给它们加。
+>
+> （原来还有一张 `ItemData.xlsx` —— 旧工程遗留的样例表，没登记进 `__tables__`、不参与导出，
+> 而且两列还引用着已移除的多语言表 `TbLocalzationKeyData`。2026-08-24 已删除。）
+
+### Excel 就是 schema 的唯一真相源
+
+2026-08-24 起，角色那两张表在 `__tables__.xlsx` 里的 `read_schema_from_file` 都是
+**`True`** —— **字段名、类型、分组、注释全部以 Excel 表头为准**，不再需要 XML bean 定义。
+`Defines/character.xml` 已经删掉了（`Defines/` 现在只剩 `builtin.xml` 的 vector2/3/4）。
+
+实测确认（2026-08-24，之前文档里写的「Excel 表头给不了字段级 group」**是错的**）：
+
+| 实测项 | 结果 |
+|---|---|
+| `read_schema_from_file=True` 时 `##group` 行认不认 | ✅ 认。`StartLevel`/`StartStar`(s) 只进服务端，`Name`/`Subtitle`/`SortOrder`(c) 只进客户端 |
+| 联合主键（`JobId+FormId`，index 写在 `__tables__` 里） | ✅ 照常，`TbCharacterForm.Get(jobId, formId)` 还在 |
+| `##` 注释行 | ✅ **会变成生成代码的 `/// <summary>`** —— XML 定义那套做不到，这是白赚的 |
+
+所以新加配置表**直接建 Excel 就行**，`__tables__.xlsx` 里 `read_schema_from_file` 填 `True`，
+不用再写 XML。
+
+> ⚠️ 代价：schema 现在藏在**二进制 .xlsx 里，git diff 看不见**。以前改 XML 是文本 diff，
+> review 时一眼能看到「谁把某列的 type 改了」，现在只能靠 `-Action Dump` 主动查。
+> 改表结构时在提交信息里写清楚改了什么。
+
+`__enums__.xlsx` 特殊，同一 sheet 里首尾相接堆了多个枚举块。
 
 ---
 
@@ -140,12 +191,52 @@ Excel 源表在 `ExcelTool/LubanTools/DataTables/Datas/*.xlsx`，生成的 C# �
 直接用的话编辑器下会解析不到、拿到 null，然后在 `Instantiate` 处炸成一句和资源
 毫无关系的 `ArgumentException: The Object you want to instantiate is null`。
 
+### 角色美术资源在 Luban 的形态表里
+
+头像 / 立绘 / 战斗 Spine / 待机动画名 / 视频都在 `CharacterForm`（形态表）的
+客户端列上，填 **Addressable 完整资源路径**（见上面的 key 约定）。
+
+（2026-08-23 一度改成 Odin ScriptableObject 配置 + 编辑器窗口，后来按需求回退到 Luban。
+所以别再找 `CharacterResourceConfiguration` —— 那套已经删干净了。）
+
+两层的资源分布：
+
+| 层 | 表 | 有什么资源 |
+|---|---|---|
+| 角色 / 职业 | `CharacterJob` | 无（只有名字 / 副标题 / 星级上限 / 排序） |
+| 形态 | `CharacterForm` | 头像 / 立绘 / Spine / 待机动画名 / 视频 |
+
+形态分两条线，靠 `FormType` 区分：**基础线（1）** 是「基础形态 → 一觉 → 二觉」，
+按角色**星级**现算当前是哪个；**爆发线（2）** 一个角色可以有多个、不分阶段，
+战斗中装备爆发宝石才切。**只有基础形态那行填立绘**，觉醒 / 爆发形态不填立绘、填视频。
+
+取资源：`TbCharacterForm.Get(jobId, formId)`。基础线的 `formId` 就是服务端
+`MyCharacter` View 下发的 `FormId`，**客户端不要自己按星级算形态**；
+爆发线自己从配置里筛 `FormType=2`、按 `SortOrder` 排。
+
+⚠️ 2026-08-24 这套设定改过一次：原来中间还有一层「专职」（`JobSpecialization` /
+`SpecId` / `Stage` / `SwitchSpecialization` / `FormStage`），**现在没有专职了**，
+那些表和 Reducer 都已删干净，别照着旧提交或旧文档写。
+
+⚠️ 路径是手填字符串，**资源改名不会有任何提示**，只会在运行时表现成「加载不出来」。
+改完配置（尤其改了 id）跑一次服务端自检，它查表之间的引用关系：
+
+```bash
+spacetime call rediv character_config_self_test
+```
+
+视频列填 AVPro 的 **MediaReference 资源**完整路径（工程里 `Video/Loading/Loading.asset` 就是一个），
+运行时赋给 `MediaPlayer._mediaReference`。
+
+要加跑 / 攻击 / 受击动画：用 `ExcelTable.ps1 -Action AddColumn` 给形态表加列。
+Excel 的强项是列，往一个单元格里塞「用途:名字」的结构化列表反而难维护。
+
 ### 编辑器菜单约定
 
 项目自己的编辑器工具**全部**挂在 `Tools > XFramework/` 下，分五个子菜单：
 `打包/`、`服务端/`、`配置/`、`UI/`、`实用工具/`。排序靠 `[MenuItem(path, false, priority)]`
 的 priority 显式指定（不要再用 "1." "2." 这种字符串前缀）：
-打包 100~121、服务端 150、配置 200~201、UI 300、实用工具 400~423。
+打包 100~121、服务端 150、配置 200~202、UI 300、实用工具 400~423。
 相邻 priority 差 >10 时 Unity 会自动插分隔线。
 
 新加编辑器工具请遵守这个约定，不要再开新的顶层菜单。
@@ -249,7 +340,7 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
 
 ### 角色系统（客户端还没做）
 
-服务端已经能用：多角色、创建 / 删除（软删）/ 选择，选完角色才进城镇。
+服务端已经能用：多角色、创建 / 删除（软删）/ 选择 / 觉醒，选完角色才进城镇。
 契约见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「角色系统」一节。接的时候注意：
 
 - 角色列表走 **View**（`my_character`），订阅时**不用带 where** —— 服务端已按订阅者过滤。
@@ -260,31 +351,68 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
   它同时也是以后做在线列表 / 频道人数的数据源。
 - 失败文案和账号系统一个套路：从 Reducer 回调的 `ctx.Event.Status` 取
   `Status.Failed(var reason)`，reason 是服务端抛的中文原文（「角色栏位已满（4/4）」
-  「这个角色名已经被使用了」这种），直接显示给玩家。
+  「这个角色名已经被使用了」「需要等级 30 才能觉醒成「3 星形态」」这种），直接显示给玩家。
 - 成功不看回调，看表：建角色看 `my_character` 多出一行，选角色看 `character_selection`
-  出现自己那行。带主键的 View 更新会走 **OnUpdate**，别只挂 OnInsert/OnDelete（见上一条第 5 点）。
-- **现在只能传 `jobId = 1`**（职业表里唯一那行占位数据）。真实职业列表还没定，
-  界面上的职业选项先别硬编码。
+  出现自己那行，觉醒看 `my_character` 那行的 `Star` / `FormId` 变了。
+  带主键的 View 更新会走 **OnUpdate**，别只挂 OnInsert/OnDelete（见上一条第 5 点）。
+- **现在只能传 `jobId = 1`**（凯露）。角色列表还只有这一行，界面上的选项别硬编码。
+- 可调的 Reducer：`CreateCharacter(name, jobId)` / `DeleteCharacter(id)` /
+  `SelectCharacter(id)` / `LeaveCharacter()` / `AwakenCharacter(id)`。
 
-三层结构（配置在 `ExcelTool/LubanTools/DataTables/`）：
+两层结构（配置在 `ExcelTool/LubanTools/DataTables/`）：
 
 ```
-CharacterJob        角色 / 职业（凯露）—— 建角色时选，之后不变
-  └ JobSpecialization  专职（魔法士…）—— 一个角色多个可用，同时只一个生效，可切换
-      └ SpecializationForm  形态 —— 每个专职 3 个（专职名 / 觉醒名 / 一次觉醒名）
+CharacterJob（角色 / 职业，凯露）—— 建角色时选，之后不变
+  └ CharacterForm（形态）—— ★ 美术资源全在这一层，分两条线
+      ├ 基础线 FormType=1  按**星级**现算当前形态，觉醒推进，永久不可逆
+      │    1~2 星  基础形态（魔法士）    UnlockStar=1，建完角色就在这
+      │    3~5 星  一觉形态（魔导士）    UnlockStar=3，UnlockLevel=30
+      │    6   星  二觉形态（黑魔法师）  UnlockStar=6，UnlockLevel=60（部分角色没有二觉）
+      └ 爆发线 FormType=2  一个角色**可以有多个**，不分阶段，按 SortOrder 排
+           公主 / 暗黑圣灵 …  战斗中装备**爆发宝石**才切，和星级 / 等级无关
 ```
+
+⚠️ 2026-08-24 改过设定：原来中间还有一层「专职」（`JobSpecialization` / `SpecId` /
+`Stage` / `SwitchSpecialization` / `FormStage`），**现在没有专职了**，那套已删干净。
 
 界面要怎么取数据：
 
-- 职业名 / 副标题 / 排序 → `TbCharacterJob`（客户端专属列）
-- 专职卡的名字和图标 → `TbJobSpecialization`；`UnlockLevel` 用来把没解锁的画成灰的
-- **立绘和头像在形态上**（觉醒会换外观）：`TbSpecializationForm.Get(specId, stage)`
-  拿 `Name` / `ArtKey` / `IconKey`
-- **当前形态别自己算** —— `MyCharacter` View 的 `FormStage` 就是服务端按等级算好的，
-  客户端再算一遍两边迟早对不上。切专职调 `SwitchSpecialization(characterId, specId)`。
+| 要什么 | 从哪取 |
+|---|---|
+| 职业名（凯露）/ 副标题 / 排序 | `TbCharacterJob` |
+| 星级上限（画「3/6 星」那排星的分母） | `TbCharacterJob.MaxStar`（有二觉 6、没二觉 5）|
+| 当前星级 | `MyCharacter` View 的 `Star` |
+| 当前形态的头像 / 立绘 / Spine / 待机动画 / 视频 | `TbCharacterForm.Get(JobId, FormId)`，`FormId` 取 View 下发的 |
+| 该角色有哪些爆发形态 | 从 `TbCharacterForm` 筛 `JobId` 相同且 `FormType == 2`，按 `SortOrder` 排 |
 
-⚠️ `ArtKey` / `IconKey` 填的是 **Addressable 完整资源路径**（见第 4 节的 key 约定），
-不是相对路径。
+形态行上的资源列，按形态分两种填法：
+
+| 列 | 基础形态（UnlockStar=1） | 觉醒形态 / 爆发形态 |
+|---|---|---|
+| `IconKey` 头像 | 有 | 有 |
+| `ArtKey` 立绘 | **有** | 空 |
+| `SpineKey` 战斗 Spine | 有 | 有 |
+| `IdleAnimation` 待机动画名 | 有 | 有 |
+| `VideoKey` 视频 | 空 | **有** |
+
+`VideoKey` 填 AVPro 的 **MediaReference 资源**完整路径（工程里 `Video/Loading/Loading.asset`
+就是一个），运行时赋给 `MediaPlayer._mediaReference`。取不到的列会是空串，**要判空**。
+
+- **当前形态别自己算** —— `MyCharacter` View 的 `FormId` 就是服务端按星级算好的，
+  客户端再算一遍两边迟早对不上。注意 4 / 5 星在配置里**没有单独的行**，
+  形象跟着 3 星那行走，服务端已经处理了这个回退。
+- 觉醒调 `AwakenCharacter(characterId)`：把角色推到基础线的下一档（1~2 星 → 一觉，
+  3~5 星 → 二觉）。服务端**现在只校验等级**，设定上还要求「完成觉醒任务」——
+  任务系统做好后在服务端那一处加，客户端不用管。
+- 觉醒**不可逆**，没有反向接口，界面上别做「切回上一形态」。
+
+⚠️ 所有 `*Key` 列填的都是 **Addressable 完整资源路径**（见第 4 节的 key 约定），不是相对路径。
+路径是手填字符串，**资源改名不会有任何提示**。改完配置跑
+`spacetime call rediv character_config_self_test` —— 它查表间引用和星级门槛，
+但**查不了路径对不对**，那个只有客户端跑起来才知道。
+
+⚠️ 资源路径已经填了（用的是 `Assets/AddressableAssets/Remote/Character/100002/` 那套图），
+但 `IdleAnimation` 还全是空的，觉醒等级 30 / 60 和 `CharacterJob.Subtitle` 也还是占位的。
 
 ### 服务端操作面板
 

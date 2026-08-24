@@ -16,6 +16,8 @@ ReDiv 是**自研玩法**的在线联机游戏。美术素材参考公主连结�
 > 这两个是通用基础设施，不算玩法。战斗 / 地图 / 背包这类**玩法表一张都还没有**，
 > 要加玩法数据结构时先问，别自己按同类游戏的套路建表。
 > 角色系统的形态（多角色、选人界面）是用户明确指定「类似 DNF」的，不是我们推的。
+> 形态那套（基础 → 一觉 → 二觉，外加战斗中靠宝石切的爆发形态）也是用户 2026-08-24
+> 明确定的 —— **注意它 2026-08-24 之前是「专职」，已经废弃**，别照着旧文档或旧提交推。
 
 ---
 
@@ -202,6 +204,20 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
   「已知坑」和本文件第 3 节
 - 客户端表回调**要连 `OnUpdate` 一起挂**：同主键的删+插在同一事务里会被合并成 update，
   只挂 Insert/Delete 会漏（换号登录时界面显示旧账号，实测踩过）
+- **服务端表加字段只能加在 struct 末尾**。插到中间会被判成 reorder，publish 直接要求
+  手工迁移（`Reordering table xxx requires a manual migration`，实测撞过）。
+  追加的字段要带 `[Default(...)]`，已有行才能拿到值、不用清库
+- **开发期不做向后兼容**。第一个正式版本发布之前，表结构怎么干净怎么来 ——
+  要删列 / 改语义就直接 `spacetime publish --delete-data=always --yes` 清库重发，
+  **不要**为了保住开发库里那点测试数据留下废弃字段、`[Default]` 回填、
+  「读到 0 就退回默认值」这类兼容分支。那些东西留下来只会误导后面看代码的人。
+  正式版发布之后再谈迁移。（2026-08-24 用户明确定的）
+- **`[Default(...)]` 只在迁移时给已有行回填，对新插入的行无效**。新字段要有初值，
+  必须在 Insert 那里显式赋值。踩过：`Account.CharacterSlots` 只标了 `[Default(4)]`，
+  清库后新注册的账号栏位数是 0，一个角色都建不出来
+- **改了角色配置（那两张 Excel）跑一次自检**：
+  `spacetime call rediv character_config_self_test`。两张表靠 JobId / FormId / UnlockStar
+  互相引用，没有编译期检查，配错了只表现成「建不出角色 / 觉醒不了 / 客户端没资源」
 - `ReDiv_Online/Assets/Scripts/Net/ModuleBindings/` 是生成物，不要手改
 - `ReDiv_Server/spacetimedb/Luban/Generated/`、`Luban/Runtime/`、`Configs/` 也不要手改
   （前者是 Luban 生成物，中间是 vendored 的上游运行时，后者是导出的 bin 数据）
@@ -224,46 +240,78 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 
 ## 5. 当前进度与下一步（**新对话先看这节**）
 
-最后更新：2026-08-22。
+最后更新：2026-08-23。
 
 ### 已经能用的
 
 | 系统 | 服务端 | 客户端 | 文档 |
 |---|---|---|---|
-| 账号（注册 / 登录 / 登出 / 会话 / 顶号 / 免密重连） | ✅ | ✅ | [ReDiv_Server/README.md](ReDiv_Server/README.md) 「账号系统」 |
+| 账号（注册 / 登录 / 登出 / 会话 / 顶号 / 免密重连） | ✅ | ✅ | [ReDiv_Server/README.md](ReDiv_Server/README.md)「账号系统」 |
 | 版本校验（不一致弹窗 + 禁止登录） | ✅ | ✅ | 同上「版本号」 |
 | 角色（多角色 / 创建 / 软删 / 选择 / 选角状态） | ✅ | ❌ **还没写** | 同上「角色系统」 |
-| 专职与形态（职业 → 专职 → 3 形态，可切专职，形态按等级现算） | ✅ | ❌ **还没写** | 同上「角色系统」 |
-| 配置表通路（Excel → Luban → 编进 wasm） | ✅ | ✅（原有） | 同上「配置表」 |
+| 形态与觉醒（基础 → 一觉 → 二觉，按**星级**现算；觉醒永久不可逆） | ✅ | ❌ **还没写** | 同上「角色系统」 |
+| 爆发形态（一个角色多个，战斗中装宝石切换） | 配置就绪 | ❌ **还没写** | 同上「角色系统」 |
+| 配置表通路（Excel → Luban → 编进 wasm / 进 Addressables） | ✅ | ✅ | 同上「配置表」 |
+| 角色美术资源（头像 / 立绘 / Spine / 待机动画 / 视频） | 结构就绪 | 结构就绪，**路径待填** | 同上「配置表」 |
 
 客户端 UI 现状：`CommonUI`（标题界面：服务器状态 / 账号栏 / 版本号 / 点屏幕）、
 `LoginUI`（登录注册）、`PopDialogueUI`（通用弹窗）都已接好逻辑。
-**选人界面还不存在** —— 服务端接口和 View 都就绪了，契约见
+**选人界面还不存在** —— 服务端接口和 View 都就绪了，客户端契约见
 [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节「角色系统」。
 
 ### 下一步大概率是这些
 
-1. **客户端选人界面**：订阅 `my_character` / `my_account_profile`（View，不用带 where），
-   调 `CreateCharacter` / `DeleteCharacter` / `SelectCharacter`，选完进城镇。
-2. **真实职业 / 专职列表**：`ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下的
-   `CharacterJob.xlsx`（角色）、`JobSpecialization.xlsx`（专职）、`SpecializationForm.xlsx`（形态）
-   现在全是占位数据，**不是玩法设定**，等定了替换。表结构和字段分组见服务端 README「配置表」。
-3. 城镇 / 地图 / 角色玩法态表 —— 还没设计，**要动手前先问**。
+1. **客户端选人界面**：骨架已经在了（`Assets/Scripts/Game/Scripts/UGUI/SelectCharacterUI/`，
+   只有 AutoBind + 空 `Init()`）。订阅 `my_character` / `my_account_profile`（View，
+   不用带 where），调 `CreateCharacter` / `DeleteCharacter` / `SelectCharacter` /
+   `AwakenCharacter`，选完进城镇。资源按 `(JobId, FormId)` 去 `TbCharacterForm` 取。
+2. **补角色配置的占位数值**：结构和资源路径都填好了（用的是 `Character/100002/` 那套图），
+   但觉醒等级 30 / 60、`CharacterJob.Subtitle`、`IdleAnimation` 还是空的 / 占位的。
+   改完跑 `spacetime call rediv character_config_self_test` 自检。
+3. **升星**：现在只有觉醒（1→3→6 星），4 / 5 星没有来源 —— 普通升星要靠养成系统
+   （材料 / 碎片），那套还没定，**要动手前先问**。
+4. **爆发宝石**：爆发形态的配置已就绪，但「装备宝石切形态」是战斗内行为，
+   装备 / 背包 / 战斗表一张都还没有，**要动手前先问**。
+5. 城镇 / 地图 / 角色玩法态表 —— 还没设计，**要动手前先问**。
 
 ### 本地测试数据（开发库 `rediv` 里现成的）
 
-| 账号 | 口令 | 备注 |
-|---|---|---|
-| `alice` | `secret123` | 名下 3 个存活角色（影狼 / Ranger_01 / 祭星者）+ 2 个软删的 |
-| `Carol_01` | `carol123` | 名下 1 个角色「苍之骑士」 |
-| `bob_2` | `密码123带空格 ok` | 用来验证中文 + 空格口令能过 |
+2026-08-24 因为改形态设定清过一次库，下面这些是重建后的：
 
-角色栏位默认 4，职业只能填 `1`（占位那行，Name=凯露），专职 101（魔法士）/ 102（占位）。
-配置表里的名字都是**中文原文**，没有多语言 key。清库重来：
-`spacetime publish --delete-data=always --yes`。
+| 账号 | 口令 | 名下存活角色 |
+|---|---|---|
+| `alice` | `secret123` | 影狼（60 级 / 6 星 / 二觉）、祭星者（1 级 / 1 星 / 基础） |
+| `Carol_01` | `carol123` | 无 |
+| `bob_2` | `密码123带空格 ok` | 无。用来验证中文 + 空格口令能过 |
+
+角色配置：只有 `JobId=1`（凯露，MaxStar=6）。形态五行 ——
+基础线 `FormId=1` 魔法士（1 星）/ `2` 魔导士（3 星，30 级觉醒）/ `3` 黑魔法师（6 星，60 级觉醒），
+爆发线 `FormId=101` 公主 / `102` 暗黑圣灵。
+「影狼」已经二觉到 6 星，可以直接拿来看形态效果。
+
+调星级看形态变化最省事的办法是直接写 SQL（不用走觉醒的等级校验）：
+
+```bash
+spacetime sql rediv "UPDATE character SET star = 5 WHERE character_id = 2"
+```
+
+（5 星没有单独配行，形象会跟着 3 星那行走 —— 这是设计如此，实测确认过。）
+
+清库重来：`spacetime publish --delete-data=always --yes`（会清掉上面所有数据）。
+
+改测试数据不用写 Reducer，owner 身份可以直接跑 SQL：
+
+```bash
+spacetime sql rediv "UPDATE character SET level = 30 WHERE character_id = 9"
+```
+
+（这是调形态 / 解锁条件时最省事的办法。注意 SQL **不支持 `IS NULL`**，
+可空列没法用 SQL 过滤。）
 
 ### 哪些东西是「有意没做」，别当成漏掉了
 
 - 登录失败次数锁定（做不了，原因是事务回滚，见服务端 README「有意没做的事」）
 - 改密码 / 找回密码 / 删号 / 改角色名 / 软删恢复 / 扩栏位入口 / 敏感词过滤
 - 玩法态表（战斗、地图、背包）—— 玩法未定型，**不要自己建**
+- 角色资源用 Odin ScriptableObject 配置 —— 2026-08-23 做过又按需求回退到 Luban 了，
+  别再找 `CharacterResourceConfiguration`，那套已删干净

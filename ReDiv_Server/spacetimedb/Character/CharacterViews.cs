@@ -27,17 +27,23 @@ public static partial class Module
         public string Name;
         public uint JobId;
 
-        /// <summary>当前生效的专职。客户端据此显示形象、并高亮专职选择卡。</summary>
-        public uint SpecId;
+        /// <summary>
+        /// 角色星级（1~6）。客户端画「3/6 星」那排星要用它，上限从配置
+        /// <c>TbCharacterJob.MaxStar</c> 取（有二觉 6、没二觉 5）。
+        /// </summary>
+        public uint Star;
 
         /// <summary>
-        /// 当前形态（1 = 专职，2 = 觉醒，3 = 一次觉醒…）。
+        /// 当前基础形态的 FormId，由服务端按星级算好（基础 1 星 / 一觉 3 星 / 二觉 6 星）。
         ///
-        /// 由服务端按配置的 UnlockLevel 和角色等级现算，**客户端别自己再算一遍** ——
-        /// 两份实现迟早对不上。客户端拿它去 TbSpecializationForm.Get(SpecId, FormStage)
-        /// 取名字、立绘、头像。0 表示配置有问题（比如漏了 Stage=1）。
+        /// **客户端别自己再按星级算一遍** —— 两份实现迟早对不上。
+        /// 拿它去 <c>TbCharacterForm.Get(JobId, FormId)</c> 取名字、立绘、头像、Spine。
+        /// 0 表示配置有问题（基础线一行都没配到）。
+        ///
+        /// 爆发形态不在这里：它是战斗中装备爆发宝石才切的，选人界面要列的话
+        /// 直接从配置里筛 <c>FormType=2</c> 按 SortOrder 排。
         /// </summary>
-        public int FormStage;
+        public uint FormId;
 
         public uint Level;
         public ulong Exp;
@@ -78,16 +84,13 @@ public static partial class Module
                 continue;
             }
 
-            // 老角色可能还没有专职字段，或者配置里那个专职被删了，统一走容错解析
-            uint specId = ResolveSpecId(character);
-
             rows.Add(new MyCharacterRow
             {
                 CharacterId = character.CharacterId,
                 Name = character.Name,
                 JobId = character.JobId,
-                SpecId = specId,
-                FormStage = CurrentFormStage(specId, character.Level),
+                Star = character.Star,
+                FormId = CurrentBaseFormId(character.JobId, character.Star),
                 Level = character.Level,
                 Exp = character.Exp,
                 CreatedAt = character.CreatedAt,

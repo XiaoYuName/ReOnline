@@ -51,6 +51,9 @@ public static partial class Module
             HashIterations = PasswordHasher.CurrentIterations,
             CreatedAt = ctx.Timestamp,
             LastLoginAt = ctx.Timestamp,
+            // ⚠️ 必须显式赋值。表上的 [Default] 只在**迁移**时给已有行回填，
+            // 新插入的行不受它影响 —— 漏了这句新账号的栏位数就是 0，一个角色都建不出来。
+            CharacterSlots = DefaultCharacterSlots,
         });
 
         Log.Info($"[Auth] 注册成功 account={inserted.AccountId} username={inserted.Username}");
