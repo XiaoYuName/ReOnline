@@ -1,0 +1,142 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: still_unit_100231_mat
+  m_Shader: {fileID: 4800000, guid: 8a51d292a2e798b4b809a60dd9c0ff18, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - USE_BACK2
+  - USE_FRONT2
+  m_InvalidKeywords: []
+  m_LightmapFlags: 5
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2000
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Back1Tex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 2, y: 2}
+        m_Offset: {x: 0.4, y: 0}
+    - _Back2Tex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 0.8}
+        m_Offset: {x: 0, y: 0}
+    - _DistortionTex:
+        m_Texture: {fileID: 2800000, guid: 30b70a621e9ba49489503237142a0879, type: 3}
+        m_Scale: {x: 0.6, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Front1Tex:
+        m_Texture: {fileID: 2800000, guid: 47a4bb0255764514592659d3d9888b6b, type: 3}
+        m_Scale: {x: 3, y: 1.5}
+        m_Offset: {x: 0, y: 0}
+    - _Front2Tex:
+        m_Texture: {fileID: 2800000, guid: ce2cf1bc1dd40d248a7d5cc1004c89cb, type: 3}
+        m_Scale: {x: 2, y: 0.15}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: e1777c47942840d4aafb711cd5b79ac4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MaskTex:
+        m_Texture: {fileID: 2800000, guid: 638ba80ee579cce4d9b818af71b929e1, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Back1FlashMax: 1
+    - _Back1FlashMin: 0.25
+    - _Back1FlashSpeed: 2
+    - _Back1Rotate: -0.1
+    - _Back1ScrollAngle: -4
+    - _Back1ScrollU: 0
+    - _Back1ScrollV: 0.2
+    - _Back1Spiral: 0
+    - _Back1_Distortion: 0
+    - _Back1_Flash: 0
+    - _Back1_MoveType: 2
+    - _Back1_RenderType: 3
+    - _Back2FlashMax: 1
+    - _Back2FlashMin: 0.1
+    - _Back2FlashSpeed: 0.1
+    - _Back2Rotate: 0.05
+    - _Back2ScrollAngle: 0
+    - _Back2ScrollU: 0.05
+    - _Back2ScrollV: 0.2
+    - _Back2Spiral: 0.25
+    - _Back2_Distortion: 0
+    - _Back2_Flash: 0
+    - _Back2_MoveType: 2
+    - _Back2_RenderType: 3
+    - _DistortionFlashMax: 1
+    - _DistortionFlashMin: 0
+    - _DistortionFlashSpeed: 1
+    - _DistortionIntensityU: 0.0125
+    - _DistortionIntensityV: 0.033
+    - _DistortionRotate: 1
+    - _DistortionScrollAngle: 0
+    - _DistortionScrollU: 0.25
+    - _DistortionScrollV: 0
+    - _DistortionSpiral: 0
+    - _Distortion_Flash: 0
+    - _Distortion_MoveType: 2
+    - _FlagBack1Distortion: 0
+    - _FlagBack1Flash: 0
+    - _FlagBack1MoveType: 0
+    - _FlagBack1RenderType: 1
+    - _FlagBack2Distortion: 0
+    - _FlagBack2Flash: 0
+    - _FlagBack2MoveType: 0
+    - _FlagBack2RenderType: 1
+    - _FlagDistortionMoveType: 0
+    - _FlagFront1Distortion: 0
+    - _FlagFront1Flash: 0
+    - _FlagFront1MoveType: 0
+    - _FlagFront1RenderType: -1
+    - _FlagFront2Distortion: 0
+    - _FlagFront2Flash: 0
+    - _FlagFront2MoveType: 0
+    - _FlagFront2RenderType: -1
+    - _Front1FlashMax: 1
+    - _Front1FlashMin: 0.25
+    - _Front1FlashSpeed: 2
+    - _Front1Rotate: 1
+    - _Front1ScrollAngle: 0
+    - _Front1ScrollU: 0
+    - _Front1ScrollV: 0.25
+    - _Front1Spiral: 0
+    - _Front1_Distortion: 0
+    - _Front1_Flash: 0
+    - _Front1_MoveType: 2
+    - _Front1_RenderType: 1
+    - _Front2FlashMax: 0.001
+    - _Front2FlashMin: 0
+    - _Front2FlashSpeed: 0.1
+    - _Front2Rotate: 0
+    - _Front2ScrollAngle: 0
+    - _Front2ScrollU: 0
+    - _Front2ScrollV: 0.125
+    - _Front2Spiral: 0
+    - _Front2_Distortion: 0
+    - _Front2_Flash: 0
+    - _Front2_MoveType: 2
+    - _Front2_RenderType: 1
+    m_Colors:
+    - _Back1Color: {r: 1, g: 1, b: 1, a: 0.603}
+    - _Back2Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Front1Color: {r: 0.9117647, g: 0.8446307, b: 0.46929064, a: 1}
+    - _Front2Color: {r: 0.5588235, g: 0.42030787, b: 0.17257786, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

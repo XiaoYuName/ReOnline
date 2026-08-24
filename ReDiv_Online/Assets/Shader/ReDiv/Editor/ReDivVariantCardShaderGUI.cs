@@ -51,13 +51,13 @@ public sealed class ReDivVariantCardShaderGUI : ShaderGUI
 
     public static void SynchronizeMaterial(Material material, bool useFront2, bool useBack2)
     {
+        if (material == null)
+            throw new ArgumentNullException(nameof(material));
+
         // Unity 的 [Toggle] Drawer 曾自动写入这些派生关键字；原版材质并不存在它们。
         // 先清理可避免旧材质在 Shader 更新后残留无效变体状态。
         foreach (string legacyKeyword in LegacyToggleKeywords)
             material.DisableKeyword(legacyKeyword);
-
-        if (material == null)
-            throw new ArgumentNullException(nameof(material));
 
         SetFloatIfPresent(material, "_FlagFront1MoveType", GetFloat(material, "_Front1_MoveType", 1f) - 2f);
         SetFloatIfPresent(material, "_FlagFront2MoveType", GetFloat(material, "_Front2_MoveType", 1f) - 2f);
@@ -82,15 +82,17 @@ public sealed class ReDivVariantCardShaderGUI : ShaderGUI
         SetKeyword(material, UseFront2Keyword, useFront2);
         SetKeyword(material, UseBack2Keyword, useBack2);
 
+        // 原版 CustomEditor 按全部槽位的值生成组合关键字，即使 Front2/Back2 的
+        // 采样变体当前未开启，也不会忽略该槽保存的 Flash / Distortion 参数。
         bool useFrontFlash = GetFloat(material, "_Front1_Flash", 0f) > 0.5f
-                             || (useFront2 && GetFloat(material, "_Front2_Flash", 0f) > 0.5f);
+                             || GetFloat(material, "_Front2_Flash", 0f) > 0.5f;
         bool useBackFlash = GetFloat(material, "_Back1_Flash", 0f) > 0.5f
-                            || (useBack2 && GetFloat(material, "_Back2_Flash", 0f) > 0.5f);
+                            || GetFloat(material, "_Back2_Flash", 0f) > 0.5f;
         bool useDistortionFlash = GetFloat(material, "_Distortion_Flash", 0f) > 0.5f;
         bool useLayerDistortion = GetFloat(material, "_Front1_Distortion", 0f) > 0.5f
-                                  || (useFront2 && GetFloat(material, "_Front2_Distortion", 0f) > 0.5f)
+                                  || GetFloat(material, "_Front2_Distortion", 0f) > 0.5f
                                   || GetFloat(material, "_Back1_Distortion", 0f) > 0.5f
-                                  || (useBack2 && GetFloat(material, "_Back2_Distortion", 0f) > 0.5f);
+                                  || GetFloat(material, "_Back2_Distortion", 0f) > 0.5f;
 
         SetKeyword(material, UseFrontFlashKeyword, useFrontFlash);
         SetKeyword(material, UseBackFlashKeyword, useBackFlash);
