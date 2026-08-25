@@ -427,10 +427,8 @@ spacetime call rediv character_config_self_test
 基础线 `FormId=1` 魔法士（1 星）/ `2` 魔导士（3 星、30 级）/ `3` 黑魔法师（6 星、60 级），
 爆发线 `FormId=101` 公主 / `102` 暗黑圣灵。
 
-⚠️ 美术资源**不在配置表里**（2026-08-24 挪进 ScriptableObject 了，见「配置表」一节）。
-凯露的资源已经配好（`Character/100002/` 那套图），但待机动画名还是空的、
-`CharacterJob.Subtitle` 也还空着。**优衣（JobId=2）刚加进 CharacterJob 表，形态一行都还没配**
-—— 自检现在就报着这条。
+⚠️ 两个角色（凯露 / 优衣）的形态和美术资源都配好了（`Character/<JobId>/` 下），
+但 `CharacterJob.Subtitle` 还空着、觉醒等级（15 / 30）还是占位数字。
 
 ⚠️ 2026-08-24 因为改形态设定**清过一次库**。现在库里是 `alice` / `Carol_01` / `bob_2`
 三个账号，alice 名下有「影狼」（60 级 / 6 星 / 二觉）和「祭星者」（1 级 / 1 星 / 基础）。
@@ -528,7 +526,7 @@ ExcelTool/LubanTools/DataTables/
 |---|---|---|
 | `JobId` / `FormId` / `FormType` / `UnlockStar` / `UnlockLevel` | 不标 | 服务端算当前形态、判觉醒条件；客户端把没解锁的画灰 |
 | `Name` / `SortOrder` | `c` | 形态名（中文原文）、同一条线内的排序 |
-| `IconKey` / `ArtKey` / `SpineKey` / `VideoStartKey` / `VideoLoopKey` | `c` | 头像 / 立绘 / 战斗 Spine / 启动视频 / 循环视频，都填 **Addressable 完整路径** |
+| `IconKey` / `UnitPlateIconKey` / `NameIconKey` / `ArtImage` / `StillUnitPrefab` / `SkeletonUI` / `SkeletonScreen` | `c` | 头像 / 略缩图 / 名字图 / 立绘 / 预览图预制体 / UI展示预制体 / 战斗Spine预制体，都填 **Addressable 完整路径** |
 
 ⚠️ 资源列**别手打路径**：客户端有个
 `Tools > XFramework > 配置 > 角色资源配置` 窗口，拖资产、算路径、写回 Excel，
@@ -628,7 +626,6 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 `Assets/AddressableAssets/Remote/Character/100002/` 那套图：`0Common` 给基础形态、
 `201` 给觉醒线、`202` 给爆发线）。但这些还没定：
 
-- **待机动画名全是空的**（在 SO 里，不在表里）
 - **觉醒等级是占位数字**
 - `CharacterJob.Subtitle`（选人界面职业名下面那行小字）还空着
 - **`JobId=2`（优衣）刚加进 CharacterJob 表，形态一行都还没配** —— 自检现在就报这条。
@@ -871,8 +868,8 @@ Unity 侧的登录逻辑已经完成，入口都在 `../ReDiv_Online/Assets/Scri
 - 登录相关的补齐项：改密码 / 找回密码 / 删号、失败次数锁定（要改错误回报方式，
   见「账号系统 → 有意没做的事」）
 - 角色相关的补齐项：改名、软删角色的恢复入口、扩栏位的入口（付费 / 活动）、敏感词过滤
-- **角色配置的启动视频和觉醒等级还是空的 / 占位的**，`JobId=2` 整个还没配，见「配置表」最后一节
-- **待机动画名那一列已删**（2026-08-24）：以后改成挂预制体引用，动画名在预制体里预先编好
+- **角色配置的觉醒等级还是占位数字**，`CharacterJob.Subtitle` 还空着
+- 待机动画名不进配置表：编在 `SkeletonUI` 预制体的 `CharacterGraphicUI` 组件上
 - **升星（1→2、3→4→5）还没有接口** —— 那是养成系统的事（材料 / 碎片来源都没定）。
   现在只有觉醒能推星级，测试时用 SQL 直接改
 - **爆发宝石**：爆发形态的配置已就绪，但「装备宝石切形态」是战斗内行为，

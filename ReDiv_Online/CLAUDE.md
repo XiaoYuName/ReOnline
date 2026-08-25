@@ -55,11 +55,15 @@ Assets/Scripts/
 │       ├── Tools/
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
-    ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState
+    ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState，不建任何订阅
     ├── AuthManager.cs          账号门面（纯 C# 单例，UI 只跟它打交道）
+    ├── CharacterManager.cs     角色门面，同上。登录成功后才订角色数据
     ├── AuthValidation.cs       服务端 AuthRules 的客户端镜像
     └── ModuleBindings/         生成物，不要手改
 ```
+
+`UGUI/` 下已接好的界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
+`SelectCharacterUI`（选人）、`CreatCharacterUI`（创角，只有展示逻辑）。
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
 `AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
@@ -193,80 +197,59 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 
 ### 角色美术资源在 Luban 的形态表里，但用窗口录入
 
-头像 / 立绘 / 战斗 Spine / 启动视频 / 循环视频都在 `CharacterForm`（形态表）的客户端列上，
-填 **Addressable 完整资源路径**（见上面的 key 约定）。**Excel 是唯一真相源。**
+资源全在 `CharacterForm`（形态表）的客户端列上，填 **Addressable 完整资源路径**。
+**Excel 是唯一真相源**，但**别手打路径** —— 用
+`Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，它算好路径写回 Excel。
 
-⚠️ 但**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，
-它算好路径再写回 Excel。手打的话打错没提示、资源改名不同步，只在运行时表现成「加载不出来」。
+> 2026-08-23 和 08-24 各试过一次把资源整套挪进 Odin ScriptableObject，两次都当天退回。
+> **结论：数据留在 Excel，只把录入体验做成窗口。** 别再提议搬走。
 
-> 2026-08-23 曾把资源整套挪进 Odin ScriptableObject，当天回退；
-> 2026-08-24 又挪过去一次，当天又退回来了。**现在的结论是：数据留在 Excel，
-> 只把「录入体验」做成窗口。** 别再提议整套搬进 SO —— 来回搬过两次了。
+形态分两条线（`FormType`）：**基础线 1** 是「基础 → 一觉 → 二觉」，按角色**星级**现算；
+**爆发线 2** 一个角色可多个、不分阶段，战斗中装宝石才切。
 
-两层的资源分布：
+取资源：`TbCharacterForm.Get(jobId, formId)`。基础线的 `formId` 就是服务端 `MyCharacter`
+View 下发的 `FormId`，**客户端不要自己按星级算**；爆发线自己筛 `FormType=2` 按 `SortOrder` 排。
 
-| 层 | 表 | 有什么资源 |
-|---|---|---|
-| 角色 / 职业 | `CharacterJob` | 无（只有名字 / 副标题 / 星级上限 / 排序） |
-| 形态 | `CharacterForm` | 头像 / 立绘 / Spine / 启动视频 / 循环视频 |
+资源列（都是 `group="c"`，服务端看不到）：
 
-形态分两条线，靠 `FormType` 区分：**基础线（1）** 是「基础形态 → 一觉 → 二觉」，
-按角色**星级**现算当前是哪个；**爆发线（2）** 一个角色可以有多个、不分阶段，
-战斗中装备爆发宝石才切。
+| 列 | 是什么 | 基础形态 | 觉醒 / 爆发形态 |
+|---|---|---|---|
+| `IconKey` | 头像 | 有 | 有 |
+| `UnitPlateIconKey` | 略缩图（形态卡上那张横幅） | 有 | 有 |
+| `NameIconKey` | 名字图 | 有 | 有 |
+| `ArtImage` | 立绘 | **有** | 空 |
+| `StillUnitPrefab` | 预览图预制体（**全屏立绘**） | 空 | **有** |
+| `SkeletonUI` | UI 展示预制体（选人界面的格子用它） | 有 | 有 |
+| `SkeletonScreen` | 战斗 Spine 预制体 | 战斗用，选人界面不碰 | 同左 |
 
-取资源：`TbCharacterForm.Get(jobId, formId)`。基础线的 `formId` 就是服务端
-`MyCharacter` View 下发的 `FormId`，**客户端不要自己按星级算形态**；
-爆发线自己从配置里筛 `FormType=2` 按 `SortOrder` 排。
+取不到的列是空串，**要判空**。
 
-按形态分两种填法：
-
-| 列 | 基础形态（UnlockStar 最低那行） | 觉醒形态 / 爆发形态 |
-|---|---|---|
-| `IconKey` 头像 | 有 | 有 |
-| `ArtKey` 立绘 | **有** | 空 |
-| `SpineKey` 战斗 Spine | 有 | 有 |
-| `VideoStartKey` 启动视频 | 空 | 可空（播一次的入场动画） |
-| `VideoLoopKey` 循环视频 | 空 | **有**（启动视频播完之后一直循环的那支） |
-
-视频列填 AVPro 的 **MediaReference 资源**完整路径（工程里 `Video/Loading/Loading.asset`
-就是一个），运行时赋给 `MediaPlayer._mediaReference`。取不到的列会是空串，**要判空**。
-
-⚠️ 现在的视频素材每个形态只有一支（文件名后缀 `_000002`，按素材约定是**循环**那支），
-所以 `VideoStartKey` 全是空的，等启动视频（`_000001`）补齐再填。
-
-> **待机动画名（`IdleAnimation`）已经去掉了**（2026-08-24）。以后改成挂预制体引用，
-> 动画名相关配置在预制体里提前编好，不再进配置表。
+> 待机动画名**不进配置表** —— 编在 `SkeletonUI` 预制体的 `CharacterGraphicUI` 组件上
+> （`[SpineAnimation] IdleName`，Inspector 里是下拉，选不出不存在的动画名）。
+> 视频列 2026-08-24 已删。
 
 #### 配置窗口：`Tools > XFramework > 配置 > 角色资源配置`
 
-实现在 `Assets/Editor/CharacterTools/CharacterResourceWindow.cs`。数据流是个闭环：
+实现在 `Assets/Editor/CharacterTools/CharacterResourceWindow.cs`。闭环：
 
 ```
-CharacterForm.xlsx --(Luban 导出)--> tbcharacterform.json --(窗口读)--> 界面拖资产
-                   <--(ExcelTable.ps1 UpdateRows)-- 「写入 Excel」按钮
+CharacterForm.xlsx --(Luban 导出)--> tbcharacterform.json --(窗口读)--> 拖资产
+                   <--(ExcelTable.ps1 UpdateRows)-- 「写入 Excel」
 ```
 
-窗口做三件事：
+- 形态行**从导出的 json 读**，不是手敲 —— 配不出表里不存在的 FormId
+- 拖拽录入：图收 `Sprite`、预制体收 `GameObject`，类型不对拖不进去，路径由 `AssetDatabase` 算
+- 校验：资产还在不在、有没有漏配头像 / UI 展示预制体、`SkeletonUI` 上有没有
+  `CharacterGraphicUI`（没有就播不了待机动画）。这和服务端自检**互补** ——
+  那边查表间引用和星级门槛，查不了资源
+- 「写入 Excel」按 `JobId+FormId` 定位，**只写资源列**，不碰数值 / 名字 / 排序；
+  默认勾着「写完自动重新导出配置」
 
-1. **形态行从 Luban 导出的 json 读**，不是手敲 —— 表里有几个形态就是几行，形态名 / 形态线 /
-   星级门槛都照着显示，配不出表里不存在的 FormId；
-2. **拖拽录入**：头像 / 立绘收 `Sprite`（带预览图），Spine 收 `SkeletonDataAsset`，
-   两个视频收 AVPro 的 `MediaReference` —— 类型不对拖不进去，路径由 `AssetDatabase` 算；
-3. **校验**：路径指向的资产还在不在、有没有形态没配头像、该填立绘/循环视频的行填没填。
-   这和服务端自检**互补** —— 那边查表间引用和星级门槛，查不了资源（资源列是 `group="c"`，
-   服务端根本看不到）。
+⚠️ 窗口显示的是**上次导出**的内容。绕过窗口直接改 Excel 又没导出的话窗口看不到 ——
+好在写回只动资源列、按联合主键定位，不会覆盖别人改的列。服务端那份改完仍要 `spacetime publish`。
 
-「写入 Excel」按 `JobId+FormId` 定位行，**只写那 5 个资源列**，不碰 Excel 里的数值 / 名字 /
-排序（那些还是在 Excel 里维护）。默认勾着「写完自动重新导出配置」，会顺手跑一次
-`ConfigTools.ExportForExternalTool()`（客户端 + 服务端两份）。
-
-⚠️ 窗口显示的是**上次导出**的内容。有人绕过窗口直接改了 Excel 又没导出的话窗口看不到 ——
-好在写回只动那 5 列、按联合主键定位，不会覆盖别人改的其它列。
-
-⚠️ 服务端那份配置改完仍然要 `spacetime publish` 才生效。
-
-要加跑 / 攻击 / 受击这类资源：给形态表 `AddColumn`（记得带 `-Group c`），
-再在窗口的 `FormRow` 上加一对「路径字段 + 拖拽属性」，Odin 的 TableList 会自动多出一列。
+要加跑 / 攻击 / 受击这类资源：给形态表 `AddColumn`（带 `-Group c`），
+再在窗口的 `FormRow` 上加一对「路径字段 + 拖拽属性」，TableList 会自动多一列。
 
 ### 编辑器菜单约定
 
@@ -375,88 +358,113 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
 > `Logout` 会同时解除服务端的免密绑定。prefab 里还没有登出按钮，
 > 加了之后 Bind 到 `CommonUI.Logout` 即可。
 
-### 角色系统（客户端还没做）
+### 角色系统
 
-服务端已经能用：多角色、创建 / 删除（软删）/ 选择 / 觉醒，选完角色才进城镇。
-契约见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「角色系统」一节。接的时候注意：
+网络层门面 `Assets/Scripts/Net/CharacterManager.cs`，和 `AuthManager` 一个套路：
+**界面只读它、只听事件，不碰 `Conn`**。
 
-- 角色列表走 **View**（`my_character`），订阅时**不用带 where** —— 服务端已按订阅者过滤。
-  栏位数在 `my_account_profile` 里。
-- 订阅要分段：连上订 `session` → 登录成功后订 `my_character` / `my_account_profile`
-  → 选角后订角色态（还没有）。订阅 SQL 不能 join 到会话，所以只能分段。
-- `character_selection` 是公开表，订阅自己那行判断「是否已进城镇」；
-  它同时也是以后做在线列表 / 频道人数的数据源。
-- 失败文案和账号系统一个套路：从 Reducer 回调的 `ctx.Event.Status` 取
-  `Status.Failed(var reason)`，reason 是服务端抛的中文原文（「角色栏位已满（4/4）」
-  「这个角色名已经被使用了」「需要等级 30 才能觉醒成「3 星形态」」这种），直接显示给玩家。
-- 成功不看回调，看表：建角色看 `my_character` 多出一行，选角色看 `character_selection`
-  出现自己那行，觉醒看 `my_character` 那行的 `Star` / `FormId` 变了。
-  带主键的 View 更新会走 **OnUpdate**，别只挂 OnInsert/OnDelete（见上一条第 5 点）。
-- **现在只能传 `jobId = 1`**（凯露）。角色列表还只有这一行，界面上的选项别硬编码。
-- 可调的 Reducer：`CreateCharacter(name, jobId)` / `DeleteCharacter(id)` /
-  `SelectCharacter(id)` / `LeaveCharacter()` / `AwakenCharacter(id)`。
-
-两层结构（配置在 `ExcelTool/LubanTools/DataTables/`）：
-
-```
-CharacterJob（角色 / 职业，凯露）—— 建角色时选，之后不变
-  └ CharacterForm（形态）—— ★ 美术资源全在这一层，分两条线
-      ├ 基础线 FormType=1  按**星级**现算当前形态，觉醒推进，永久不可逆
-      │    1~2 星  基础形态（魔法士）    UnlockStar=1，建完角色就在这
-      │    3~5 星  一觉形态（魔导士）    UnlockStar=3，UnlockLevel=30
-      │    6   星  二觉形态（黑魔法师）  UnlockStar=6，UnlockLevel=60（部分角色没有二觉）
-      └ 爆发线 FormType=2  一个角色**可以有多个**，不分阶段，按 SortOrder 排
-           公主 / 暗黑圣灵 …  战斗中装备**爆发宝石**才切，和星级 / 等级无关
-```
-
-⚠️ 2026-08-24 改过设定：原来中间还有一层「专职」（`JobSpecialization` / `SpecId` /
-`Stage` / `SwitchSpecialization` / `FormStage`），**现在没有专职了**，那套已删干净。
-
-界面要怎么取数据：
-
-| 要什么 | 从哪取 |
+| 成员 | 用途 |
 |---|---|
-| 职业名（凯露）/ 副标题 / 排序 | `TbCharacterJob` |
-| 星级上限（画「3/6 星」那排星的分母） | `TbCharacterJob.MaxStar`（有二觉 6、没二觉 5）|
-| 当前星级 | `MyCharacter` View 的 `Star` |
-| 形态名 / 排序 / 星级门槛 / 觉醒等级 | `TbCharacterForm.Get(JobId, FormId)`，`FormId` 取 View 下发的 |
-| 该角色有哪些爆发形态 | 从 `TbCharacterForm` 筛 `JobId` 相同且 `FormType == 2`，按 `SortOrder` 排 |
-| 头像 / 立绘 / Spine / 启动视频 / 循环视频 | 同上，也在 `TbCharacterForm` 的行上（填 Addressable 完整路径）|
+| `IsReady` / `Ready` | 角色订阅是否生效。**false 时 `Characters` 不可信** |
+| `Characters` | 角色列表（最近玩过的在前），来自 `my_character` View |
+| `CharacterSlots` | 已解锁栏位数，来自 `my_account_profile` View |
+| `CharactersChanged` | 列表变了，界面重画即可 |
 
-⚠️ 资源列**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，
-它算好路径写回 Excel。详见第 4 节。
+两条实现约束（改的时候别破坏）：
 
-按形态分两种填法：
+1. **订阅必须分段建**：角色数据挂在 `AuthManager.LoginStateChanged` 上，**登录成功才订、
+   登出就退订**。订阅 SQL join 不到会话，连上时就订的话 View 返回空。
+2. 订阅 View **不用带 where** —— 服务端已按订阅者 Identity 过滤过了。
+3. 表回调**要连 `OnUpdate` 一起挂**（同事务的删+插会被合并成 update）。列表变化统一走
+   「整表重读」而不是增量维护 —— 角色最多个位数，重读很便宜，增量维护出错了表现成
+   「界面上少一个角色」，很难查。
 
-| 列 | 基础形态（UnlockStar 最低那行） | 觉醒形态 / 爆发形态 |
-|---|---|---|
-| `IconKey` 头像 | 有 | 有 |
-| `ArtKey` 立绘 | **有** | 空 |
-| `SpineKey` 战斗 Spine | 有 | 有 |
-| `VideoStartKey` 启动视频 | 空 | 可空（播一次的入场动画） |
-| `VideoLoopKey` 循环视频 | 空 | **有** |
+服务端契约（Reducer 名、失败文案怎么取）见
+[../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「角色系统」。
 
-视频列指向 AVPro 的 **MediaReference 资源**（工程里 `Video/Loading/Loading.asset`
-就是一个），运行时赋给 `MediaPlayer._mediaReference`。没配的列是空串，**要判空**。
+#### 选人界面（`SelectCharacterUI`）
 
-- **当前形态别自己算** —— `MyCharacter` View 的 `FormId` 就是服务端按星级算好的，
-  客户端再算一遍两边迟早对不上。注意 4 / 5 星在配置里**没有单独的行**，
-  形象跟着 3 星那行走，服务端已经处理了这个回退。
-- 觉醒调 `AwakenCharacter(characterId)`：把角色推到基础线的下一档（1~2 星 → 一觉，
-  3~5 星 → 二觉）。服务端**现在只校验等级**，设定上还要求「完成觉醒任务」——
-  任务系统做好后在服务端那一处加，客户端不用管。
-- 觉醒**不可逆**，没有反向接口，界面上别做「切回上一形态」。
+`Assets/Scripts/Game/Scripts/UGUI/SelectCharacterUI/`。已完成：
 
-两处校验，各管一半，都要跑：
+- 格子是**预制体里摆好的 10 个**，不动态生成。可见数 = `max(栏位数, 现有角色数)`，
+  多的隐藏 —— 全显出来玩家点第 5 个只会撞「角色栏位已满」
+- 空格子隐藏名字 / 等级 / Spine；有角色的按 `(JobId, FormId)` 取 `SkeletonUI` 预制体
+  实例化到 `SkeletonPoint`，调 `CharacterGraphicUI.PlayIdle()` 播待机
+- 单选，选中后「进入游戏」才可点
 
-- `spacetime call rediv character_config_self_test` —— 查 Excel 里表间的引用和星级门槛，
-  **查不了资源**（那些已经不在服务端能看到的列里了）。
-- `Tools > XFramework > 配置 > 角色资源配置` 窗口的「重新校验」 —— 查资源：
-  路径指向的资产还在不在、有没有形态没配头像、该填立绘/循环视频的行填没填。
+**「进入游戏」还没接** —— 接的时候调 `SelectCharacter(characterId)`，服务端写完
+`character_selection` 才算进城镇。
 
-⚠️ 凯露（JobId=1）的资源都配好了（`Character/100002/` 那套图），但**启动视频全是空的**
-（素材只有循环那一支）、`CharacterJob.Subtitle` 也还空着。
-**优衣（JobId=2）刚加进 CharacterJob 表，形态和资源都还没配** —— 服务端自检现在就报着这一条。
+#### 创建角色界面（`CreatCharacterUI`）
+
+`Assets/Scripts/Game/Scripts/UGUI/CreatCharacterUI/`。**只有展示逻辑，创建按钮没接**
+（还缺名字输入框）。
+
+```
+HeadContent     每个可创建角色一个 CharacterHeadSlot（动态生成，头像取基础形态的 IconKey）
+NameImg         选中角色后显示 NameIconKey
+ArtImage        选中角色后显示 ArtImage（普通立绘）
+RightJobsPanel  两张 CharacterJobSlotUI（预制体里摆好的）：上=基础线，下=爆发线
+Fall            觉醒 / 爆发形态的全屏立绘（StillUnitPrefab）生成在这里
+```
+
+立绘规则（互斥，同时只显示一个）：**基础形态**→ `ArtImage`，Fall 清空；
+**觉醒 / 爆发形态**→ Fall 里生成 `StillUnitPrefab`，`ArtImage` 隐藏。
+
+「在看哪个形态」由两张卡里**当前选中的那张**决定 —— 点卡片或点它的箭头都会让它成为当前卡。
+两张卡同时摆着但立绘只有一处，所以必须有这个概念。
+
+#### Spine 在 UI 里的播法
+
+Spine 4.3 把渲染和动画拆开了：`SkeletonGraphic` 只负责在 Canvas 下渲染，
+**动画在同物体的 `SkeletonAnimation` 上**（`SkeletonGraphic` 自己没有 `AnimationState`）。
+所以播动画要驱动 `SkeletonAnimation`；它的 `AnimationState` getter 会自己 `Initialize`，
+预制体刚实例化还没走过一帧也能直接用。
+
+### UGUI 界面开发的坑（都是 2026-08-24 接选人 / 创角界面时实测踩过的）
+
+**1. 装饰图会吃掉点击。** 边框、选中框、标题文本这些盖在按钮上面（兄弟序在后 = 渲染在上层）
+且 `raycastTarget=true` 的话，按钮点不动。表现是「按钮完全没反应」，很难往回追。
+纯展示的元素一律把 `raycastTarget` 关掉。
+（形态卡的 `Farme` / `Selected` / `NameFarme/Name` 三个都挡过箭头。）
+查的办法：运行时对按钮中心做一次 `EventSystem.RaycastAll`，看最上层命中的是谁。
+
+**2. 「亮/不亮」可能切的是 `Image.enabled`，不是 `SetActive`。** 美术摆预制体时
+两种做法都有。星级那排就是用**禁用 Image 组件**表示未点亮的（GameObject 一直 active）——
+只切 `SetActive` 的话物体是开的但 Image 还禁着，怎么都不亮。
+⚠️ 排查时**光看 `activeSelf` 不够**，要连 `Image.enabled` 一起看（这条让我误判过一轮）。
+
+**3. `Destroy` 延迟到帧末。** 同一帧里先 `Destroy` 旧的再 `Instantiate` 新的，
+旧的还在，两个会叠着显示（连点箭头实测叠出过 3 张全屏立绘）。
+销毁前先 `SetActive(false)`，视觉上立刻消失。
+
+**4. AutoBind 只绑登记过的节点。** `UIAutoBindGenerator` 的绑定项是在 Inspector 里手选的，
+没登记的节点（比如 `NameImg`、卡上的 `Selected`）生成的 AutoBind 里没有，
+代码里 `Get<T>("路径")` 手动取即可 —— 那是框架自带的方法，重新生成 AutoBind 也不会被覆盖。
+
+**5. 预制体上的组件可能没挂。** 生成器的 `AttachGeneratedComponent=true` 只在**脚本已编译**
+时才挂得上；脚本刚生成那一次挂不上，之后也不会自动补。发现「预制体上只有
+UIAutoBindGenerator 没有业务组件」就手动补一下（挂到预制体上，实例会继承）。
+
+**6. 节点名可能和实际位置对不上。** 形态卡的 `LastArrowButton` 在**右边**、
+`NextArrowButton` 在**左边**。按名字接线会导致方向反。
+所以那两个箭头是**按 `anchoredPosition.x` 判断左右**再绑的 —— 以后挪位置也不用改代码。
+
+**7. `Bind` 的第三个参数是点击音效 ID，要传。** 不传的话 `AudioManager` 会拿空 ID 查表并报错。
+工程里统一用 `AudioKeys.CursorClick01`。
+
+**8. `OnDestroy` 里用 AutoBind 的字段要判空。** 界面预制体没走过 `Init` 就被销毁
+（场景里手摆了一份、进 Play 时被清掉）时那些字段是 null，不判会抛 NRE，
+而且报错内容和真正原因看着毫无关系。
+
+**9. 加载资源用 `UIBase.LoadAsset<T>(key)`**，不要直接调 `AssetsManager` ——
+前者会把 key 托管起来，面板关闭 / 销毁时自动 `FreeAsset`，不用手动配对释放。
+
+**10. 验界面别只看编译过。** 用 `unity command editor_play` 进 Play，
+`eval` 里对按钮中心 `RaycastAll` + `ExecuteEvents.ExecuteHierarchy` 派发点击，
+就是玩家真实的点击路径。要看渲染结果用 `ScreenCapture.CaptureScreenshot` ——
+本工程 Canvas 是 **ScreenSpaceOverlay**，`capture_game_view` 那种走相机的截图**拍不到 UI**
+（拍出来是一张纯色背景）。
 
 ### 服务端操作面板
 

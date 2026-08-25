@@ -204,6 +204,9 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
   「已知坑」和本文件第 3 节
 - 客户端表回调**要连 `OnUpdate` 一起挂**：同主键的删+插在同一事务里会被合并成 update，
   只挂 Insert/Delete 会漏（换号登录时界面显示旧账号，实测踩过）
+- **接 UGUI 界面前先看** [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节
+  「UGUI 界面开发的坑」—— 装饰图吃点击、亮/灭切的是 `Image.enabled` 不是 `SetActive`、
+  `Destroy` 延迟到帧末、节点名和实际位置可能是反的，这几条都实测踩过
 - **服务端表加字段只能加在 struct 末尾**。插到中间会被判成 reorder，publish 直接要求
   手工迁移（`Reordering table xxx requires a manual migration`，实测撞过）。
   追加的字段要带 `[Default(...)]`，已有行才能拿到值、不用清库
@@ -261,31 +264,28 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 |---|---|---|---|
 | 账号（注册 / 登录 / 登出 / 会话 / 顶号 / 免密重连） | ✅ | ✅ | [ReDiv_Server/README.md](ReDiv_Server/README.md)「账号系统」 |
 | 版本校验（不一致弹窗 + 禁止登录） | ✅ | ✅ | 同上「版本号」 |
-| 角色（多角色 / 创建 / 软删 / 选择 / 选角状态） | ✅ | ❌ **还没写** | 同上「角色系统」 |
-| 形态与觉醒（基础 → 一觉 → 二觉，按**星级**现算；觉醒永久不可逆） | ✅ | ❌ **还没写** | 同上「角色系统」 |
-| 爆发形态（一个角色多个，战斗中装宝石切换） | 配置就绪 | ❌ **还没写** | 同上「角色系统」 |
+| 角色（多角色 / 创建 / 软删 / 选择 / 选角状态） | ✅ | ✅ 选人界面已完成 | 同上「角色系统」 |
+| 形态与觉醒（基础 → 一觉 → 二觉，按**星级**现算；觉醒永久不可逆） | ✅ | ✅ 展示已完成 | 同上「角色系统」 |
+| 爆发形态（一个角色多个，战斗中装宝石切换） | 配置就绪 | ✅ 展示已完成 | 同上「角色系统」 |
 | 配置表通路（Excel → Luban → 编进 wasm / 进 Addressables） | ✅ | ✅ | 同上「配置表」 |
-| 角色美术资源（头像 / 立绘 / Spine / 待机动画 / 视频） | 结构就绪 | 结构就绪，**路径待填** | 同上「配置表」 |
+| 角色美术资源（头像 / 略缩图 / 名字图 / 立绘 / 预览图 / UI Spine / 战斗 Spine） | — | ✅ 两个角色都配好了 | 同上「配置表」 |
 
-客户端 UI 现状：`CommonUI`（标题界面：服务器状态 / 账号栏 / 版本号 / 点屏幕）、
-`LoginUI`（登录注册）、`PopDialogueUI`（通用弹窗）都已接好逻辑。
-**选人界面还不存在** —— 服务端接口和 View 都就绪了，客户端契约见
-[ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节「角色系统」。
+客户端界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
+`SelectCharacterUI`（选人：格子 / 单选 / Spine 待机）、`CreatCharacterUI`（创角：
+头像列表 / 立绘 / 形态卡翻页 / 全屏立绘）。细节见
+[ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节。
 
 ### 下一步大概率是这些
 
-1. **客户端选人界面**：骨架已经在了（`Assets/Scripts/Game/Scripts/UGUI/SelectCharacterUI/`，
-   只有 AutoBind + 空 `Init()`）。订阅 `my_character` / `my_account_profile`（View，
-   不用带 where），调 `CreateCharacter` / `DeleteCharacter` / `SelectCharacter` /
-   `AwakenCharacter`，选完进城镇。资源按 `(JobId, FormId)` 去 `TbCharacterForm` 取。
-2. **补角色配置的占位数值**：结构和资源路径都填好了（用的是 `Character/100002/` 那套图），
-   但启动视频、`CharacterJob.Subtitle` 还是空的，觉醒等级也还是占位数字；
-   **`JobId=2`（优衣）刚加进职业表，形态一行都还没配**，服务端自检现在就报着这条。
+1. **两个按钮还没接**：选人界面的「进入游戏」（调 `SelectCharacter`，服务端写完
+   `character_selection` 才算进城镇）、创角界面的「创建」（调 `CreateCharacter`，
+   还缺一个名字输入框）。
+2. **补配置的占位值**：`CharacterJob.Subtitle` 还空着，觉醒等级（15 / 30）是占位数字。
    资源列**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产写回 Excel。
    改完跑 `spacetime call rediv character_config_self_test` 自检。
-3. **升星**：现在只有觉醒（1→3→6 星），4 / 5 星没有来源 —— 普通升星要靠养成系统
-   （材料 / 碎片），那套还没定，**要动手前先问**。
-4. **爆发宝石**：爆发形态的配置已就绪，但「装备宝石切形态」是战斗内行为，
+3. **升星**：现在只有觉醒（1→3→6 星），4 / 5 星没有来源 —— 要靠养成系统（材料 / 碎片），
+   那套还没定，**要动手前先问**。
+4. **爆发宝石**：配置已就绪，但「装备宝石切形态」是战斗内行为，
    装备 / 背包 / 战斗表一张都还没有，**要动手前先问**。
 5. 城镇 / 地图 / 角色玩法态表 —— 还没设计，**要动手前先问**。
 
