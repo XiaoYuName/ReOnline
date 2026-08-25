@@ -33,6 +33,7 @@ public sealed partial class CharacterForm : Luban.BeanBase
         ArtImage = (string)_obj.GetValue("ArtImage");
         StillUnitPrefab = (string)_obj.GetValue("StillUnitPrefab");
         SkeletonUI = (string)_obj.GetValue("SkeletonUI");
+        SkeletonTown = (string)_obj.GetValue("SkeletonTown");
         SkeletonScreen = (string)_obj.GetValue("SkeletonScreen");
     }
 
@@ -94,6 +95,10 @@ public sealed partial class CharacterForm : Luban.BeanBase
     /// </summary>
     public readonly string SkeletonUI;
     /// <summary>
+    /// 城镇控制预制体
+    /// </summary>
+    public readonly string SkeletonTown;
+    /// <summary>
     /// 战斗Spine预制体
     /// </summary>
     public readonly string SkeletonScreen;
@@ -122,6 +127,7 @@ public sealed partial class CharacterForm : Luban.BeanBase
         + "ArtImage:" + ArtImage + ","
         + "StillUnitPrefab:" + StillUnitPrefab + ","
         + "SkeletonUI:" + SkeletonUI + ","
+        + "SkeletonTown:" + SkeletonTown + ","
         + "SkeletonScreen:" + SkeletonScreen + ","
         + "}";
     }

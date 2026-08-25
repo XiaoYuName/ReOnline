@@ -172,4 +172,4 @@ MonoBehaviour:
     IsMouseRightHide: 0
     Description: 
   TweenerRoot: {fileID: 0}
-  IdleName: 07_idle
+  IdleName: 180201_multi_idle_standBy

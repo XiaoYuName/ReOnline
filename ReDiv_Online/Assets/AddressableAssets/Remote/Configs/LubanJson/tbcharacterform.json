@@ -13,6 +13,7 @@
     "ArtImage": "Assets/AddressableAssets/Remote/Character/1/0Common/Texture2D/CharacterFull/bsm_chara_full_106001_l.png",
     "StillUnitPrefab": "",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/1/0Common/Prefab/Skeleton/106011_UI.prefab",
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/1/0Common/Prefab/Skeleton/106011_Town.prefab",
     "SkeletonScreen": ""
   },
   {
@@ -29,6 +30,7 @@
     "ArtImage": "",
     "StillUnitPrefab": "Assets/AddressableAssets/Remote/Character/1/101/Prefab/StillUnit/StillUnit106031Preview.prefab",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/106031_UI.prefab",
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/1106031_Town.prefab",
     "SkeletonScreen": ""
   },
   {
@@ -45,6 +47,7 @@
     "ArtImage": "",
     "StillUnitPrefab": "Assets/AddressableAssets/Remote/Character/1/101/Prefab/StillUnit/StillUnit106061Preview.prefab",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/106061_UI.prefab",
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/1106061_Town.prefab",
     "SkeletonScreen": ""
   },
   {
@@ -61,6 +64,7 @@
     "ArtImage": "",
     "StillUnitPrefab": "Assets/AddressableAssets/Remote/Character/1/102/Prefab/StillUnit/StillUnit180631.prefab",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/1/102/Prefab/Skeleton/180631_UI.prefab",
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/1/102/Prefab/Skeleton/180631_Town.prefab",
     "SkeletonScreen": ""
   },
   {
@@ -77,6 +81,7 @@
     "ArtImage": "Assets/AddressableAssets/Remote/Character/2/0Common/Texture2D/CharacterFull/bsm_chara_full_102001_l.png",
     "StillUnitPrefab": "",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/2/0Common/Prefab/Skeleton/100211_UI.prefab",
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/2/0Common/Prefab/Skeleton/100211_Town.prefab",
     "SkeletonScreen": ""
   },
   {
@@ -93,6 +98,7 @@
     "ArtImage": "",
     "StillUnitPrefab": "Assets/AddressableAssets/Remote/Character/2/201/Prefab/StillUnit/StillUnit_100231.prefab",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/10231_UI.prefab",
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/110231_Town.prefab",
     "SkeletonScreen": ""
   },
   {
@@ -109,6 +115,7 @@
     "ArtImage": "",
     "StillUnitPrefab": "Assets/AddressableAssets/Remote/Character/2/201/Prefab/StillUnit/StillUnit_100261.prefab",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/10261_UI.prefab",
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/110261_Town.prefab",
     "SkeletonScreen": ""
   },
   {
@@ -125,6 +132,7 @@
     "ArtImage": "",
     "StillUnitPrefab": "Assets/AddressableAssets/Remote/Character/2/202/Prefab/StillUnit/StillUnit_180231.prefab",
     "SkeletonUI": "Assets/AddressableAssets/Remote/Character/2/202/Prefab/Skeleton/18231_UI.prefab",
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/2/202/Prefab/Skeleton/18231_Town.prefab",
     "SkeletonScreen": ""
   }
 ]
