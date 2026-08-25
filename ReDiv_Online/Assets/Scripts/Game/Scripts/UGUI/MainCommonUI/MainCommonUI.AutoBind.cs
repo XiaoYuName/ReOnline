@@ -5,7 +5,23 @@ using UnityEngine;
 
 public partial class MainCommonUI
 {
+    private FixedJoystick fixedJoystick;
+    private TMPro.TextMeshProUGUI levelValueTex;
+    private UnityEngine.UI.Slider expSlider;
+    private UnityEngine.UI.Slider strengthSlider;
+    private TMPro.TextMeshProUGUI strengthValue;
+    private TMPro.TextMeshProUGUI coinValue;
+    private TMPro.TextMeshProUGUI gemValue;
+
     private void InitAutoBind()
     {
+        fixedJoystick = Get<FixedJoystick>("UIMask/Fixed Joystick");
+        levelValueTex = Get<TMPro.TextMeshProUGUI>("UIMask/Top/LevelFarme/LevelValueTex");
+        expSlider = Get<UnityEngine.UI.Slider>("UIMask/Top/ExpCurrencySlot/ExpSlider");
+        strengthSlider = Get<UnityEngine.UI.Slider>("UIMask/Top/StrengthCurrencySlot/StrengthSlider");
+        strengthValue = Get<TMPro.TextMeshProUGUI>("UIMask/Top/StrengthCurrencySlot/StrengthValue");
+        coinValue = Get<TMPro.TextMeshProUGUI>("UIMask/Top/CoinCurrencySlot/coinValue");
+        gemValue = Get<TMPro.TextMeshProUGUI>("UIMask/Top/GemCurrencySlot/GemValue");
+
     }
 }
