@@ -47,6 +47,7 @@ namespace ReDiv.Net.Bindings
         public global::SpacetimeDB.Col<MyCharacterRow, uint> FormId { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, uint> Level { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, ulong> Exp { get; }
+        public global::SpacetimeDB.Col<MyCharacterRow, uint> Stamina { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, SpacetimeDB.Timestamp> CreatedAt { get; }
         public global::SpacetimeDB.Col<MyCharacterRow, SpacetimeDB.Timestamp> LastPlayedAt { get; }
 
@@ -59,6 +60,7 @@ namespace ReDiv.Net.Bindings
             FormId = new global::SpacetimeDB.Col<MyCharacterRow, uint>(tableName, "form_id");
             Level = new global::SpacetimeDB.Col<MyCharacterRow, uint>(tableName, "level");
             Exp = new global::SpacetimeDB.Col<MyCharacterRow, ulong>(tableName, "exp");
+            Stamina = new global::SpacetimeDB.Col<MyCharacterRow, uint>(tableName, "stamina");
             CreatedAt = new global::SpacetimeDB.Col<MyCharacterRow, SpacetimeDB.Timestamp>(tableName, "created_at");
             LastPlayedAt = new global::SpacetimeDB.Col<MyCharacterRow, SpacetimeDB.Timestamp>(tableName, "last_played_at");
         }

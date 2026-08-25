@@ -28,6 +28,9 @@ public static partial class Module
         Log.Debug("[WorldTime] tick");
 
         ApplyWorldTime(ctx);
+
+        // 顺便给在线角色刷体力（跨零点回满）。只扫在线的，不扫全表 —— 见那边注释
+        RefreshStaminaForOnline(ctx);
     }
 
     /// <summary>

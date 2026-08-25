@@ -96,6 +96,27 @@ public static partial class Module
         /// 值由 <c>CreateCharacter</c> 插入时写职业配置的 StartStar（见 RequireStartStar）。
         /// </summary>
         public uint Star;
+
+        /// <summary>
+        /// 当前体力（像 DNF 的疲劳值，进副本会扣）。上限按等级查配置
+        /// <c>TbLevelExp.MaxStamina</c>，**每日重置回满**。
+        ///
+        /// 体力是**角色级**的（金币钻石才是账号共享，在 <c>AccountWallet</c> 里）。
+        /// ⚠️ 追加列必须带 `[Default]`，见下面 TownId 那条的说明。
+        /// </summary>
+        [Default(0)]
+        public uint Stamina;
+
+        /// <summary>
+        /// 上一次重置体力时的「服务器本地日」（Unix 纪元起的天数，
+        /// 见 <c>TownRules.LocalDayNumber</c>）。和今天不一样就补满。
+        ///
+        /// 存"哪一天"而不是"上次重置的时间戳"：判断「跨天了没」直接比整数，
+        /// 不用在 Reducer 里做日历运算（那边连 DateTime 都不能用）。
+        /// 0 表示从没重置过 ⇒ 第一次读到就会补满。
+        /// </summary>
+        [Default(0)]
+        public int StaminaDay;
     }
 
     /// <summary>

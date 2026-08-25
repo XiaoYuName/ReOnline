@@ -34,6 +34,20 @@ namespace XFramework
             }
         }
 
+        private TbLevelExp _tbLevelExp;
+
+        public TbLevelExp TbLevelExp
+        {
+            get
+            {
+                return LoadTable(
+                    ref _tbLevelExp,
+                    AssetKeys.TblevelexpPath,
+                    json => new TbLevelExp(json)
+                );
+            }
+        }
+
         private TbTimeBand _tbTimeBand;
 
         public TbTimeBand TbTimeBand
@@ -68,6 +82,8 @@ namespace XFramework
             AssetsManager.Instance.FreeAsset(AssetKeys.TbcharacterformPath);
             _tbCharacterJob = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TbcharacterjobPath);
+            _tbLevelExp = null;
+            AssetsManager.Instance.FreeAsset(AssetKeys.TblevelexpPath);
             _tbTimeBand = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TbtimebandPath);
             _tbTown = null;

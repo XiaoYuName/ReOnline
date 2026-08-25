@@ -35,10 +35,10 @@ namespace XFramework
         public const string IconUnit106011Path = "Assets/AddressableAssets/Remote/Character/1/0Common/Texture2D/Unit/icon_unit_106011.png";
         public const string UnitPlate106011Path = "Assets/AddressableAssets/Remote/Character/1/0Common/Texture2D/UnitPlate/unit_plate_106011.png";
         public const string StillUnit106031MatPath = "Assets/AddressableAssets/Remote/Character/1/101/Material/still_unit_106031_mat.mat";
+        public const string _106031TownPath = "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/106031_Town.prefab";
         public const string _106031UIPath = "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/106031_UI.prefab";
+        public const string _106061TownPath = "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/106061_Town.prefab";
         public const string _106061UIPath = "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/106061_UI.prefab";
-        public const string _1106031TownPath = "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/1106031_Town.prefab";
-        public const string _1106061TownPath = "Assets/AddressableAssets/Remote/Character/1/101/Prefab/Skeleton/1106061_Town.prefab";
         public const string StillUnit106031PreviewPath = "Assets/AddressableAssets/Remote/Character/1/101/Prefab/StillUnit/StillUnit106031Preview.prefab";
         public const string StillUnit106061PreviewPath = "Assets/AddressableAssets/Remote/Character/1/101/Prefab/StillUnit/StillUnit106061Preview.prefab";
         public const string _106031AtlasPath = "Assets/AddressableAssets/Remote/Character/1/101/Skeleton/Game/106031.atlas.txt";
@@ -99,10 +99,10 @@ namespace XFramework
         public const string IconUnit100211Path = "Assets/AddressableAssets/Remote/Character/2/0Common/Texture2D/Unit/icon_unit_100211.png";
         public const string UnitPlate100211Path = "Assets/AddressableAssets/Remote/Character/2/0Common/Texture2D/UnitPlate/unit_plate_100211.png";
         public const string StillUnit100231MatPath = "Assets/AddressableAssets/Remote/Character/2/201/Material/still_unit_100231_mat.mat";
+        public const string _10231TownPath = "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/10231_Town.prefab";
         public const string _10231UIPath = "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/10231_UI.prefab";
+        public const string _10261TownPath = "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/10261_Town.prefab";
         public const string _10261UIPath = "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/10261_UI.prefab";
-        public const string _110231TownPath = "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/110231_Town.prefab";
-        public const string _110261TownPath = "Assets/AddressableAssets/Remote/Character/2/201/Prefab/Skeleton/110261_Town.prefab";
         public const string StillUnit100231Path = "Assets/AddressableAssets/Remote/Character/2/201/Prefab/StillUnit/StillUnit_100231.prefab";
         public const string StillUnit100261Path = "Assets/AddressableAssets/Remote/Character/2/201/Prefab/StillUnit/StillUnit_100261.prefab";
         public const string _100231AtlasPath = "Assets/AddressableAssets/Remote/Character/2/201/Skeleton/100231.atlas.txt";
@@ -147,6 +147,7 @@ namespace XFramework
         public const string XMixerPath = "Assets/AddressableAssets/Remote/Configs/Audio/XMixer.mixer";
         public const string TbcharacterformPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbcharacterform.json";
         public const string TbcharacterjobPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbcharacterjob.json";
+        public const string TblevelexpPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tblevelexp.json";
         public const string TbtimebandPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbtimeband.json";
         public const string TbtownPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbtown.json";
         public const string UIPageConfigurationPath = "Assets/AddressableAssets/Remote/Configs/UI/UIPageConfiguration.asset";

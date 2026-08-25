@@ -3,7 +3,7 @@
 ReDiv 服务端。C# 编写的 **SpacetimeDB 模块**，编译成 WebAssembly 跑在数据库进程内 ——
 **没有独立的游戏服务器进程**。
 
-**当前状态：账号系统 + 角色系统 + 城镇与世界时间。** 注册 / 登录 / 会话，
+**当前状态：账号系统 + 角色系统 + 城镇（含移动同步、玩家状态）与世界时间。** 注册 / 登录 / 会话，
 多角色的创建 / 删除 / 选择，形态与觉醒（基础 → 一觉 → 二觉，按星级现算），
 以及「角色在哪个城镇」和「现在是早/中/晚哪个时段」都能用了。
 战斗、背包这些玩法表还没有 —— 定型后再往里加。
@@ -73,6 +73,8 @@ ReDiv_Server/
     │   └── CharacterViews.cs     MyCharacter / MyAccountProfile（per-subscriber View）
     ├── Town/               城镇与世界时间
     │   ├── TownTables.cs         CharacterLocation（私有）/ WorldTime（公开）/ WorldTimeTimer（定时）
+    │   ├── TownPlayerTables.cs   CharacterTransform（公开，坐标）/ AccountWallet（私有，金币钻石）
+    │   ├── TownPlayerReducers.cs UpdateTransform（坐标上报）+ 体力每日重置 + 钱包
     │   ├── TownRules.cs          时段计算 + 初始城镇（纯函数，只读配置）
     │   ├── TownReducers.cs       PlaceCharacter（进城镇）+ 配置自检
     │   └── WorldTimeReducers.cs  定时重算时段 + 自检
@@ -582,6 +584,67 @@ npm run dev
 角色修改直接写私有 `Character` 权威表；玩家正在线且已经选角时，公开的
 `CharacterSelection` 投影可能仍保留旧值，让玩家重新选角或重连即可刷新。
 
+### 城镇里的玩家状态
+
+| 表 | 公开性 | 说明 |
+|---|---|---|
+| `CharacterTransform` | 公开 | 城镇里的坐标。PK `ConnectionId`，`TownId` / `CharacterId` 带索引 |
+| `AccountWallet` | **私有** | 金币 / 钻石。PK `AccountId`。靠 `MyWallet` View 下发 |
+
+`Character` 上追加了 `Stamina` / `StaminaDay`（都带 `[Default(0)]`）。
+
+**为什么坐标要单开一张表**、不加到 `CharacterSelection` 上：拆表按**访问频率**不按实体。
+`CharacterSelection` 是进城镇写一次的低频行，还冗余着名字 / 职业 / 等级 / 形态；
+坐标是移动中每 100ms 写一次的。混在一起 ⇒ **每走一步都把名字等级那一整行重推给所有订阅者**。
+
+**为什么钱包不加到 `Account` 上**：Account 是凭据表，每次登录才读一次。
+混在一起 ⇒ 每次加钱都把口令哈希那行一起重写。金币钻石**全角色共享**所以挂账号
+（用户 2026-08-25 明确说的），体力是**角色级**的所以在 `Character` 上。
+
+### 移动同步：客户端上报，服务端只转发
+
+用户 2026-08-25 定的模型。`UpdateTransform(x, y, facing, moving)`：
+
+- **服务端不校验速度、不算移动** —— 改过的客户端可以瞬移。城镇里瞬移没收益，先这样；
+  要管就在这个 Reducer 里比对上次的 `UpdatedAt` 和距离。
+- 鉴权靠「本连接有没有选角行」—— 那行是服务端写的，客户端伪造不了。
+- **没有选角行时直接 return 而不是抛异常**：玩家点「返回选人界面」的瞬间
+  客户端可能还有包在路上，那不是错误，抛异常只会刷日志。
+- 客户端每 ~100ms 且位置真的变了才发（节流在客户端，见客户端文档）。
+
+坐标行要在**三处**清掉，漏一处城镇里就留个不动的"幽灵"：连接断开、`LeaveCharacter`、
+角色被删（那三处 `CharacterSelection` 也一起清）。
+
+### 体力：配置上限 + 每日重置
+
+用户 2026-08-25 定的（像 DNF 疲劳值）。上限查 `TbLevelExp.MaxStamina`（按等级）。
+
+`Character.StaminaDay` 存的是**「服务器本地第几天」**（Unix 纪元起的天数，
+`TownRules.LocalDayNumber`），和今天不一样就补满。存"哪一天"而不是"上次重置的时间戳"：
+判断跨天直接比整数，不用在 Reducer 里做日历运算（那边连 `DateTime` 都不能用）。
+和时段共用同一个时区偏移 —— 「今天」和「早上」得是同一个日历上的事。
+
+两条补齐路径：
+
+- **进城镇时惰性补**（`SelectCharacter` → `EnsureStaminaFresh`）—— 覆盖离线期间跨天；
+- **定时器每分钟给在线角色刷一遍**（`TickWorldTime` → `RefreshStaminaForOnline`）——
+  覆盖挂在城镇里跨零点。**只扫在线的**（`CharacterSelection` 一条连接一行，量很小），
+  不扫全表 —— 那是每分钟一次的 O(全部角色)。
+
+### 配置表 `LevelExp`
+
+| 列 | group | 说明 |
+|---|---|---|
+| `Level` | 不标 | 等级（现在 1~60） |
+| `ExpToNext` | 不标 | 升到下一级所需经验。**最高级填 0**，客户端按满显示 |
+| `MaxStamina` | 不标 | 该等级的体力上限 |
+
+⚠️ 里面的数值是**占位**（`ExpToNext = Level×100`、`MaxStamina = 15+(Level-1)/2`），
+等养成系统定了要重配。
+
+客户端也有这张表（`c,s`），所以 **View 只发当前值、不发上限** ——
+经验条和体力条的分母客户端按等级自己查，不白占同步量。
+
 ---
 
 ## 版本号
@@ -866,7 +929,7 @@ Unity 侧的详细文档在 [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.m
 | `SpacetimeConnection.cs` | 只管连接生命周期 + `ServerLinkState`，**不建立任何订阅** |
 | `AuthManager.cs` | 账号：`session` / `session_closed` 的订阅、登录态、Register/Login/Logout |
 | `CharacterManager.cs` | 角色：`my_character` / `my_account_profile` 的订阅、角色列表、查重/建/删 |
-| `TownManager.cs` | 城镇与世界时间：`world_time` / `character_selection` 的订阅 |
+| `TownManager.cs` | 城镇与世界时间：`world_time` / `character_selection` / `character_transform` 的订阅、同城镇玩家、坐标上报 |
 
 已接好的界面：`CommonUI`（标题）、`LoginUI`、`SelectCharacterUI`（选人 / 删角）、
 `CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字 / 查重 / 创建）、

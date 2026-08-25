@@ -53,7 +53,7 @@ Assets/Scripts/
 │       ├── Save/
 │       ├── System/            GameManager / GameDataManager / LubanManager
 │       ├── Tools/
-│       ├── Town/              城镇背景控制器基类（挂背景预制体上）
+│       ├── Town/              城镇背景 / 角色控制器 + 角色取用回收（PoolManager）
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
     ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState，不建任何订阅
@@ -374,6 +374,8 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
 | `CharacterSlots` | 已解锁栏位数，来自 `my_account_profile` View |
 | `CharactersChanged` | 列表变了，界面重画即可 |
 | `IsBusy` | 有查重 / 创建 / 删除请求正在等回应，界面据此禁用按钮 |
+| `Coin` / `Gem` / `WalletChanged` | 金币钻石。**账号级、全角色共享**，来自 `my_wallet` View |
+| `FindCharacter(characterId)` | 按 id 取角色行（等级 / 经验 / 体力）。取不到返回 null |
 | `CheckNameAsync` / `CreateCharacterAsync` / `DeleteCharacterAsync` / `SelectCharacterAsync` | 返回 `CharacterResult { Ok, Message }`，Message 是可直接显示的中文 |
 
 两条实现约束（改的时候别破坏）：
@@ -475,6 +477,8 @@ CreatButton     「创建」—— 没选角色时是灰的，点了打开 Revis
 | `CurrentTownId` / `CurrentCharacterId` / `LocationChanged` | 自己在哪个城镇 / 在玩哪个角色，来自 `character_selection` 里本连接那一行。**0 = 还没进游戏** |
 | `CurrentBand` / `CurrentTown` | 对应的 Luban 配置行，**要判空** |
 | `CurrentBackgroundKey` | 「当前城镇 + 当前时段」该用哪个背景预制体，取不到是空串 |
+| `TownPlayers` / `TownPlayersChanged` | 同城镇的**其他**玩家（key 是 CharacterId，不含自己）。事件只在**有人进出**时触发，移动不触发 |
+| `ReportTransform(x, y, facing, moving)` | 上报自己的坐标。**调用方负责节流** |
 
 三条实现约束（改的时候别破坏）：
 
@@ -530,6 +534,52 @@ TownManager.CurrentBandId ──┘         │
 
 > ⚠️ **背景不认识网络层。** 它不订阅任何东西、不碰 `Conn`、不自己算时段 ——
 > 「该显示哪个」全由 `MainCommonUI` 从 `TownManager` 算好再喂给它。
+
+#### 右上角信息栏
+
+| AutoBind 字段 | 显示什么 | 数据来源 |
+|---|---|---|
+| `levelValueTex` | 角色等级 | `my_character`（**角色级**） |
+| `expSlider` | 经验条 | 当前经验 ÷ `TbLevelExp.ExpToNext` |
+| `strengthSlider` / `strengthValue` | 体力条 + `当前/上限` | 当前体力 ÷ `TbLevelExp.MaxStamina` |
+| `coinValue` / `gemValue` | 金币 / 钻石 | `my_wallet`（**账号级，全角色共享**） |
+
+**两条条的分母都来自配置表 `TbLevelExp`**，服务端只发当前值 —— 上限按等级客户端自己查，
+不白占同步量。满级（`ExpToNext=0`）经验条按满显示。
+
+#### 城镇角色（自己 + 其他玩家）
+
+城镇角色是**世界空间 Spine**（`SkeletonAnimation` + MeshRenderer，不是 Canvas 下的
+`SkeletonGraphic`）—— 所以移动改 `transform.position`、朝向翻 `localScale.x`，
+实例挂在场景里 **`SkeletonCharacters`** 节点下（靠 Tag 找）。
+
+| 文件 | 职责 |
+|---|---|
+| `Game/Scripts/Town/TownSkeletonController.cs` | 挂在**城镇控制预制体**根节点上。动画名 / 移动速度 / 插值速度都在 Inspector 上；`MoveByInput`（自己）、`MoveTowards`（别人） |
+| `Game/Scripts/Town/TownCharacterSpawner.cs` | 按 (JobId, FormId) 取用 / 回收实例。走工程内置的 **PoolManager**，一个 SpawnPool + 每个预制体一个 PrefabPool |
+
+预制体路径在配置表 **`CharacterForm.SkeletonTown`** 列（**按形态分**，所以觉醒之后城镇形象也会变）。
+
+自己和别人**用同一个预制体、同一个控制器**，区别只在谁驱动：
+
+- **自己** —— `MainCommonUI.Update()` 每帧读摇杆（`FixedJoystick.Direction`，Joystick Pack），
+  本地立刻移动，然后**节流上报**：位置真的变了（或「在不在走」变了）且距上次 ≥100ms 才发一次。
+  ⚠️ **别把 `TransformReportInterval` 改小** —— 这是整个模块调用最频繁的 Reducer。
+- **别人** —— 按服务端推的坐标 `Lerp` 追过去。**不能每帧重建列表**：
+  `TownPlayersChanged` 只在有人进出时触发，坐标走单行更新（`TownManager.ApplyTransform`），
+  渲染那边每帧自己读 `TownPlayers`。
+
+两条实现约束（改的时候别破坏）：
+
+1. **`RefreshSelfCharacter` 必须幂等**。它挂在 `CharactersChanged` 上（角色数据可能
+   **比本界面打开得晚**，不重试的话城镇里没有自己），而那个事件会频繁触发 ——
+   所以用 `selfJobId`/`selfFormId` 记住当前形态，没变就什么都不做。
+   不然角色会不停闪、位置被反复拉回原点。
+2. **自己那一行要从 `TownPlayers` 里排除**（按 `ConnectionId == Conn.ConnectionId`）。
+   不排除的话自己会被服务端坐标拉着走，和本地输入打架。
+
+> ⚠️ `TownCharacterSpawner.Release()` 里**先拆池子再还 AA 引用**，顺序不能反 ——
+> 反过来池子里还留着已经卸掉的预制体，下次 Spawn 拿到空引用（AudioManager 踩过同类问题）。
 
 #### Spine 在 UI 里的播法
 

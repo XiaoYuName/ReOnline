@@ -60,9 +60,11 @@ public static partial class Module
     {
         Log.Debug($"[Disconnect] {ctx.Sender} / {ctx.ConnectionId}");
 
-        // 顺序无关，但两个都要清：会话行和选角行都是按 ConnectionId 建的
+        // 顺序无关，但三个都要清：会话行 / 选角行 / 坐标行都是按 ConnectionId 建的。
+        // 坐标行漏了的话城镇里会留下一个永远不动的"幽灵"
         CloseSessionOnDisconnect(ctx);
         ClearSelectionOnDisconnect(ctx);
+        ClearTransformOnDisconnect(ctx);
     }
 
     /// <summary>

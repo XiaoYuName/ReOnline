@@ -29,6 +29,10 @@ public partial class Tables
     /// 时间段表。段数固定3段(早/中/晚)，只有边界(StartHour)可调
     /// </summary>
     public TbTimeBand TbTimeBand {get; }
+    /// <summary>
+    /// 等级表。升级所需经验 + 该等级的体力上限(每日重置)。经验条和体力条的分母都来自这里
+    /// </summary>
+    public TbLevelExp TbLevelExp {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
@@ -36,6 +40,7 @@ public partial class Tables
         TbCharacterForm = new TbCharacterForm(loader("tbcharacterform"));
         TbTown = new TbTown(loader("tbtown"));
         TbTimeBand = new TbTimeBand(loader("tbtimeband"));
+        TbLevelExp = new TbLevelExp(loader("tblevelexp"));
         ResolveRef();
     }
     
@@ -45,6 +50,7 @@ public partial class Tables
         TbCharacterForm.ResolveRef(this);
         TbTown.ResolveRef(this);
         TbTimeBand.ResolveRef(this);
+        TbLevelExp.ResolveRef(this);
     }
 }
 

@@ -56,6 +56,9 @@ public static partial class Module
             CharacterSlots = DefaultCharacterSlots,
         });
 
+        // 金币钻石是账号级的，注册就把钱包行建出来
+        EnsureWallet(ctx, inserted.AccountId);
+
         Log.Info($"[Auth] 注册成功 account={inserted.AccountId} username={inserted.Username}");
 
         OpenSession(ctx, inserted);

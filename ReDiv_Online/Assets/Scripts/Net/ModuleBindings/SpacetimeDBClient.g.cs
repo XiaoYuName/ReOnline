@@ -29,8 +29,10 @@ namespace ReDiv.Net.Bindings
         public RemoteTables(DbConnection conn)
         {
             AddTable(CharacterSelection = new(conn));
+            AddTable(CharacterTransform = new(conn));
             AddTable(MyAccountProfile = new(conn));
             AddTable(MyCharacter = new(conn));
+            AddTable(MyWallet = new(conn));
             AddTable(Session = new(conn));
             AddTable(SessionClosed = new(conn));
             AddTable(WorldTime = new(conn));
@@ -531,8 +533,10 @@ namespace ReDiv.Net.Bindings
         internal static string[] AllTablesSqlQueries() => new string[]
         {
             new QueryBuilder().From.CharacterSelection().ToSql(),
+            new QueryBuilder().From.CharacterTransform().ToSql(),
             new QueryBuilder().From.MyAccountProfile().ToSql(),
             new QueryBuilder().From.MyCharacter().ToSql(),
+            new QueryBuilder().From.MyWallet().ToSql(),
             new QueryBuilder().From.Session().ToSql(),
             new QueryBuilder().From.SessionClosed().ToSql(),
             new QueryBuilder().From.WorldTime().ToSql(),
@@ -543,8 +547,10 @@ namespace ReDiv.Net.Bindings
     public sealed class From
     {
         public global::SpacetimeDB.Table<CharacterSelection, CharacterSelectionCols, CharacterSelectionIxCols> CharacterSelection() => new("character_selection", new CharacterSelectionCols("character_selection"), new CharacterSelectionIxCols("character_selection"));
+        public global::SpacetimeDB.Table<CharacterTransform, CharacterTransformCols, CharacterTransformIxCols> CharacterTransform() => new("character_transform", new CharacterTransformCols("character_transform"), new CharacterTransformIxCols("character_transform"));
         public global::SpacetimeDB.Table<MyAccountProfileRow, MyAccountProfileCols, MyAccountProfileIxCols> MyAccountProfile() => new("my_account_profile", new MyAccountProfileCols("my_account_profile"), new MyAccountProfileIxCols("my_account_profile"));
         public global::SpacetimeDB.Table<MyCharacterRow, MyCharacterCols, MyCharacterIxCols> MyCharacter() => new("my_character", new MyCharacterCols("my_character"), new MyCharacterIxCols("my_character"));
+        public global::SpacetimeDB.Table<MyWalletRow, MyWalletCols, MyWalletIxCols> MyWallet() => new("my_wallet", new MyWalletCols("my_wallet"), new MyWalletIxCols("my_wallet"));
         public global::SpacetimeDB.Table<Session, SessionCols, SessionIxCols> Session() => new("session", new SessionCols("session"), new SessionIxCols("session"));
         public global::SpacetimeDB.Table<SessionClosed, SessionClosedCols, SessionClosedIxCols> SessionClosed() => new("session_closed", new SessionClosedCols("session_closed"), new SessionClosedIxCols("session_closed"));
         public global::SpacetimeDB.Table<WorldTime, WorldTimeCols, WorldTimeIxCols> WorldTime() => new("world_time", new WorldTimeCols("world_time"), new WorldTimeIxCols("world_time"));
@@ -644,6 +650,7 @@ namespace ReDiv.Net.Bindings
                 Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
                 Reducer.SelectCharacter args => Reducers.InvokeSelectCharacter(eventContext, args),
                 Reducer.TownConfigSelfTest args => Reducers.InvokeTownConfigSelfTest(eventContext, args),
+                Reducer.UpdateTransform args => Reducers.InvokeUpdateTransform(eventContext, args),
                 Reducer.WorldTimeSelfTest args => Reducers.InvokeWorldTimeSelfTest(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };

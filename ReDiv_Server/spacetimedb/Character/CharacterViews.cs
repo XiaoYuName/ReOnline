@@ -47,6 +47,14 @@ public static partial class Module
 
         public uint Level;
         public ulong Exp;
+
+        /// <summary>
+        /// 当前体力。上限**不在这里** —— 客户端按 <c>Level</c> 查配置
+        /// <c>TbLevelExp.MaxStamina</c>，那张表两端都有，不用白占同步量。
+        /// 经验条的分母（<c>ExpToNext</c>）同理。
+        /// </summary>
+        public uint Stamina;
+
         public Timestamp CreatedAt;
         public Timestamp? LastPlayedAt;
     }
@@ -93,8 +101,45 @@ public static partial class Module
                 FormId = CurrentBaseFormId(character.JobId, character.Star),
                 Level = character.Level,
                 Exp = character.Exp,
+                Stamina = character.Stamina,
                 CreatedAt = character.CreatedAt,
                 LastPlayedAt = character.LastPlayedAt,
+            });
+        }
+
+        return rows;
+    }
+
+    /// <summary>账号钱包。金币钻石全角色共享，所以是账号级的。</summary>
+    [SpacetimeDB.Type]
+    public partial struct MyWalletRow
+    {
+        public ulong AccountId;
+        public ulong Coin;
+        public ulong Gem;
+    }
+
+    /// <summary>
+    /// 当前设备已登录账号的钱包。
+    ///
+    /// **单独一个 View 而不是塞进 <c>MyAccountProfile</c>**：账号名和栏位数基本不变，
+    /// 钱包是会频繁变的。合成一行的话每次加钱都会把账号名一起重推给客户端。
+    /// 还没有钱包行（老账号）时返回空 —— 客户端显示 0，进城镇时服务端会补建。
+    /// </summary>
+    [SpacetimeDB.View(Accessor = "MyWallet", Public = true,
+        PrimaryKey = nameof(MyWalletRow.AccountId))]
+    public static List<MyWalletRow> MyWallet(ViewContext ctx)
+    {
+        var rows = new List<MyWalletRow>();
+
+        if (ctx.Db.IdentityBinding.Identity.Find(ctx.Sender) is { } binding &&
+            ctx.Db.AccountWallet.AccountId.Find(binding.AccountId) is { } wallet)
+        {
+            rows.Add(new MyWalletRow
+            {
+                AccountId = wallet.AccountId,
+                Coin = wallet.Coin,
+                Gem = wallet.Gem,
             });
         }
 

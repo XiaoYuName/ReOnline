@@ -28,6 +28,8 @@ namespace ReDiv.Net.Bindings
         public uint Level;
         [DataMember(Name = "exp")]
         public ulong Exp;
+        [DataMember(Name = "stamina")]
+        public uint Stamina;
         [DataMember(Name = "created_at")]
         public SpacetimeDB.Timestamp CreatedAt;
         [DataMember(Name = "last_played_at")]
@@ -41,6 +43,7 @@ namespace ReDiv.Net.Bindings
             uint FormId,
             uint Level,
             ulong Exp,
+            uint Stamina,
             SpacetimeDB.Timestamp CreatedAt,
             SpacetimeDB.Timestamp? LastPlayedAt
         )
@@ -52,6 +55,7 @@ namespace ReDiv.Net.Bindings
             this.FormId = FormId;
             this.Level = Level;
             this.Exp = Exp;
+            this.Stamina = Stamina;
             this.CreatedAt = CreatedAt;
             this.LastPlayedAt = LastPlayedAt;
         }

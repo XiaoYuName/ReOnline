@@ -97,6 +97,10 @@ public static partial class Module
             LastPlayedAt = null,
             DeletedAt = null,
             Star = star,
+            // 建角色就给满体力。StaminaDay = 0 会让第一次进城镇时再走一次重置，
+            // 保证「今天」这个字段也对上
+            Stamina = ReDiv.Server.Town.TownRules.MaxStaminaOf((uint)job.StartLevel),
+            StaminaDay = 0,
         });
 
         Log.Info($"[Character] 创建角色 character={inserted.CharacterId} name={inserted.Name} " +
@@ -116,6 +120,7 @@ public static partial class Module
         foreach (var selection in ctx.Db.CharacterSelection.CharacterId.Filter(characterId).ToList())
         {
             ctx.Db.CharacterSelection.ConnectionId.Delete(selection.ConnectionId);
+            ctx.Db.CharacterTransform.ConnectionId.Delete(selection.ConnectionId);
         }
 
         character.DeletedAt = ctx.Timestamp;
@@ -148,6 +153,11 @@ public static partial class Module
         // 进城镇：沿用角色记录的城镇，新角色落到配置里的初始城镇（见 Town/TownReducers.cs）
         uint townId = PlaceCharacter(ctx, accountId, characterId);
 
+        // 进城镇时把体力和钱包补齐：两者都是「后加的功能」，老角色 / 老账号没有这些行 / 值。
+        // 体力顺便完成每日重置（离线期间跨天的情况靠这里惰性补）
+        EnsureStaminaFresh(ctx, characterId);
+        EnsureWallet(ctx, accountId);
+
         // 本连接换角色：先删旧行再插新行（重复选同一个也走这条，幂等）
         ctx.Db.CharacterSelection.ConnectionId.Delete(connectionId);
 
@@ -178,6 +188,8 @@ public static partial class Module
         if (ctx.ConnectionId is { } connectionId)
         {
             ctx.Db.CharacterSelection.ConnectionId.Delete(connectionId);
+            // 选角行和坐标行要一起清：留着坐标行，别人城镇里还看得见这个已经离开的角色
+            ctx.Db.CharacterTransform.ConnectionId.Delete(connectionId);
         }
     }
 

@@ -91,6 +91,18 @@ namespace ReDiv.Net
         /// </summary>
         public uint CharacterSlots { get; private set; }
 
+        /// <summary>
+        /// 金币。**全角色共享**（账号级），来自 <c>my_wallet</c> View。
+        /// 订阅没生效 / 老账号还没建钱包行时是 0。
+        /// </summary>
+        public ulong Coin { get; private set; }
+
+        /// <summary>钻石。同样是账号级共享。</summary>
+        public ulong Gem { get; private set; }
+
+        /// <summary>金币或钻石变了。右上角信息栏听这个刷。</summary>
+        public event Action WalletChanged;
+
         private readonly List<MyCharacterRow> characters = new List<MyCharacterRow>();
 
         /// <summary>
@@ -202,6 +214,7 @@ namespace ReDiv.Net
                 {
                     "SELECT * FROM my_character",
                     "SELECT * FROM my_account_profile",
+                    "SELECT * FROM my_wallet",
                 });
         }
 
@@ -228,8 +241,11 @@ namespace ReDiv.Net
 
             IsReady = false;
             CharacterSlots = 0;
+            Coin = 0;
+            Gem = 0;
             characters.Clear();
             CharactersChanged?.Invoke();
+            WalletChanged?.Invoke();
         }
 
         private void HookTables()
@@ -242,6 +258,10 @@ namespace ReDiv.Net
             conn.Db.MyAccountProfile.OnInsert += HandleProfileInsert;
             conn.Db.MyAccountProfile.OnUpdate += HandleProfileUpdate;
             conn.Db.MyAccountProfile.OnDelete += HandleProfileDelete;
+
+            conn.Db.MyWallet.OnInsert += HandleWalletInsert;
+            conn.Db.MyWallet.OnUpdate += HandleWalletUpdate;
+            conn.Db.MyWallet.OnDelete += HandleWalletDelete;
         }
 
         private void UnhookTables()
@@ -258,6 +278,10 @@ namespace ReDiv.Net
             conn.Db.MyAccountProfile.OnInsert -= HandleProfileInsert;
             conn.Db.MyAccountProfile.OnUpdate -= HandleProfileUpdate;
             conn.Db.MyAccountProfile.OnDelete -= HandleProfileDelete;
+
+            conn.Db.MyWallet.OnInsert -= HandleWalletInsert;
+            conn.Db.MyWallet.OnUpdate -= HandleWalletUpdate;
+            conn.Db.MyWallet.OnDelete -= HandleWalletDelete;
         }
 
         private void HandleSubscriptionApplied(SubscriptionEventContext ctx)
@@ -297,6 +321,19 @@ namespace ReDiv.Net
 
         private void HandleProfileDelete(EventContext ctx, MyAccountProfileRow row) => RefreshProfile();
 
+        private void HandleWalletInsert(EventContext ctx, MyWalletRow row) => RefreshWallet();
+
+        private void HandleWalletUpdate(EventContext ctx, MyWalletRow oldRow, MyWalletRow newRow) =>
+            RefreshWallet();
+
+        private void HandleWalletDelete(EventContext ctx, MyWalletRow row) => RefreshWallet();
+
+        private void RefreshWallet()
+        {
+            RefreshFromCache();
+            WalletChanged?.Invoke();
+        }
+
         /// <summary>
         /// 整表重读，而不是按单行增删改维护本地列表。
         ///
@@ -322,6 +359,8 @@ namespace ReDiv.Net
             if (conn == null)
             {
                 CharacterSlots = 0;
+                Coin = 0;
+                Gem = 0;
                 return;
             }
 
@@ -332,6 +371,32 @@ namespace ReDiv.Net
 
             var profile = conn.Db.MyAccountProfile.Iter().FirstOrDefault();
             CharacterSlots = profile.CharacterSlots;
+
+            var wallet = conn.Db.MyWallet.Iter().FirstOrDefault();
+            Coin = wallet.Coin;
+            Gem = wallet.Gem;
+        }
+
+        /// <summary>
+        /// 按 id 取角色行。取不到返回 null（角色刚被删、或者订阅还没生效）。
+        /// 城镇主界面拿它读当前角色的等级 / 经验 / 体力。
+        /// </summary>
+        public MyCharacterRow FindCharacter(ulong characterId)
+        {
+            if (characterId == 0)
+            {
+                return null;
+            }
+
+            foreach (var row in characters)
+            {
+                if (row.CharacterId == characterId)
+                {
+                    return row;
+                }
+            }
+
+            return null;
         }
 
         // ------------------------------------------------------------------

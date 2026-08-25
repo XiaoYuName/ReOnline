@@ -1,0 +1,302 @@
+[
+  {
+    "Level": 1,
+    "ExpToNext": 100,
+    "MaxStamina": 15
+  },
+  {
+    "Level": 2,
+    "ExpToNext": 200,
+    "MaxStamina": 15
+  },
+  {
+    "Level": 3,
+    "ExpToNext": 300,
+    "MaxStamina": 16
+  },
+  {
+    "Level": 4,
+    "ExpToNext": 400,
+    "MaxStamina": 16
+  },
+  {
+    "Level": 5,
+    "ExpToNext": 500,
+    "MaxStamina": 17
+  },
+  {
+    "Level": 6,
+    "ExpToNext": 600,
+    "MaxStamina": 17
+  },
+  {
+    "Level": 7,
+    "ExpToNext": 700,
+    "MaxStamina": 18
+  },
+  {
+    "Level": 8,
+    "ExpToNext": 800,
+    "MaxStamina": 18
+  },
+  {
+    "Level": 9,
+    "ExpToNext": 900,
+    "MaxStamina": 19
+  },
+  {
+    "Level": 10,
+    "ExpToNext": 1000,
+    "MaxStamina": 19
+  },
+  {
+    "Level": 11,
+    "ExpToNext": 1100,
+    "MaxStamina": 20
+  },
+  {
+    "Level": 12,
+    "ExpToNext": 1200,
+    "MaxStamina": 20
+  },
+  {
+    "Level": 13,
+    "ExpToNext": 1300,
+    "MaxStamina": 21
+  },
+  {
+    "Level": 14,
+    "ExpToNext": 1400,
+    "MaxStamina": 21
+  },
+  {
+    "Level": 15,
+    "ExpToNext": 1500,
+    "MaxStamina": 22
+  },
+  {
+    "Level": 16,
+    "ExpToNext": 1600,
+    "MaxStamina": 22
+  },
+  {
+    "Level": 17,
+    "ExpToNext": 1700,
+    "MaxStamina": 23
+  },
+  {
+    "Level": 18,
+    "ExpToNext": 1800,
+    "MaxStamina": 23
+  },
+  {
+    "Level": 19,
+    "ExpToNext": 1900,
+    "MaxStamina": 24
+  },
+  {
+    "Level": 20,
+    "ExpToNext": 2000,
+    "MaxStamina": 24
+  },
+  {
+    "Level": 21,
+    "ExpToNext": 2100,
+    "MaxStamina": 25
+  },
+  {
+    "Level": 22,
+    "ExpToNext": 2200,
+    "MaxStamina": 25
+  },
+  {
+    "Level": 23,
+    "ExpToNext": 2300,
+    "MaxStamina": 26
+  },
+  {
+    "Level": 24,
+    "ExpToNext": 2400,
+    "MaxStamina": 26
+  },
+  {
+    "Level": 25,
+    "ExpToNext": 2500,
+    "MaxStamina": 27
+  },
+  {
+    "Level": 26,
+    "ExpToNext": 2600,
+    "MaxStamina": 27
+  },
+  {
+    "Level": 27,
+    "ExpToNext": 2700,
+    "MaxStamina": 28
+  },
+  {
+    "Level": 28,
+    "ExpToNext": 2800,
+    "MaxStamina": 28
+  },
+  {
+    "Level": 29,
+    "ExpToNext": 2900,
+    "MaxStamina": 29
+  },
+  {
+    "Level": 30,
+    "ExpToNext": 3000,
+    "MaxStamina": 29
+  },
+  {
+    "Level": 31,
+    "ExpToNext": 3100,
+    "MaxStamina": 30
+  },
+  {
+    "Level": 32,
+    "ExpToNext": 3200,
+    "MaxStamina": 30
+  },
+  {
+    "Level": 33,
+    "ExpToNext": 3300,
+    "MaxStamina": 31
+  },
+  {
+    "Level": 34,
+    "ExpToNext": 3400,
+    "MaxStamina": 31
+  },
+  {
+    "Level": 35,
+    "ExpToNext": 3500,
+    "MaxStamina": 32
+  },
+  {
+    "Level": 36,
+    "ExpToNext": 3600,
+    "MaxStamina": 32
+  },
+  {
+    "Level": 37,
+    "ExpToNext": 3700,
+    "MaxStamina": 33
+  },
+  {
+    "Level": 38,
+    "ExpToNext": 3800,
+    "MaxStamina": 33
+  },
+  {
+    "Level": 39,
+    "ExpToNext": 3900,
+    "MaxStamina": 34
+  },
+  {
+    "Level": 40,
+    "ExpToNext": 4000,
+    "MaxStamina": 34
+  },
+  {
+    "Level": 41,
+    "ExpToNext": 4100,
+    "MaxStamina": 35
+  },
+  {
+    "Level": 42,
+    "ExpToNext": 4200,
+    "MaxStamina": 35
+  },
+  {
+    "Level": 43,
+    "ExpToNext": 4300,
+    "MaxStamina": 36
+  },
+  {
+    "Level": 44,
+    "ExpToNext": 4400,
+    "MaxStamina": 36
+  },
+  {
+    "Level": 45,
+    "ExpToNext": 4500,
+    "MaxStamina": 37
+  },
+  {
+    "Level": 46,
+    "ExpToNext": 4600,
+    "MaxStamina": 37
+  },
+  {
+    "Level": 47,
+    "ExpToNext": 4700,
+    "MaxStamina": 38
+  },
+  {
+    "Level": 48,
+    "ExpToNext": 4800,
+    "MaxStamina": 38
+  },
+  {
+    "Level": 49,
+    "ExpToNext": 4900,
+    "MaxStamina": 39
+  },
+  {
+    "Level": 50,
+    "ExpToNext": 5000,
+    "MaxStamina": 39
+  },
+  {
+    "Level": 51,
+    "ExpToNext": 5100,
+    "MaxStamina": 40
+  },
+  {
+    "Level": 52,
+    "ExpToNext": 5200,
+    "MaxStamina": 40
+  },
+  {
+    "Level": 53,
+    "ExpToNext": 5300,
+    "MaxStamina": 41
+  },
+  {
+    "Level": 54,
+    "ExpToNext": 5400,
+    "MaxStamina": 41
+  },
+  {
+    "Level": 55,
+    "ExpToNext": 5500,
+    "MaxStamina": 42
+  },
+  {
+    "Level": 56,
+    "ExpToNext": 5600,
+    "MaxStamina": 42
+  },
+  {
+    "Level": 57,
+    "ExpToNext": 5700,
+    "MaxStamina": 43
+  },
+  {
+    "Level": 58,
+    "ExpToNext": 5800,
+    "MaxStamina": 43
+  },
+  {
+    "Level": 59,
+    "ExpToNext": 5900,
+    "MaxStamina": 44
+  },
+  {
+    "Level": 60,
+    "ExpToNext": 0,
+    "MaxStamina": 44
+  }
+]

@@ -67,6 +67,46 @@ namespace ReDiv.Server.Town
             return (int)(((hours % 24) + 24) % 24);
         }
 
+        /// <summary>
+        /// UTC 微秒 → 服务器本地「第几天」（Unix 纪元起的天数）。
+        ///
+        /// 体力的每日重置就是比这个数变了没。和时段共用同一个时区偏移 ——
+        /// 两套时区口径迟早对不上（「今天」和「早上」得是同一个日历上的事）。
+        /// </summary>
+        public static int LocalDayNumber(long utcMicroseconds, int utcOffsetHours)
+        {
+            const long MicrosPerDay = 24L * 3600L * 1_000_000L;
+
+            long localMicros = utcMicroseconds + utcOffsetHours * 3600L * 1_000_000L;
+            long days = localMicros / MicrosPerDay;
+
+            // C# 的 / 对负数向零取整，1970 年之前会差一天。现实里走不到，但别留这种坑
+            if (localMicros < 0 && localMicros % MicrosPerDay != 0)
+            {
+                days--;
+            }
+
+            return (int)days;
+        }
+
+        /// <summary>
+        /// 某个等级的体力上限，来自配置 <c>TbLevelExp.MaxStamina</c>。
+        /// 配置里没有这一级（等级超出表范围）就退回最高那一级的值 ——
+        /// 宁可给个偏大的上限，也别让玩家体力变成 0 卡住。
+        /// </summary>
+        public static uint MaxStaminaOf(uint level)
+        {
+            var table = ServerConfig.Tables.TbLevelExp;
+
+            if (table.GetOrDefault((int)level) is { } row)
+            {
+                return (uint)System.Math.Max(0, row.MaxStamina);
+            }
+
+            var highest = table.DataList.OrderByDescending(r => r.Level).FirstOrDefault();
+            return highest == null ? 0u : (uint)System.Math.Max(0, highest.MaxStamina);
+        }
+
         /// <summary>时段配置，按 StartHour 从小到大。</summary>
         public static List<TimeBand> SortedBands() =>
             ServerConfig.Tables.TbTimeBand.DataList.OrderBy(b => b.StartHour).ToList();
