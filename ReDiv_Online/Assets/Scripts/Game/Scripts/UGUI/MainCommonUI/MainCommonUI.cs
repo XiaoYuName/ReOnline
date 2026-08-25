@@ -16,9 +16,12 @@ using XFramework;
 /// 数据全部来自三个门面（<see cref="TownManager"/> / <see cref="CharacterManager"/>），
 /// **本界面不碰 Conn、不自己算时段**。
 ///
-/// 城镇角色是**世界空间** Spine，挂在场景的 <c>SkeletonCharacters</c> 节点下
+/// 城镇角色是**世界空间**的，挂在场景的 <c>SkeletonCharacters</c> 节点下
 /// （<see cref="TownCharacterSpawner"/> 负责取用和回收，走工程内置的 PoolManager），
 /// 不在 UI 的 Canvas 里 —— 所以移动是改 <c>transform.position</c>，不是 anchoredPosition。
+///
+/// 角色是**两层**的：外层 <see cref="TownCharacterController"/>（名字、以后的血条称号）
+/// 套着按形态取的 <see cref="TownSkeletonController"/>（Spine）。本界面只跟外层打交道。
 /// </summary>
 public partial class MainCommonUI : UIBase
 {
@@ -41,7 +44,7 @@ public partial class MainCommonUI : UIBase
     private readonly TownCharacterSpawner spawner = new TownCharacterSpawner();
 
     /// <summary>自己的角色。没进城镇 / 配置没配城镇预制体时是 null。</summary>
-    private TownSkeletonController selfCharacter;
+    private TownCharacterController selfCharacter;
 
     /// <summary>
     /// <see cref="selfCharacter"/> 现在用的是哪个形态。用来让 <see cref="RefreshSelfCharacter"/>
@@ -52,8 +55,8 @@ public partial class MainCommonUI : UIBase
     private uint selfFormId;
 
     /// <summary>已经摆出来的其他玩家，key 是 CharacterId。</summary>
-    private readonly Dictionary<ulong, TownSkeletonController> otherCharacters =
-        new Dictionary<ulong, TownSkeletonController>();
+    private readonly Dictionary<ulong, TownCharacterController> otherCharacters =
+        new Dictionary<ulong, TownCharacterController>();
 
     /// <summary>上一次上报的坐标和时间，用来节流。</summary>
     private Vector2 lastReportedPosition;
@@ -285,6 +288,8 @@ public partial class MainCommonUI : UIBase
         selfJobId = found.JobId;
         selfFormId = found.FormId;
 
+        selfCharacter.SetName(found.Name);
+
         // 进城镇的落点：服务端还没有坐标的概念（第一次进来），先落在原点。
         // 以后城镇配置里加「出生点」的话在这里取
         selfCharacter.Teleport(Vector2.zero);
@@ -368,7 +373,7 @@ public partial class MainCommonUI : UIBase
             }
 
             TownPlayer player = pair.Value;
-            TownSkeletonController controller = spawner.Acquire(player.JobId, player.FormId);
+            TownCharacterController controller = spawner.Acquire(player.JobId, player.FormId);
 
             if (controller == null)
             {
@@ -378,6 +383,7 @@ public partial class MainCommonUI : UIBase
             // ⚠️ 还没收到坐标就先别摆到 (0,0) —— 那会让他在原点闪一下再跳走。
             // 摆到自己看不见的地方不行（要能看见他站在原点也是合理的），
             // 所以：有坐标就用坐标，没坐标就用原点，但下一帧插值会立刻纠正
+            controller.SetName(player.Name);
             controller.Teleport(player.HasTransform ? new Vector2(player.X, player.Y) : Vector2.zero);
             controller.SetFacing(player.Facing);
             otherCharacters[pair.Key] = controller;

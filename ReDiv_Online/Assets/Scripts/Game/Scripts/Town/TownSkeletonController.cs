@@ -8,12 +8,15 @@ using XFramework;
 /// <c>CharacterForm.SkeletonTown</c> 列（按形态分，所以觉醒之后城镇里的形象也会变）。
 ///
 /// 这是**世界空间**的 Spine（<see cref="SkeletonAnimation"/> + MeshRenderer），
-/// 不是 Canvas 下的 SkeletonGraphic —— 所以移动是改 <c>transform.position</c>，
-/// 朝向是翻 <c>localScale.x</c>。实例统一挂在场景的 <c>SkeletonCharacters</c> 节点下。
+/// 不是 Canvas 下的 SkeletonGraphic。
 ///
-/// 自己和别的玩家用的是**同一个预制体、同一个控制器**，区别只在谁来驱动：
-///   自己    —— <see cref="MainCommonUI"/> 每帧按摇杆算位置，然后上报服务端
-///   别人    —— 按服务端推下来的坐标插值追过去（<see cref="MoveTowards"/>）
+/// ⚠️ 它是 <see cref="TownCharacterController"/> 的**子件** —— 被塞进那边的
+/// <c>SkeletonTown</c> 节点下。**职责只有动画和朝向**：
+///   位置（走路 / 传送 / 远端插值）在**外层**做，否则头顶名字不会跟着走。
+/// 移动速度这两个数值留在这里，是因为它们按角色微调（美术摆预制体时就能试），
+/// 外层读 <see cref="MoveSpeed"/> / <see cref="RemoteLerpSpeed"/> 来用。
+///
+/// 朝向**只翻自己**（翻外层的话名字文字会镜像）。
 /// </summary>
 public class TownSkeletonController : GameBase
 {
@@ -43,6 +46,44 @@ public class TownSkeletonController : GameBase
     #endregion
 
     private SkeletonAnimation skeletonAnimation;
+
+    private SkeletonRenderer skeletonRenderer;
+
+    /// <summary>底层的 <see cref="SkeletonAnimation"/>（放动画）。</summary>
+    public SkeletonAnimation Animation
+    {
+        get
+        {
+            if (skeletonAnimation == null)
+            {
+                skeletonAnimation = GetComponent<SkeletonAnimation>();
+            }
+
+            return skeletonAnimation;
+        }
+    }
+
+    /// <summary>
+    /// 底层的 <see cref="SkeletonRenderer"/>。外层拿它接名字的 BoneFollower。
+    ///
+    /// ⚠️ 这个 Spine 版本里 <see cref="SkeletonAnimation"/> **已经不再继承
+    /// SkeletonRenderer** 了（源码里那句「Transfer of former base class
+    /// SkeletonRenderer parameters」就是拆开的痕迹）—— 两者是同物体上的**两个独立组件**。
+    /// 所以别想着把 Animation 直接喂给 BoneFollower，编译期就会报
+    /// 「Cannot implicitly convert SkeletonAnimation to SkeletonRenderer」。
+    /// </summary>
+    public SkeletonRenderer Renderer
+    {
+        get
+        {
+            if (skeletonRenderer == null)
+            {
+                skeletonRenderer = GetComponent<SkeletonRenderer>();
+            }
+
+            return skeletonRenderer;
+        }
+    }
 
     /// <summary>当前正在播的动画名。用来避免每帧重复 SetAnimation（那会把动画重头播）。</summary>
     private string currentAnimation;
@@ -114,53 +155,8 @@ public class TownSkeletonController : GameBase
     }
 
     // ------------------------------------------------------------------
-    // 位置与朝向
+    // 朝向
     // ------------------------------------------------------------------
-
-    /// <summary>直接落到某个位置（进城镇的第一帧、或者远端角色第一次出现时用）。</summary>
-    public void Teleport(Vector2 position)
-    {
-        Vector3 p = transform.position;
-        transform.position = new Vector3(position.x, position.y, p.z);
-    }
-
-    /// <summary>
-    /// 按方向走一帧，返回是不是真的动了。自己的角色用这个 ——
-    /// 本地立刻响应摇杆，不等服务端。
-    /// </summary>
-    public bool MoveByInput(Vector2 direction, float deltaTime)
-    {
-        if (direction.sqrMagnitude < 0.0001f)
-        {
-            SetMoving(false);
-            return false;
-        }
-
-        Vector2 step = direction.normalized * (MoveSpeed * deltaTime);
-        transform.position += new Vector3(step.x, step.y, 0f);
-
-        // 只在水平方向有明显输入时才翻身，否则纯上下走会来回抖
-        if (Mathf.Abs(direction.x) > 0.01f)
-        {
-            SetFacing(direction.x >= 0f ? 1 : -1);
-        }
-
-        SetMoving(true);
-        return true;
-    }
-
-    /// <summary>
-    /// 朝服务端报来的坐标插值移动。别人的角色用这个。
-    /// </summary>
-    public void MoveTowards(Vector2 target, bool moving, float deltaTime)
-    {
-        Vector3 current = transform.position;
-        Vector3 goal = new Vector3(target.x, target.y, current.z);
-
-        transform.position = Vector3.Lerp(current, goal, Mathf.Clamp01(RemoteLerpSpeed * deltaTime));
-
-        SetMoving(moving);
-    }
 
     public void SetFacing(int facing)
     {

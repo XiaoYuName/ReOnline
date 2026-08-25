@@ -6,33 +6,42 @@ using XFramework;
 /// <summary>
 /// 城镇角色的取用与回收。<see cref="MainCommonUI"/> 拥有它一份，自己不订阅任何东西。
 ///
+/// **两层结构**（用户 2026-08-25 定的）：
+/// <code>
+/// TownCharacterController（所有角色共用同一个预制体）   ← 名字、以后的血条/称号都在这层
+/// └── SkeletonTown
+///     └── TownSkeletonController（按 (JobId, FormId) 取，形态不同预制体不同）
+/// </code>
+/// 所以 <see cref="Acquire"/> 要取**两个**实例再组装起来。
+///
 /// 实例统一挂在场景里那个 <b>SkeletonCharacters</b> 节点下（靠 Tag 找，见
 /// <see cref="RootTag"/>）—— 那是世界空间节点，城镇角色是世界空间 Spine，
 /// 不能挂到 UI 的 Canvas 下面。
 ///
 /// 对象池走工程内置的 <b>PoolManager</b>（PathologicalGames，AudioManager 也用它）：
-/// 一个 <see cref="SpawnPool"/>，**每个城镇预制体一个 PrefabPool**。
-/// 城镇里同一个角色可能有好几个人在用（都是凯露），池化才不会反复 Instantiate。
-///
-/// ⚠️ PrefabPool 要的是**预制体的 Transform**，所以预制体得先经 AssetsManager 加载出来。
-/// 每个 key 只加载一次，缓存在 <see cref="prefabs"/> 里；<see cref="Release"/>
-/// 时把 AA 引用一起还掉。
+/// 一个 <see cref="SpawnPool"/>，**每个预制体一个 PrefabPool** ——
+/// 外层那个占一个池，每种形态的 Spine 各占一个池。
+/// 外层是共用的，所以复用率很高；Spine 按形态分池，换形态时旧的还回自己的池。
 /// </summary>
 public sealed class TownCharacterSpawner
 {
     /// <summary>场景里那个世界空间父节点的 Tag。</summary>
     public const string RootTag = "SkeletonCharacters";
 
+    /// <summary>外层控制器预制体。所有角色共用，所以是常量而不是配置列。</summary>
+    public const string ControllerPrefabKey =
+        "Assets/AddressableAssets/Remote/Prefabs/Town/TownCharacterController.prefab";
+
     private const string PoolName = "TownCharacters";
 
     private Transform root;
     private SpawnPool pool;
 
-    /// <summary>Addressable key → 预制体。key 是配置表 <c>CharacterForm.SkeletonTown</c> 那一列。</summary>
+    /// <summary>Addressable key → 预制体。外层那个和每种形态的 Spine 都在里面。</summary>
     private readonly Dictionary<string, Transform> prefabs = new Dictionary<string, Transform>();
 
-    /// <summary>已经取出去的实例 → 它是从哪个 key 来的。回收时要按 key 找回对应的池。</summary>
-    private readonly Dictionary<TownSkeletonController, string> spawned =
+    /// <summary>已经取出去的 Spine → 它是从哪个 key 来的。回收时要按 key 找回对应的池。</summary>
+    private readonly Dictionary<TownSkeletonController, string> skeletonKeys =
         new Dictionary<TownSkeletonController, string>();
 
     public bool IsReady => pool != null;
@@ -76,16 +85,51 @@ public sealed class TownCharacterSpawner
     }
 
     /// <summary>
-    /// 按 (JobId, FormId) 取一个城镇角色实例。配置里没配 <c>SkeletonTown</c> 就返回 null
-    /// （不当错误 —— 美术可能还没做那个形态的城镇预制体）。
+    /// 取一个装好的城镇角色。
+    ///
+    /// 配置里没配 <c>SkeletonTown</c> 时**照样返回外层**（只是没有形象）——
+    /// 名字之类的还得显示，而且这样「美术还没做那个形态」不会让人整个消失。
     /// </summary>
-    public TownSkeletonController Acquire(uint jobId, uint formId)
+    public TownCharacterController Acquire(uint jobId, uint formId)
     {
         if (!Initialize())
         {
             return null;
         }
 
+        Transform controllerPrefab = GetPrefab(ControllerPrefabKey);
+
+        if (controllerPrefab == null)
+        {
+            return null;
+        }
+
+        Transform instance = pool.Spawn(controllerPrefab);
+
+        if (instance == null)
+        {
+            Debug.LogError($"[TownSpawner] 池子取不出外层实例：{ControllerPrefabKey}");
+            return null;
+        }
+
+        var controller = instance.GetComponent<TownCharacterController>();
+
+        if (controller == null)
+        {
+            Debug.LogError($"[TownSpawner] {ControllerPrefabKey} 上没有 TownCharacterController 组件");
+            pool.Despawn(instance);
+            return null;
+        }
+
+        controller.Bind(AcquireSkeleton(jobId, formId));
+        return controller;
+    }
+
+    /// <summary>
+    /// 取一个 Spine。取不到返回 null —— 调用方要容忍（外层照样能用）。
+    /// </summary>
+    private TownSkeletonController AcquireSkeleton(uint jobId, uint formId)
+    {
         var form = LubanManager.Instance.TbCharacterForm?.Get((int)jobId, (int)formId);
 
         if (form == null)
@@ -111,33 +155,41 @@ public sealed class TownCharacterSpawner
 
         if (instance == null)
         {
-            Debug.LogError($"[TownSpawner] 池子取不出实例：{form.SkeletonTown}");
+            Debug.LogError($"[TownSpawner] 池子取不出 Spine：{form.SkeletonTown}");
             return null;
         }
 
-        var controller = instance.GetComponent<TownSkeletonController>();
+        var skeleton = instance.GetComponent<TownSkeletonController>();
 
-        if (controller == null)
+        if (skeleton == null)
         {
             Debug.LogError($"[TownSpawner] {form.SkeletonTown} 上没有 TownSkeletonController 组件");
             pool.Despawn(instance);
             return null;
         }
 
-        controller.Initialize();
-        spawned[controller] = form.SkeletonTown;
-        return controller;
+        skeletonKeys[skeleton] = form.SkeletonTown;
+        return skeleton;
     }
 
-    /// <summary>把实例还回池子。</summary>
-    public void Recycle(TownSkeletonController controller)
+    /// <summary>把整只角色还回池子（外层 + 里面的 Spine）。</summary>
+    public void Recycle(TownCharacterController controller)
     {
         if (controller == null || pool == null)
         {
             return;
         }
 
-        spawned.Remove(controller);
+        // 先摘 Spine：不摘的话它会跟着外层一起被 Despawn 到池子根节点下，
+        // 下次取外层时里面还挂着上一个形态
+        TownSkeletonController skeleton = controller.Unbind();
+
+        if (skeleton != null)
+        {
+            skeletonKeys.Remove(skeleton);
+            pool.Despawn(skeleton.transform);
+        }
+
         pool.Despawn(controller.transform);
     }
 
@@ -149,7 +201,7 @@ public sealed class TownCharacterSpawner
     /// </summary>
     public void Release()
     {
-        spawned.Clear();
+        skeletonKeys.Clear();
 
         if (pool != null)
         {
@@ -177,7 +229,7 @@ public sealed class TownCharacterSpawner
 
         if (loaded == null)
         {
-            Debug.LogError($"[TownSpawner] 城镇角色预制体加载不出来：{key}");
+            Debug.LogError($"[TownSpawner] 预制体加载不出来：{key}");
             return null;
         }
 

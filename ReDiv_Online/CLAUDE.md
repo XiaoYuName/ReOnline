@@ -53,7 +53,7 @@ Assets/Scripts/
 │       ├── Save/
 │       ├── System/            GameManager / GameDataManager / LubanManager
 │       ├── Tools/
-│       ├── Town/              城镇背景 / 角色控制器 + 角色取用回收（PoolManager）
+│       ├── Town/              城镇背景 / 角色两层控制器 + 取用回收（PoolManager）
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
     ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState，不建任何订阅
@@ -547,20 +547,73 @@ TownManager.CurrentBandId ──┘         │
 **两条条的分母都来自配置表 `TbLevelExp`**，服务端只发当前值 —— 上限按等级客户端自己查，
 不白占同步量。满级（`ExpToNext=0`）经验条按满显示。
 
-#### 城镇角色（自己 + 其他玩家）
+#### 城镇角色：两层结构
 
-城镇角色是**世界空间 Spine**（`SkeletonAnimation` + MeshRenderer，不是 Canvas 下的
-`SkeletonGraphic`）—— 所以移动改 `transform.position`、朝向翻 `localScale.x`，
-实例挂在场景里 **`SkeletonCharacters`** 节点下（靠 Tag 找）。
+城镇角色是**世界空间**的（不是 Canvas 下的 `SkeletonGraphic`），实例挂在场景里
+**`SkeletonCharacters`** 节点下（靠 Tag 找）。它是**两层**的（用户 2026-08-25 定的）：
+
+```
+TownCharacterController          ← 所有角色共用一个预制体。位置都作用在这层
+├── SkeletonTown                 ← 运行时按形态把 Spine 塞进来
+│   └── TownSkeletonController   ← 按 (JobId, FormId) 取，形态不同预制体不同
+└── NameAnchor  [BoneFollower]   ← 跟随头部骨骼
+    └── Name    [TextMeshPro]    ← localPosition.y 就是头顶偏移
+```
+
+分两层的原因：城镇角色不只有 Spine，还要挂名字、以后还有血条 / 称号 / 气泡。
+那些和「用哪个 Spine」无关，所以放外层，Spine 只当可替换的子件。
 
 | 文件 | 职责 |
 |---|---|
-| `Game/Scripts/Town/TownSkeletonController.cs` | 挂在**城镇控制预制体**根节点上。动画名 / 移动速度 / 插值速度都在 Inspector 上；`MoveByInput`（自己）、`MoveTowards`（别人） |
-| `Game/Scripts/Town/TownCharacterSpawner.cs` | 按 (JobId, FormId) 取用 / 回收实例。走工程内置的 **PoolManager**，一个 SpawnPool + 每个预制体一个 PrefabPool |
+| `Town/TownCharacterController.cs` | **外层**：位置（走路 / 传送 / 远端插值）、名字、组装 Spine |
+| `Town/TownSkeletonController.cs` | **Spine 层**：动画（同名不重播）、朝向。移动速度两个数值也在这（按角色微调） |
+| `Town/TownCharacterSpawner.cs` | 取用 / 回收**两个**实例再组装。PoolManager：一个 SpawnPool + 每个预制体一个 PrefabPool |
 
-预制体路径在配置表 **`CharacterForm.SkeletonTown`** 列（**按形态分**，所以觉醒之后城镇形象也会变）。
+Spine 预制体路径在配置表 **`CharacterForm.SkeletonTown`** 列（**按形态分**，觉醒后城镇形象也变）；
+外层预制体是常量 `TownCharacterSpawner.ControllerPrefabKey`（所有角色共用，不进配置表）。
 
-自己和别人**用同一个预制体、同一个控制器**，区别只在谁驱动：
+三条别破坏的约束：
+
+1. **位置作用在外层，朝向翻在 Spine 层。** 反过来的话：位置放 Spine 层名字不会跟着走；
+   朝向翻外层名字文字会**镜像**。
+2. **回收时先 `Unbind()` 摘 Spine 再 Despawn 外层**。不摘的话 Spine 会跟着外层一起被
+   Despawn 到池子根节点下，下次取外层时里面还挂着上一个形态。
+3. **`BoneFollower.SkeletonRenderer` 必须运行时接**（`TownCharacterController.Bind`）——
+   Spine 是动态塞进来的，预制体里那个引用只能是空的。Inspector 里显示
+   「SkeletonRenderer is unassigned」是**预期的**，不是配错了；预制体里也因此把
+   `initializeOnAwake` 关了。
+
+#### 名字跟随头顶骨骼（BoneFollower 没有 offset 参数怎么办）
+
+用 Spine SDK 的 `BoneFollower` 跟骨骼很好用（Inspector 里能选骨骼），但它**没有偏移参数**。
+解法是**加一层父物体**：`NameAnchor` 挂 `BoneFollower` 精确贴在骨骼上，
+文字作为**子节点**带一个 `localPosition.y` 偏移 —— BoneFollower 只写自己那个 transform，
+碰不到子节点，所以偏移稳定不会被覆盖，而且编辑器里所见即所得。
+
+> ⚠️ **不要派生 `BoneFollower` 来加偏移。** 它的 `LateUpdate()` 虽然是 `virtual`，
+> 但 `BoneFollowerInspector` 是 `[CustomEditor(typeof(BoneFollower))]` **没开
+> `editorForChildClasses`** —— 派生子类会丢掉那个骨骼下拉框，`boneName` 退化成纯文本框。
+
+BoneFollower 的设置（预制体里已经这么配了）：
+
+| 开关 | 值 | 为什么 |
+|---|---|---|
+| `followXYPosition` | ✔ | 就是要跟位置 |
+| `followZPosition` | ✘ | Z 由排序层管，别让骨骼带着跑 |
+| `followBoneRotation` | ✘ | 名字要一直朝上，不跟头骨转 |
+| `followSkeletonFlip` | ✘ | 朝左时文字**不能镜像** |
+| `initializeOnAwake` | ✘ | 骨架是运行时塞的，Awake 时还没有 |
+
+⚠️ **名字的 SortingLayer 要在角色之上。** 本工程的层序是
+`Default < Ground < UIGround < EffectDown < Environment < Character < EffectTop < ...`，
+TextMeshPro 默认落在 `Default` ⇒ 会被 `Character` 层的 Spine **压住**（实测过：
+名字被头发挡了一半）。预制体里已改成 `Character / order 100`。
+
+实测确认了它真的解决了原始需求 —— **角色站着不动、只播待机动画时**：
+根节点坐标恒为 `(0,0,0)`，而 `hairB` 骨骼的 WorldY 在 `1.580 ↔ 1.617` 之间呼吸，
+锚点精确跟上，名字的 local 一直是 `(0, 0.5, 0)`，world 跟着变。
+
+自己和别人**用同一套两层结构**，区别只在谁驱动：
 
 - **自己** —— `MainCommonUI.Update()` 每帧读摇杆（`FixedJoystick.Direction`，Joystick Pack），
   本地立刻移动，然后**节流上报**：位置真的变了（或「在不在走」变了）且距上次 ≥100ms 才发一次。
