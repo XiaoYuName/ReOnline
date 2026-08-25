@@ -38,8 +38,11 @@ public static partial class Module
     /// </summary>
     private static void ApplyWorldTime(ReducerContext ctx)
     {
-        uint bandId = TownRules.CurrentBandId(
-            ctx.Timestamp.MicrosecondsSinceUnixEpoch, ServerUtcOffsetHours);
+        uint overrideBandId = ctx.Db.WorldTimeControl.Id.Find(WorldTimeControlRowId)?.OverrideBandId ?? 0;
+        uint bandId = overrideBandId is >= 1 and <= TownRules.BandCount
+            ? overrideBandId
+            : TownRules.CurrentBandId(
+                ctx.Timestamp.MicrosecondsSinceUnixEpoch, ServerUtcOffsetHours);
 
         if (ctx.Db.WorldTime.Id.Find(WorldTimeRowId) is not { } row)
         {
@@ -64,7 +67,20 @@ public static partial class Module
         row.ChangedAt = ctx.Timestamp;
         ctx.Db.WorldTime.Id.Update(row);
 
-        Log.Info($"[WorldTime] 时段切换 {before} -> {bandId}");
+        string mode = overrideBandId == 0 ? "自动" : "GM锁定";
+        Log.Info($"[WorldTime] 时段切换 {before} -> {bandId}（{mode}）");
+    }
+
+    /// <summary>
+    /// 立即按当前 GM 控制状态刷新公开时段行。
+    ///
+    /// 这个 Reducer 本身不修改 GM 控制状态，所以玩家即使调用也只能让服务端重新执行
+    /// 同一套权威计算；真正的锁定值只存在私有表里，由数据库 owner 修改。
+    /// </summary>
+    [SpacetimeDB.Reducer]
+    public static void RefreshWorldTime(ReducerContext ctx)
+    {
+        ApplyWorldTime(ctx);
     }
 
     /// <summary>
@@ -100,6 +116,17 @@ public static partial class Module
                 });
 
                 Log.Info($"[WorldTime] 已挂上定时器，每 {WorldTimeTickSeconds} 秒重算一次时段");
+            }
+
+            if (ctx.Db.WorldTimeControl.Id.Find(WorldTimeControlRowId) is null)
+            {
+                ctx.Db.WorldTimeControl.Insert(new WorldTimeControl
+                {
+                    Id = WorldTimeControlRowId,
+                    OverrideBandId = 0,
+                });
+
+                Log.Info("[WorldTime] 已初始化 GM 时段控制：自动模式");
             }
 
             // 只在行不存在时建。已经有行了就交给定时器去维护

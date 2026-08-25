@@ -2,6 +2,16 @@
 
 新开对话先读这个文件，再按需读子文档。工程结构见 [README.md](README.md)。
 
+**只有三份文档是维护中的项目文档**，冲突时以它们为准：本文件（总纲 + 进度）、
+[ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md)（客户端）、
+[ReDiv_Server/README.md](ReDiv_Server/README.md)（服务端）。
+外加素材线的长期交接记忆
+[ReDiv_Online/Docs/CN资源解包与还原工作流.md](ReDiv_Online/Docs/CN资源解包与还原工作流.md)。
+仓库里其余 `.md` —— `ReDiv_Server/{CLAUDE,AGENTS}.md` 和 `.github` / `.cursor` 下那几份
+（`spacetime init` 生成的官方 AI 规则，同一份内容的多个副本）、第三方插件的许可证与手册、
+内嵌 SDK 自带的上游文档、Spine 的 `.atlas` 数据 —— **都不是项目设计文档，别拿它们推断设计**。
+（例外：`Packages/com.clockworklabs.spacetimedbsdk/UPSTREAM.md` 是我们自己写的，记录分叉补丁。）
+
 **想知道「现在做到哪了、接着该干什么」，直接跳第 5 节。**
 
 ---
@@ -12,9 +22,12 @@ ReDiv 是**自研玩法**的在线联机游戏。美术素材参考公主连结�
 
 > ⚠️ **不要**从「像某款已知游戏」去推导数据模型、系统设计或玩法机制。
 > 需要业务结构时**主动问**，不要按同类游戏的常规套路自己填。
-> 服务端目前有**账号系统**和**角色系统**（`ReDiv_Server/spacetimedb/Auth/`、`Character/`）——
-> 这两个是通用基础设施，不算玩法。战斗 / 地图 / 背包这类**玩法表一张都还没有**，
-> 要加玩法数据结构时先问，别自己按同类游戏的套路建表。
+> 服务端现有**账号系统**、**角色系统**、**城镇与世界时间**
+> （`ReDiv_Server/spacetimedb/` 下的 `Auth/`、`Character/`、`Town/`）。
+> 前两个是通用基础设施；城镇和时间系统是**第一批玩法表**，形态和边界都是用户
+> 2026-08-25 明确定的（见第 5 节），不是我们推的。
+> 战斗 / 地图 / 背包 / 装备这些**还一张表都没有** —— 要加玩法数据结构时先问，
+> 别自己按同类游戏的套路建表。
 > 角色系统的形态（多角色、选人界面）是用户明确指定「类似 DNF」的，不是我们推的。
 > 形态那套（基础 → 一觉 → 二觉，外加战斗中靠宝石切的爆发形态）也是用户 2026-08-24
 > 明确定的 —— **注意它 2026-08-24 之前是「专职」，已经废弃**，别照着旧文档或旧提交推。
@@ -26,20 +39,22 @@ ReDiv 是**自研玩法**的在线联机游戏。美术素材参考公主连结�
 ```
 REDIV/                  ← 会话工作目录，也是**唯一的 git 仓库**（分支 main）
 ├── ReDiv_Online/       客户端，Unity 6000.4.8f1
-└── ReDiv_Server/       服务端，SpacetimeDB C# 模块 → WASM
+├── ReDiv_Server/       服务端，SpacetimeDB C# 模块 → WASM
+└── ReDiv_GM/           仅监听本机的 Web GM 控制台（网页 + .NET API）
 ```
 
 **单仓库。** 2026-08-21 从两个独立仓库合并而来（客户端 10 个提交 + 服务端 2 个提交
 都用 subtree 方式保留了，注意旧提交里的路径是当时的原路径，不带 `ReDiv_Online/` 前缀）。
 跨客户端/服务端的改动现在一个提交就能覆盖。
 
-忽略规则**分三层**，各自留在原地，不要合并到根：
+忽略规则**分四层**，各自留在原地，不要合并到根：
 
 | 文件 | 管什么 |
 |---|---|
 | `.gitignore` | 只有根这一层的杂物 |
 | `ReDiv_Online/.gitignore` | Unity 全套（`Library/` `Temp/` `obj/` `Build/` `Logs/` `UserSettings/` …） |
 | `ReDiv_Server/.gitignore` | `bin/` `obj/` `spacetime.local.json` … |
+| `ReDiv_GM/.gitignore` | `node_modules/`、前端构建物、.NET `bin/obj`、GM 审计运行文件 |
 
 子目录 `.gitignore` 里以 `/` 开头的模式是相对**该子目录**锚定的，所以
 `ReDiv_Online/.gitignore` 里的 `/[Ll]ibrary/` 依然只匹配 `ReDiv_Online/Library/`，
@@ -247,7 +262,7 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 
 ## 5. 当前进度与下一步（**新对话先看这节**）
 
-最后更新：2026-08-24。
+最后更新：2026-08-25。
 
 ### 国服资源管线（素材任务必须先读）
 
@@ -271,69 +286,82 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 | 角色（多角色 / 创建 / 软删 / 选择 / 选角状态） | ✅ | ✅ 选人 + 创角（含查重）+ 删角已完成 | 同上「角色系统」 |
 | 形态与觉醒（基础 → 一觉 → 二觉，按**星级**现算；觉醒永久不可逆） | ✅ | ✅ 展示已完成 | 同上「角色系统」 |
 | 爆发形态（一个角色多个，战斗中装宝石切换） | 配置就绪 | ✅ 展示已完成 | 同上「角色系统」 |
+| 城镇（角色在哪个城镇，进游戏时落位 / 新角色落初始城镇） | ✅ | ✅ 门面已通 | 同上「城镇与世界时间」 |
+| 世界时间（早/中/晚三段，边界在配置表，服务端算 + 公开表推送） | ✅ | ✅ 门面已通 | 同上 |
+| 城镇背景（一个城镇三个背景控制器预制体，按时段换） | — | ✅ 已通，兰德索尔三张背景已配 | [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节 |
+| 进入游戏（选人 → `SelectCharacter` → 城镇主界面 `MainCommonUI`） | ✅ | ✅ | 同上 |
+| 本地 Web GM（统计 / 日志 / 账号栏位 / 角色数值 / 世界时段锁定） | ✅ owner API + 私有控制表 | ✅ 独立网页 | 同上「本地 Web GM 工具」 |
 | 配置表通路（Excel → Luban → 编进 wasm / 进 Addressables） | ✅ | ✅ | 同上「配置表」 |
 | 角色美术资源（头像 / 略缩图 / 名字图 / 立绘 / 预览图 / UI Spine / 战斗 Spine） | — | ✅ 两个角色都配好了 | 同上「配置表」 |
 
 客户端界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
-`SelectCharacterUI`（选人：格子 / 单选可取消 / Spine 待机 / 删除角色）、`CreatCharacterUI`（创角：
-头像列表 / 立绘 / 形态卡翻页 / 全屏立绘 / 创建按钮）、`ReviseCharacterNameUI`
-（起名字：输入 → 查重 → 创建）。细节见
+`SelectCharacterUI`（选人：格子 / 单选可取消 / Spine 待机 / 删除角色 / 进入游戏）、
+`CreatCharacterUI`（创角：头像列表 / 立绘 / 形态卡翻页 / 全屏立绘 / 创建按钮）、
+`ReviseCharacterNameUI`（起名字：输入 → 查重 → 创建）、
+`MainCommonUI`（城镇主界面：按城镇 + 时段显示背景，玩家移动和功能按钮待做）。细节见
 [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节。
 
 ### 下一步大概率是这些
 
-1. **「进入游戏」还没接**：选人界面那个按钮要调 `SelectCharacter`，
-   服务端写完 `character_selection` 才算进城镇。
-   （创建角色整条链路 2026-08-25 已打通：创角界面「创建」→ `ReviseCharacterNameUI`
-   输入名字 → 「重复」查重 → 通过后「创建」才亮 → `CreateCharacter`。
-   查重走新的 `check_character_name` Reducer，**不写任何表**，答案靠执行状态回来。）
+1. **`MainCommonUI` 里的玩法**：玩家移动、功能按钮 —— 界面骨架和背景已经通了，
+   往里加就行。**要动手前先问**具体要哪些功能。
 2. **补配置的占位值**：`CharacterJob.Subtitle` 还空着，觉醒等级（15 / 30）是占位数字。
    资源列**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产写回 Excel。
    改完跑 `spacetime call rediv character_config_self_test` 自检。
-3. **升星**：现在只有觉醒（1→3→6 星），4 / 5 星没有来源 —— 要靠养成系统（材料 / 碎片），
+3. **再加城镇**：新城镇要做三个背景预制体（根节点挂 `TownBackgroundController`），
+   路径填进 `Town.xlsx` 的三列。**别手打路径**的录入窗口还没做，城镇少暂时手填。
+4. **城镇之间怎么走还没做**：服务端只有 `PlaceCharacter`（进游戏时落位），
+   没有「玩家自己换城镇」的 Reducer —— 要先定城镇怎么解锁 / 能不能随便去，**要动手前先问**。
+5. **升星**：现在只有觉醒（1→3→6 星），4 / 5 星没有来源 —— 要靠养成系统（材料 / 碎片），
    那套还没定，**要动手前先问**。
-4. **爆发宝石**：配置已就绪，但「装备宝石切形态」是战斗内行为，
+6. **爆发宝石**：配置已就绪，但「装备宝石切形态」是战斗内行为，
    装备 / 背包 / 战斗表一张都还没有，**要动手前先问**。
-5. 城镇 / 地图 / 角色玩法态表 —— 还没设计，**要动手前先问**。
+7. 地图 / 战斗 / 背包这些玩法态表 —— 还没设计，**要动手前先问**。
 
 ### 本地测试数据（开发库 `rediv` 里现成的）
 
-2026-08-24 因为改形态设定清过一次库，下面这些是重建后的：
+三个测试账号（2026-08-24 改形态设定清库后重建的，之后没再清过）：
 
-| 账号 | 口令 | 名下存活角色 |
+| 账号 | 口令 | 备注 |
 |---|---|---|
-| `alice` | `secret123` | 影狼（60 级 / 6 星 / 二觉）、祭星者（1 级 / 1 星 / 基础） |
-| `Carol_01` | `carol123` | 无 |
-| `bob_2` | `密码123带空格 ok` | 无。用来验证中文 + 空格口令能过 |
+| `alice` | `secret123` | 主要拿来测的号，角色都建在它名下 |
+| `Carol_01` | `carol123` | |
+| `bob_2` | `密码123带空格 ok` | 用来验证中文 + 空格口令能过 |
 
-角色配置：只有 `JobId=1`（凯露，MaxStar=6）。形态五行 ——
-基础线 `FormId=1` 魔法士（1 星）/ `2` 魔导士（3 星，30 级觉醒）/ `3` 黑魔法师（6 星，60 级觉醒），
-爆发线 `FormId=101` 公主 / `102` 暗黑圣灵。
-「影狼」已经二觉到 6 星，可以直接拿来看形态效果。
-
-调星级看形态变化最省事的办法是直接写 SQL（不用走觉醒的等级校验）：
+**角色列表不写在文档里** —— 那是活数据，建 / 删角色一直在变，写死必然漂移。查当前有哪些：
 
 ```bash
-spacetime sql rediv "UPDATE character SET star = 5 WHERE character_id = 2"
+spacetime sql rediv "SELECT character_id, account_id, name, level, star, job_id FROM character"
 ```
 
-（5 星没有单独配行，形象会跟着 3 星那行走 —— 这是设计如此，实测确认过。）
+（软删的行也会列出来 —— SQL 不支持 `IS NULL`，过滤不了 `deleted_at`。
+软删行的 `name_key` 是 `#del#<id>` 形式，`name` 保留原名。）
 
-清库重来：`spacetime publish --delete-data=always --yes`（会清掉上面所有数据）。
+配置侧是稳定的：`JobId=1` 凯露 / `JobId=2` 优衣，都 `MaxStar=6`、`StartStar=1`；
+每个角色四行形态 —— 基础线 3 个（1★ 魔法士 / 3★ 魔导士 / 6★ 黑魔法师）+ 爆发线 1 个（6★）。
+城镇只有 `TownId=1` 兰德索尔（初始城镇），时段边界 5 / 11 / 18 点。
 
-改测试数据不用写 Reducer，owner 身份可以直接跑 SQL：
+**改测试数据不用写 Reducer** —— owner 身份可以直接跑 SQL，这是调形态 / 解锁条件
+最省事的办法（走觉醒还得先满足等级）：
 
 ```bash
-spacetime sql rediv "UPDATE character SET level = 30 WHERE character_id = 9"
+spacetime sql rediv "UPDATE character SET star = 5, level = 30 WHERE character_id = 2"
 ```
 
-（这是调形态 / 解锁条件时最省事的办法。注意 SQL **不支持 `IS NULL`**，
-可空列没法用 SQL 过滤。）
+（5 星没有单独配行，形象跟着 3 星那行走 —— 设计如此，实测确认过。
+注意 SQL **不支持 `IS NULL`**，可空列没法用 SQL 过滤。）
+
+清库重来：`spacetime publish --delete-data=always --yes`（会清掉上面所有账号和角色）。
 
 ### 哪些东西是「有意没做」，别当成漏掉了
 
 - 登录失败次数锁定（做不了，原因是事务回滚，见服务端 README「有意没做的事」）
 - 改密码 / 找回密码 / 删号 / 改角色名 / 软删恢复 / 扩栏位入口 / 敏感词过滤
-- 玩法态表（战斗、地图、背包）—— 玩法未定型，**不要自己建**
+- 玩法态表（战斗、地图、背包、装备）—— 玩法未定型，**不要自己建**。
+  城镇和世界时间是例外，已经建了（用户 2026-08-25 指定的）
+- 「玩家自己在城镇之间走」的 Reducer —— 只有「进游戏时落位」（`PlaceCharacter`）。
+  城镇怎么解锁 / 能不能随便去还没定，**要动手前先问**
+- 城镇背景资源的录入窗口 —— 角色资源有窗口，城镇没有（城镇少，路径暂时手填）
+- `MainCommonUI` 里的玩家移动和功能按钮 —— 界面骨架在，功能待定
 - 角色资源用 Odin ScriptableObject 配置 —— 2026-08-23 做过又按需求回退到 Luban 了，
   别再找 `CharacterResourceConfiguration`，那套已删干净

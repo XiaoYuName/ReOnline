@@ -3,10 +3,11 @@ using SpacetimeDB;
 /// <summary>
 /// 城镇与世界时间的表定义。
 ///
-/// 三张表，职责各不相同：
+/// 四张表，职责各不相同：
 ///   CharacterLocation  私有。**权威**存储：某个角色在哪个城镇。跨会话保留。
 ///   WorldTime          公开，**全服一行**。当前是哪个时段（早/中/晚），客户端订阅它换背景。
 ///   WorldTimeTimer     定时表。到点跑 TickWorldTime 重算时段。
+///   WorldTimeControl   私有，**全服一行**。GM 可把时段锁在早/中/晚，0 表示自动。
 ///
 /// 为什么位置存在**角色**上而不是账号上：一个账号多个角色（DNF 那种），
 /// 各自在哪个城镇是各自的进度。用户 2026-08-25 明确定的。
@@ -34,6 +35,9 @@ public static partial class Module
     /// <c>SELECT * FROM world_time</c> 就订完了，而且带主键才有 OnUpdate。
     /// </summary>
     public const uint WorldTimeRowId = 1;
+
+    /// <summary>世界时段 GM 控制行的固定主键。</summary>
+    public const uint WorldTimeControlRowId = 1;
 
     /// <summary>
     /// 角色当前所在城镇（**私有表**）。这是权威存储。
@@ -81,6 +85,23 @@ public static partial class Module
 
         /// <summary>这一段是什么时候切进来的。客户端可以用它做「刚切段」的表现。</summary>
         public Timestamp ChangedAt;
+    }
+
+    /// <summary>
+    /// 世界时段的 GM 控制状态（**私有表，全服一行**）。
+    ///
+    /// <see cref="OverrideBandId"/> 为 0 时按服务器时间和配置边界自动计算；
+    /// 为 1 / 2 / 3 时持续锁定在对应时段。玩家客户端订阅不到、也无法直接修改，
+    /// 本地 GM 工具使用数据库 owner 身份通过受限 SQL 更新这一行。
+    /// </summary>
+    [SpacetimeDB.Table(Accessor = "WorldTimeControl")]
+    public partial struct WorldTimeControl
+    {
+        [PrimaryKey]
+        public uint Id;
+
+        /// <summary>0=自动，1=早，2=中，3=晚。</summary>
+        public uint OverrideBandId;
     }
 
     /// <summary>

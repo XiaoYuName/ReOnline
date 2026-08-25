@@ -615,6 +615,10 @@ namespace XFramework
             if (obj.TryGetComponent<T>(out T background))
             {
                 background.Init();
+                // Init 之后要跟一次 Open:HideUIBackground / ReleaseUIBackground 那边调的是
+                // Close(),只 Init 不 Open 的话 isOpen 一直是 false,等于对一个"从没打开过"的
+                // 面板做收尾(Release 资源、走离场分支),背景派生类重写 Open 也永远不会被调到。
+                background.Open();
                 return background;
             }
 

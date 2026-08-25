@@ -357,10 +357,12 @@ namespace ReDiv.Net
         private readonly PendingSlot namePending = new PendingSlot();
         private readonly PendingSlot createPending = new PendingSlot();
         private readonly PendingSlot deletePending = new PendingSlot();
+        private readonly PendingSlot selectPending = new PendingSlot();
         private bool reducersHooked;
 
         /// <summary>是否有角色请求正在等服务端回应。界面据此禁用按钮。</summary>
-        public bool IsBusy => namePending.Busy || createPending.Busy || deletePending.Busy;
+        public bool IsBusy => namePending.Busy || createPending.Busy
+                              || deletePending.Busy || selectPending.Busy;
 
         /// <summary>
         /// 角色名查重 —— 「重复」按钮用。
@@ -411,6 +413,23 @@ namespace ReDiv.Net
             }
 
             return await SendAsync(deletePending, () => conn.Reducers.DeleteCharacter(characterId));
+        }
+
+        /// <summary>
+        /// 选择角色 —— **「进入游戏」就是这一步**。服务端写完 <c>character_selection</c>
+        /// 才算进城镇，同时把角色放进它该在的城镇（新角色落初始城镇）。
+        ///
+        /// 成功后 <c>character_selection</c> 里出现本连接那一行，
+        /// <see cref="TownManager"/> 跟着拿到 <c>TownId</c> —— 城镇主界面靠它显示背景。
+        /// </summary>
+        public async UniTask<CharacterResult> SelectCharacterAsync(ulong characterId)
+        {
+            if (characterId == 0)
+            {
+                return CharacterResult.Fail("请先选择一个角色");
+            }
+
+            return await SendAsync(selectPending, () => conn.Reducers.SelectCharacter(characterId));
         }
 
         private CharacterResult CheckCanSend()
@@ -487,6 +506,7 @@ namespace ReDiv.Net
             conn.Reducers.OnCheckCharacterName += HandleCheckNameResult;
             conn.Reducers.OnCreateCharacter += HandleCreateResult;
             conn.Reducers.OnDeleteCharacter += HandleDeleteResult;
+            conn.Reducers.OnSelectCharacter += HandleSelectResult;
         }
 
         private void UnhookReducers()
@@ -501,6 +521,7 @@ namespace ReDiv.Net
             conn.Reducers.OnCheckCharacterName -= HandleCheckNameResult;
             conn.Reducers.OnCreateCharacter -= HandleCreateResult;
             conn.Reducers.OnDeleteCharacter -= HandleDeleteResult;
+            conn.Reducers.OnSelectCharacter -= HandleSelectResult;
         }
 
         private void HandleCheckNameResult(ReducerEventContext ctx, string name) =>
@@ -511,6 +532,9 @@ namespace ReDiv.Net
 
         private void HandleDeleteResult(ReducerEventContext ctx, ulong characterId) =>
             Complete(ctx, deletePending, "删除角色");
+
+        private void HandleSelectResult(ReducerEventContext ctx, ulong characterId) =>
+            Complete(ctx, selectPending, "进入游戏");
 
         /// <summary>
         /// 把 Reducer 的执行状态兑给等待中的请求。
@@ -552,6 +576,7 @@ namespace ReDiv.Net
             namePending.Complete(CharacterResult.Fail(message));
             createPending.Complete(CharacterResult.Fail(message));
             deletePending.Complete(CharacterResult.Fail(message));
+            selectPending.Complete(CharacterResult.Fail(message));
         }
     }
 }

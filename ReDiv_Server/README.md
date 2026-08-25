@@ -445,6 +445,7 @@ spacetime call rediv character_config_self_test
 |---|---|---|
 | `CharacterLocation` | **私有** | **权威**存储：`CharacterId`（主键）/ `AccountId`（索引）/ `TownId` / `EnteredAt` |
 | `WorldTime` | 公开，**全服一行** | 当前时段。`Id`（固定 1）/ `BandId` / `ChangedAt` |
+| `WorldTimeControl` | **私有，全服一行** | GM 控制状态。`OverrideBandId=0` 自动，`1/2/3` 持续锁定早/中/晚 |
 | `WorldTimeTimer` | 定时表 | 每 60 秒跑一次 `TickWorldTime` 重算时段 |
 
 位置存在**角色**上不是账号上：一个账号多个角色，各自在哪个城镇是各自的进度
@@ -474,6 +475,11 @@ spacetime call rediv character_config_self_test
 定时器是**固定间隔轮询**而不是「精确排到下一个边界」：间隔重复是自愈的
 （改了边界、或者重新 publish 过，下一跳自然就对了），排精确时刻是一次性的、边界改了要记得重排。
 **段没变就不写表**，所以订阅者一天只收到 3 次推送，不是每分钟一次。
+
+GM 需要长期预览某个时段时，修改私有 `WorldTimeControl`，再调用公开但无副作用的
+`refresh_world_time` 立即重算公开行。锁定状态也参与每分钟重算，所以不会被定时器恢复；
+切回 0 后才继续按服务器时间自动计算。玩家调用 `refresh_world_time` 只能重跑同一套权威计算，
+改不了私有控制行。
 
 ⚠️ **`WorldTime` 那一行和定时器不能只在 `Init` 里建。** `Init` 只在首次 publish 或
 `--delete-data` 清库后跑一次，而世界时间是往一个**已经有数据的库**上加的功能 ——
@@ -529,21 +535,52 @@ spacetime sql rediv "SELECT * FROM world_time"
 spacetime sql rediv "SELECT character_id, town_id, entered_at FROM character_location"
 ```
 
-想验切段不用等到晚上，写 SQL 直接把当前时段改掉就行，客户端会立刻收到推送：
+长期锁定到夜晚（本地数据库 owner 操作）：
 
 ```bash
-spacetime sql rediv "UPDATE world_time SET band_id = 3 WHERE id = 1"
+spacetime sql rediv "UPDATE world_time_control SET override_band_id = 3 WHERE id = 1"
+spacetime call rediv refresh_world_time
 ```
 
-⚠️ 改完**最多一分钟就会被定时器算回真实时段**（那是定时器的本职），
-所以这只够看一眼客户端表现，不是「把服务器调成夜晚」。
-要长期停在某个时段就改配置里的 `StartHour` 再导出 + publish。
+恢复自动：
+
+```bash
+spacetime sql rediv "UPDATE world_time_control SET override_band_id = 0 WHERE id = 1"
+spacetime call rediv refresh_world_time
+```
 
 ⚠️ 这条能用是因为 `EnsureWorldTime` **只保证行存在、不重算时段**。
 一开始它也调了 `ApplyWorldTime`，结果每条新连接都会重算一次 ——
 而 `spacetime sql` / `spacetime call` 每条命令都是一条新连接，
 于是刚用 SQL 改完、下一条命令的连接钩子就给算回去了，这个调试手段当场失效。
 实测踩过，别把重算加回连接钩子里。
+
+### 本地 Web GM 工具
+
+`../ReDiv_GM/` 是只监听本机的管理控制台：查看账号 / 有效与软删角色 / 在线会话 / 服务端日志，
+修改账号角色栏位、角色等级 / 经验 / 星级，以及切换自动时间或持续锁定早 / 中 / 晚。
+账号接口不会返回口令哈希或盐；所有写操作需要自定义请求头，并追加到
+`../ReDiv_GM/data/gm-audit.jsonl`（该运行文件已忽略）。
+
+它故意不部署成公网网站：后端使用当前机器的 SpacetimeDB owner CLI 权限，暴露到公网等于暴露数据库管理权。
+启动时开两个终端：
+
+```powershell
+cd ReDiv_GM/Server
+dotnet run
+```
+
+```powershell
+cd ReDiv_GM
+npm install
+npm run dev
+```
+
+浏览器打开 `http://localhost:3000/`。后端固定监听 `127.0.0.1:5168`，默认数据库为 `rediv`；
+需要改目标库可在启动后端前设置 `REDIV_DATABASE`，CLI 不在 PATH 时设置 `REDIV_SPACETIME_EXE`。
+
+角色修改直接写私有 `Character` 权威表；玩家正在线且已经选角时，公开的
+`CharacterSelection` 投影可能仍保留旧值，让玩家重新选角或重连即可刷新。
 
 ---
 
@@ -822,16 +859,18 @@ SQL / CLI 用规范名）。写裸 SQL 前先 `spacetime describe rediv --json` 
 Unity 侧的详细文档在 [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 5 节，
 这里只记**服务端契约相关**的部分。
 
-三个门面，界面只跟它们打交道、不碰 `Conn`：
+四个门面，界面只跟它们打交道、不碰 `Conn`：
 
 | 文件（`../ReDiv_Online/Assets/Scripts/Net/`） | 职责 |
 |---|---|
 | `SpacetimeConnection.cs` | 只管连接生命周期 + `ServerLinkState`，**不建立任何订阅** |
 | `AuthManager.cs` | 账号：`session` / `session_closed` 的订阅、登录态、Register/Login/Logout |
-| `CharacterManager.cs` | 角色：`my_character` / `my_account_profile` 的订阅、角色列表 |
+| `CharacterManager.cs` | 角色：`my_character` / `my_account_profile` 的订阅、角色列表、查重/建/删 |
+| `TownManager.cs` | 城镇与世界时间：`world_time` / `character_selection` 的订阅 |
 
-已接好的界面：`CommonUI`（标题）、`LoginUI`、`SelectCharacterUI`（选人）、
-`CreatCharacterUI`（创角，只有展示逻辑）。
+已接好的界面：`CommonUI`（标题）、`LoginUI`、`SelectCharacterUI`（选人 / 删角）、
+`CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字 / 查重 / 创建）、
+`MainCommonUI`（城镇主界面，按城镇 + 时段显示背景）。
 
 **四条契约，改的时候别破坏：**
 

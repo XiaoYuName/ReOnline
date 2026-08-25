@@ -53,7 +53,7 @@ Assets/Scripts/
 │       ├── Save/
 │       ├── System/            GameManager / GameDataManager / LubanManager
 │       ├── Tools/
-│       ├── Town/              城镇背景（控制器基类 + 按城镇/时段换背景的加载器）
+│       ├── Town/              城镇背景控制器基类（挂背景预制体上）
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
     ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState，不建任何订阅
@@ -66,7 +66,8 @@ Assets/Scripts/
 ```
 
 `UGUI/` 下已接好的界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
-`SelectCharacterUI`（选人）、`CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字）。
+`SelectCharacterUI`（选人）、`CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字）、
+`MainCommonUI`（城镇主界面）。
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
 `AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
@@ -373,7 +374,7 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
 | `CharacterSlots` | 已解锁栏位数，来自 `my_account_profile` View |
 | `CharactersChanged` | 列表变了，界面重画即可 |
 | `IsBusy` | 有查重 / 创建 / 删除请求正在等回应，界面据此禁用按钮 |
-| `CheckNameAsync` / `CreateCharacterAsync` / `DeleteCharacterAsync` | 返回 `CharacterResult { Ok, Message }`，Message 是可直接显示的中文 |
+| `CheckNameAsync` / `CreateCharacterAsync` / `DeleteCharacterAsync` / `SelectCharacterAsync` | 返回 `CharacterResult { Ok, Message }`，Message 是可直接显示的中文 |
 
 两条实现约束（改的时候别破坏）：
 
@@ -403,11 +404,12 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
 |---|---|---|
 | `cancelButton` | 创建角色 | 打开 `CreatCharacterUI` |
 | `deleteButton` | 删除角色 | **选中才可点**。二次确认后调 `DeleteCharacterAsync` |
-| `enterButton` | 进入游戏 | **选中才可点**。**还没接** |
+| `enterButton` | 进入游戏 | **选中才可点**。调 `SelectCharacterAsync`，成功后开 `MainCommonUI` |
 | `quitButton` | 退出 | 关掉本界面回 `CommonUI` |
 
-**「进入游戏」还没接** —— 接的时候调 `SelectCharacter(characterId)`，服务端写完
-`character_selection` 才算进城镇。
+**「进入游戏」**调 `SelectCharacterAsync(characterId)` —— 服务端写完 `character_selection`
+才算进城镇，同时把角色放进它该在的城镇（新角色落初始城镇）。成功后关掉本界面、
+打开 `MainCommonUI`；失败弹窗（比如角色刚被别处删了）。
 
 **删除角色**走 `UIUtility.ShowDialogue` 二次确认（服务端是软删，但玩家这边**没有恢复入口**，
 对他来说就是没了）。删完不用手动刷列表：角色从 `my_character` 消失 ⇒ `CharactersChanged`
@@ -486,30 +488,48 @@ CreatButton     「创建」—— 没选角色时是灰的，点了打开 Revis
    不是「自己 identity 的第一行」—— 同一 identity 可能有多条连接
    （编辑器 + 真机、或者开两个客户端），拿错行会显示成别的窗口所在的城镇。
 
-#### 背景：一个城镇三个预制体（早 / 中 / 晚）
+#### 城镇主界面（`MainCommonUI`）与背景
 
-`Assets/Scripts/Game/Scripts/Town/`：
+选人界面点「进入游戏」→ `SelectCharacter` 成功 → 关掉选人界面、打开
+**`MainCommonUI`**（城镇主界面）。玩家移动和功能按钮以后加在这里，现在它只做一件事：
+**按「当前城镇 + 当前时段」显示背景**。
+
+```
+TownManager.CurrentTownId ──┐
+                            ├─→ CurrentBackgroundKey（配置表 Town 的三列之一）
+TownManager.CurrentBandId ──┘         │
+                                      ↓
+       UISystem.LoadUIBackground<TownBackgroundController>(key)
+```
 
 | 文件 | 职责 |
 |---|---|
-| `TownBackgroundController.cs` | 挂在**背景预制体根节点**上的组件。基类只有 `Show()` / `Hide()` 两个钩子，具体表现各预制体自己派生 |
-| `TownBackgroundLoader.cs` | 纯 C# 单例（`[RuntimeInitializeOnLoadMethod]` 兜生命周期，不用挂场景）。听 `TownManager` 的两个事件，按 `CurrentBackgroundKey` 换预制体 |
+| `Game/Scripts/UGUI/MainCommonUI/MainCommonUI.cs` | 城镇主界面。听 `TownManager` 的三个事件，按 key 换背景 |
+| `Game/Scripts/Town/TownBackgroundController.cs` | 挂在**背景预制体根节点**上，派生自 `UIBackground`（即 `UIBase`） |
 
-预制体挂到 **`UIBackground` 层**下（`UISystem.GetUILayer(UICanvasLayer.UIBackground, UIParentLayer.UIPanel)`），
-不是普通 UI 层 —— 那一层本来就是「UI 背景高于场景 Ground，低于角色层」。
+**背景走框架的背景层 API**（都在 `UISystem` 的「背景管理」区）：
 
-三个时段的路径填在配置表 `Town` 的 `BgMorning` / `BgNoon` / `BgNight` 三列上，
-**按 BandId 硬对应**。所以段数固定 3 段（服务端自检会守住）。
+| 方法 | 干什么 |
+|---|---|
+| `LoadUIBackground<T>(key, parentLayer = UIPanel)` | 从对象池取实例，挂到 `UIBackground` 层下，`Init()` + `Open()` 后返回 |
+| `HideUIBackground(bg)` | `Close()` + 回收进池。**同一个 key 下次直接复用，不重新加载** |
+| `ReleaseUIBackground(bg)` | `Close()` + 真销毁，该 key 没实例在用了连 Addressables 引用一起卸 |
 
-⚠️ 换背景时**先 `SetActive(false)` 再 `Destroy`**（坑 3：Destroy 延迟到帧末，
-同帧再 Instantiate 会叠两张）。`Refresh()` 是幂等的 —— key 没变就什么都不做，
-所以时段推送和位置推送连着来也不会重建两遍。
+换时段 / 换城镇用 **`HideUIBackground`**（早↔中↔晚来回切、回选人界面再进来都很常见）；
+只有确定某个城镇短期不会再进才值得 `Release`。
 
-⚠️ Loader **不是 `UIBase`**，所以没有 `LoadAsset` 的托管释放（坑 9），
-资源要自己 `AssetsManager.FreeAsset` 配对归还。
+因为背景是 `UIBase` 派生类，**入场 / 离场表现直接重写 `Open()` / `Close()`**，
+不要再另造 `Show()` / `Hide()` 钩子（早先有过一对，改成 `UIBackground` 派生后就完全重复了，已删）。
+也因此不需要手动 `SetActive(false)` + `Destroy` 那一套 —— 对象池负责回收，不会出现坑 3 的叠加。
 
-> 背景预制体目前**还没有美术资源**，配置表里那三列是空的 ⇒ 运行时不显示背景、
-> 也不报错（当成「还没配」静默跳过）。做好预制体后把路径填进 `Town.xlsx` 就生效。
+`MainCommonUI.RefreshBackground()` 是**幂等**的：key 没变就什么都不做，
+所以时段推送和位置推送连着到达也不会重建两遍。
+
+三列（`BgMorning` / `BgNoon` / `BgNight`）和三个时段**按 BandId 硬对应**，
+所以段数固定 3 段（服务端自检守住）。某列为空 ⇒ 那个时段不显示背景，不报错。
+
+> ⚠️ **背景不认识网络层。** 它不订阅任何东西、不碰 `Conn`、不自己算时段 ——
+> 「该显示哪个」全由 `MainCommonUI` 从 `TownManager` 算好再喂给它。
 
 #### Spine 在 UI 里的播法
 
@@ -518,7 +538,7 @@ Spine 4.3 把渲染和动画拆开了：`SkeletonGraphic` 只负责在 Canvas �
 所以播动画要驱动 `SkeletonAnimation`；它的 `AnimationState` getter 会自己 `Initialize`，
 预制体刚实例化还没走过一帧也能直接用。
 
-### UGUI 界面开发的坑（都是 2026-08-24 接选人 / 创角界面时实测踩过的）
+### UGUI 界面开发的坑（接选人 / 创角 / 起名字界面时**实测踩过**的，不是推测）
 
 **1. 装饰图会吃掉点击。** 边框、选中框、标题文本这些盖在按钮上面（兄弟序在后 = 渲染在上层）
 且 `raycastTarget=true` 的话，按钮点不动。表现是「按钮完全没反应」，很难往回追。

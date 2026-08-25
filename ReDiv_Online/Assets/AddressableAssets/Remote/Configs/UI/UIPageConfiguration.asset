@@ -58,3 +58,9 @@ MonoBehaviour:
     IsTween: 1
     IsMouseRightHide: 0
     Description: "\u89D2\u8272\u540D\u754C\u9762"
+  - PageID: MainCommonUI
+    PagePath: Prefabs/UGUI/MainCommonUI/MainCommonUI.prefab
+    UIParent: 0
+    IsTween: 0
+    IsMouseRightHide: 0
+    Description: "\u57CE\u9547\u4E3B\u754C\u9762"

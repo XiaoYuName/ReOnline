@@ -33,5 +33,9 @@ namespace XFramework
         /// 角色名界面 (ReviseCharacterNameUI)
         /// </summary>
         public const string ReviseCharacterNameUI = "ReviseCharacterNameUI";
+        /// <summary>
+        /// 城镇主界面 (MainCommonUI)
+        /// </summary>
+        public const string MainCommonUI = "MainCommonUI";
     }
 }

@@ -640,6 +640,7 @@ namespace ReDiv.Net.Bindings
                 Reducer.Login args => Reducers.InvokeLogin(eventContext, args),
                 Reducer.Logout args => Reducers.InvokeLogout(eventContext, args),
                 Reducer.Ping args => Reducers.InvokePing(eventContext, args),
+                Reducer.RefreshWorldTime args => Reducers.InvokeRefreshWorldTime(eventContext, args),
                 Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
                 Reducer.SelectCharacter args => Reducers.InvokeSelectCharacter(eventContext, args),
                 Reducer.TownConfigSelfTest args => Reducers.InvokeTownConfigSelfTest(eventContext, args),

@@ -11,7 +11,7 @@ using XFramework;
 /// 四个按钮（AutoBind 的名字和界面上的字对应关系容易记反，这里写死）：
 ///   cancelButton  创建角色 —— 打开创建角色界面
 ///   deleteButton  删除角色 —— **选中了角色才能点**，二次确认后软删
-///   enterButton   进入游戏 —— **选中了角色才能点**，功能还没接
+///   enterButton   进入游戏 —— **选中了角色才能点**，调 SelectCharacter 后进城镇主界面
 ///   quitButton    退出     —— 关掉本界面，回主菜单 CommonUI
 ///
 /// 数据全部来自 <see cref="CharacterManager"/>，这里不碰 Conn。
@@ -269,18 +269,42 @@ public partial class SelectCharacterUI : UIBase
     }
 
     /// <summary>
-    /// 进入游戏。**功能还没接** —— 接的时候在这里调
-    /// <c>SelectCharacter(selectedSlot.CharacterId)</c>，服务端写完 `character_selection`
-    /// 才算进城镇（见服务端 README「角色系统」）。
+    /// 进入游戏：调 <c>SelectCharacter</c>，成功后关掉本界面、打开城镇主界面。
+    ///
+    /// 服务端在这一步才写 <c>character_selection</c>（算进城镇），并把角色放进它该在的
+    /// 城镇 —— 新角色落配置里的初始城镇。城镇 id 会跟着那一行下发给
+    /// <c>TownManager</c>，<see cref="MainCommonUI"/> 靠它显示背景。
     /// </summary>
     private void EnterGame()
     {
-        if (selectedSlot == null || !selectedSlot.HasCharacter)
+        EnterGameAsync().Forget();
+    }
+
+    private async UniTask EnterGameAsync()
+    {
+        if (busy || selectedSlot == null || !selectedSlot.HasCharacter)
         {
             return;
         }
 
-        Debug.Log($"[SelectCharacter] 进入游戏（未接）：characterId={selectedSlot.CharacterId}");
+        ulong characterId = selectedSlot.CharacterId;
+
+        busy = true;
+        RefreshButtons();
+
+        var result = await CharacterManager.Instance.SelectCharacterAsync(characterId);
+
+        busy = false;
+        RefreshButtons();
+
+        if (!result.Ok)
+        {
+            UIUtility.ShowWindow(result.Message, "进入游戏失败");
+            return;
+        }
+
+        Close();
+        UISystem.Instance.OpenUI(UIKeys.MainCommonUI);
     }
 
     /// <summary>退出：关掉本界面，回主菜单。</summary>
