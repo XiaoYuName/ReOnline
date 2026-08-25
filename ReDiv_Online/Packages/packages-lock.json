@@ -93,6 +93,13 @@
       },
       "hash": "80ace5172a73e72b83296ed1fbf9d7e6d7ffa301"
     },
+    "com.h8man.2d.navmeshplus": {
+      "version": "https://github.com/h8man/NavMeshPlus.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "8fb73cc139cbb468524bc1862fcd0fbcccad44f4"
+    },
     "com.unity.2d.animation": {
       "version": "14.0.4",
       "depth": 1,
