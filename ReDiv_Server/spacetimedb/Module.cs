@@ -3,7 +3,7 @@ using SpacetimeDB;
 /// <summary>
 /// ReDiv 服务端模块。
 ///
-/// 目前只有账号系统（注册 / 登录 / 会话），玩法表还没定 —— 见 Auth/ 下的文件。
+/// 现有：账号系统（Auth/）、角色系统（Character/）、城镇与世界时间（Town/）。
 ///
 /// SpacetimeDB 2.8 的写法约定：
 ///   - 表 / Reducer / View / 定时表都挂在这个 partial class 下，
@@ -26,6 +26,8 @@ public static partial class Module
     public static void Init(ReducerContext ctx)
     {
         Log.Info($"[Init] ReDiv module initialized. owner={ctx.Sender}");
+
+        EnsureWorldTime(ctx);
     }
 
     /// <summary>
@@ -41,6 +43,10 @@ public static partial class Module
     public static void ClientConnected(ReducerContext ctx)
     {
         Log.Debug($"[Connect] {ctx.Sender} / {ctx.ConnectionId}");
+
+        // ⚠️ 这里也要补一次世界时间：Init 只在首次 publish / 清库后跑，
+        // 而世界时间是往一个已有数据的库上加的功能。EnsureWorldTime 是幂等的、不会抛。
+        EnsureWorldTime(ctx);
 
         TryRestoreSession(ctx);
     }

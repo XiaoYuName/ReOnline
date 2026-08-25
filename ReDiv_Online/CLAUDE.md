@@ -53,6 +53,7 @@ Assets/Scripts/
 │       ├── Save/
 │       ├── System/            GameManager / GameDataManager / LubanManager
 │       ├── Tools/
+│       ├── Town/              城镇背景（控制器基类 + 按城镇/时段换背景的加载器）
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
     ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState，不建任何订阅
@@ -60,6 +61,7 @@ Assets/Scripts/
     ├── CharacterManager.cs     角色门面，同上。登录成功后才订角色数据
     ├── AuthValidation.cs       服务端 AuthRules 的客户端镜像
     ├── CharacterValidation.cs  服务端 CharacterRules 的客户端镜像（角色名格式）
+    ├── TownManager.cs          城镇 + 世界时间门面（当前城镇 / 当前时段）
     └── ModuleBindings/         生成物，不要手改
 ```
 
@@ -458,6 +460,56 @@ CreatButton     「创建」—— 没选角色时是灰的，点了打开 Revis
 
 长度提示那行字（`Tips`）在 `Init` 里从 `CharacterValidation.LengthHint` 赋值，
 **不用 prefab 里写死的**（prefab 原文是「$请输入1-10字」，和真实规则 2~8 汉字对不上）。
+
+### 城镇与世界时间
+
+网络层门面 `Assets/Scripts/Net/TownManager.cs`，和另两个门面一个套路：
+**界面只读它、只听事件，不碰 `Conn`**。
+
+| 成员 | 用途 |
+|---|---|
+| `IsReady` / `Ready` | 订阅是否生效。**false 时下面的值都不可信** |
+| `CurrentBandId` / `WorldTimeChanged` | 当前时段（早=1 中=2 晚=3），来自公开表 `world_time`。**0 = 还不知道** |
+| `CurrentTownId` / `CurrentCharacterId` / `LocationChanged` | 自己在哪个城镇 / 在玩哪个角色，来自 `character_selection` 里本连接那一行。**0 = 还没进游戏** |
+| `CurrentBand` / `CurrentTown` | 对应的 Luban 配置行，**要判空** |
+| `CurrentBackgroundKey` | 「当前城镇 + 当前时段」该用哪个背景预制体，取不到是空串 |
+
+三条实现约束（改的时候别破坏）：
+
+1. **时段是服务端算好推下来的，客户端别自己按本地时钟算。** 全服要统一，
+   而且玩家改本地时钟不能生效。服务端契约见
+   [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「城镇与世界时间」。
+2. **两张表都在连上时就订**：`world_time` 是全局的和登录无关；
+   `character_selection` 虽然要等选角才有行，但订阅必须**早于** `SelectCharacter`，
+   否则成功那一行的 `OnInsert` 会漏（账号那边踩过）。
+3. **挑 `character_selection` 里 `ConnectionId == Conn.ConnectionId` 那一行**，
+   不是「自己 identity 的第一行」—— 同一 identity 可能有多条连接
+   （编辑器 + 真机、或者开两个客户端），拿错行会显示成别的窗口所在的城镇。
+
+#### 背景：一个城镇三个预制体（早 / 中 / 晚）
+
+`Assets/Scripts/Game/Scripts/Town/`：
+
+| 文件 | 职责 |
+|---|---|
+| `TownBackgroundController.cs` | 挂在**背景预制体根节点**上的组件。基类只有 `Show()` / `Hide()` 两个钩子，具体表现各预制体自己派生 |
+| `TownBackgroundLoader.cs` | 纯 C# 单例（`[RuntimeInitializeOnLoadMethod]` 兜生命周期，不用挂场景）。听 `TownManager` 的两个事件，按 `CurrentBackgroundKey` 换预制体 |
+
+预制体挂到 **`UIBackground` 层**下（`UISystem.GetUILayer(UICanvasLayer.UIBackground, UIParentLayer.UIPanel)`），
+不是普通 UI 层 —— 那一层本来就是「UI 背景高于场景 Ground，低于角色层」。
+
+三个时段的路径填在配置表 `Town` 的 `BgMorning` / `BgNoon` / `BgNight` 三列上，
+**按 BandId 硬对应**。所以段数固定 3 段（服务端自检会守住）。
+
+⚠️ 换背景时**先 `SetActive(false)` 再 `Destroy`**（坑 3：Destroy 延迟到帧末，
+同帧再 Instantiate 会叠两张）。`Refresh()` 是幂等的 —— key 没变就什么都不做，
+所以时段推送和位置推送连着来也不会重建两遍。
+
+⚠️ Loader **不是 `UIBase`**，所以没有 `LoadAsset` 的托管释放（坑 9），
+资源要自己 `AssetsManager.FreeAsset` 配对归还。
+
+> 背景预制体目前**还没有美术资源**，配置表里那三列是空的 ⇒ 运行时不显示背景、
+> 也不报错（当成「还没配」静默跳过）。做好预制体后把路径填进 `Town.xlsx` 就生效。
 
 #### Spine 在 UI 里的播法
 

@@ -32,6 +32,8 @@ namespace ReDiv.Net.Bindings
         public SpacetimeDB.Timestamp EnteredAt;
         [DataMember(Name = "form_id")]
         public uint FormId;
+        [DataMember(Name = "town_id")]
+        public uint TownId;
 
         public CharacterSelection(
             SpacetimeDB.ConnectionId ConnectionId,
@@ -42,7 +44,8 @@ namespace ReDiv.Net.Bindings
             uint JobId,
             uint Level,
             SpacetimeDB.Timestamp EnteredAt,
-            uint FormId
+            uint FormId,
+            uint TownId
         )
         {
             this.ConnectionId = ConnectionId;
@@ -54,6 +57,7 @@ namespace ReDiv.Net.Bindings
             this.Level = Level;
             this.EnteredAt = EnteredAt;
             this.FormId = FormId;
+            this.TownId = TownId;
         }
 
         public CharacterSelection()

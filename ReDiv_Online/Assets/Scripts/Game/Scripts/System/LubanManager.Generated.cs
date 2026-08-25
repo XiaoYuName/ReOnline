@@ -34,12 +34,44 @@ namespace XFramework
             }
         }
 
+        private TbTimeBand _tbTimeBand;
+
+        public TbTimeBand TbTimeBand
+        {
+            get
+            {
+                return LoadTable(
+                    ref _tbTimeBand,
+                    AssetKeys.TbtimebandPath,
+                    json => new TbTimeBand(json)
+                );
+            }
+        }
+
+        private TbTown _tbTown;
+
+        public TbTown TbTown
+        {
+            get
+            {
+                return LoadTable(
+                    ref _tbTown,
+                    AssetKeys.TbtownPath,
+                    json => new TbTown(json)
+                );
+            }
+        }
+
         partial void ClearGeneratedCache()
         {
             _tbCharacterForm = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TbcharacterformPath);
             _tbCharacterJob = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TbcharacterjobPath);
+            _tbTimeBand = null;
+            AssetsManager.Instance.FreeAsset(AssetKeys.TbtimebandPath);
+            _tbTown = null;
+            AssetsManager.Instance.FreeAsset(AssetKeys.TbtownPath);
         }
     }
 }

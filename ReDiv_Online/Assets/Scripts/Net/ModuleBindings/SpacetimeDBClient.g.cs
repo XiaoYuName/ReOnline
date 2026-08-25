@@ -33,6 +33,7 @@ namespace ReDiv.Net.Bindings
             AddTable(MyCharacter = new(conn));
             AddTable(Session = new(conn));
             AddTable(SessionClosed = new(conn));
+            AddTable(WorldTime = new(conn));
         }
     }
 
@@ -534,6 +535,7 @@ namespace ReDiv.Net.Bindings
             new QueryBuilder().From.MyCharacter().ToSql(),
             new QueryBuilder().From.Session().ToSql(),
             new QueryBuilder().From.SessionClosed().ToSql(),
+            new QueryBuilder().From.WorldTime().ToSql(),
         }
         ;
     }
@@ -545,6 +547,7 @@ namespace ReDiv.Net.Bindings
         public global::SpacetimeDB.Table<MyCharacterRow, MyCharacterCols, MyCharacterIxCols> MyCharacter() => new("my_character", new MyCharacterCols("my_character"), new MyCharacterIxCols("my_character"));
         public global::SpacetimeDB.Table<Session, SessionCols, SessionIxCols> Session() => new("session", new SessionCols("session"), new SessionIxCols("session"));
         public global::SpacetimeDB.Table<SessionClosed, SessionClosedCols, SessionClosedIxCols> SessionClosed() => new("session_closed", new SessionClosedCols("session_closed"), new SessionClosedIxCols("session_closed"));
+        public global::SpacetimeDB.Table<WorldTime, WorldTimeCols, WorldTimeIxCols> WorldTime() => new("world_time", new WorldTimeCols("world_time"), new WorldTimeIxCols("world_time"));
     }
 
     public sealed class TypedSubscriptionBuilder
@@ -639,6 +642,8 @@ namespace ReDiv.Net.Bindings
                 Reducer.Ping args => Reducers.InvokePing(eventContext, args),
                 Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
                 Reducer.SelectCharacter args => Reducers.InvokeSelectCharacter(eventContext, args),
+                Reducer.TownConfigSelfTest args => Reducers.InvokeTownConfigSelfTest(eventContext, args),
+                Reducer.WorldTimeSelfTest args => Reducers.InvokeWorldTimeSelfTest(eventContext, args),
                 _ => throw new ArgumentOutOfRangeException("Reducer", $"Unknown reducer {reducer}")
             };
         }

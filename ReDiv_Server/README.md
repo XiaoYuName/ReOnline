@@ -3,9 +3,10 @@
 ReDiv 服务端。C# 编写的 **SpacetimeDB 模块**，编译成 WebAssembly 跑在数据库进程内 ——
 **没有独立的游戏服务器进程**。
 
-**当前状态：账号系统 + 角色系统。** 注册 / 登录 / 会话，多角色的创建 / 删除 / 选择，
-以及形态与觉醒（基础 → 一觉 → 二觉，按星级现算）都能用了（见下面两节）。
-战斗、地图、背包这些玩法表还没有 —— 定型后再往里加。
+**当前状态：账号系统 + 角色系统 + 城镇与世界时间。** 注册 / 登录 / 会话，
+多角色的创建 / 删除 / 选择，形态与觉醒（基础 → 一觉 → 二觉，按星级现算），
+以及「角色在哪个城镇」和「现在是早/中/晚哪个时段」都能用了。
+战斗、背包这些玩法表还没有 —— 定型后再往里加。
 
 > ⚠️ 2026-08-24 改过一次形态设定：**「专职」那一层已经废弃**，
 > 现在是「角色 → 形态（基础线 + 爆发线）」两层，见「角色系统」一节。
@@ -70,6 +71,11 @@ ReDiv_Server/
     │   ├── CharacterForms.cs     形态计算（按星级现算）+ AwakenCharacter 觉醒
     │   ├── CharacterConfigSelfTest.cs  配置表自检（改完 Excel 跑一次）
     │   └── CharacterViews.cs     MyCharacter / MyAccountProfile（per-subscriber View）
+    ├── Town/               城镇与世界时间
+    │   ├── TownTables.cs         CharacterLocation（私有）/ WorldTime（公开）/ WorldTimeTimer（定时）
+    │   ├── TownRules.cs          时段计算 + 初始城镇（纯函数，只读配置）
+    │   ├── TownReducers.cs       PlaceCharacter（进城镇）+ 配置自检
+    │   └── WorldTimeReducers.cs  定时重算时段 + 自检
     ├── Security/           口令哈希（自己写的，原因见「写代码前必须知道的」）
     │   ├── Sha256.cs
     │   ├── Pbkdf2Sha256.cs
@@ -426,6 +432,118 @@ spacetime call rediv character_config_self_test
 
 ⚠️ 2026-08-24 因为改形态设定**清过一次库**。现在库里是 `alice` / `Carol_01` / `bob_2`
 三个账号，alice 名下有「影狼」（60 级 / 6 星 / 二觉）和「祭星者」（1 级 / 1 星 / 基础）。
+
+---
+
+## 城镇与世界时间
+
+源码在 `spacetimedb/Town/`。两件事：**角色在哪个城镇**、**现在是哪个时段**。
+
+### 表
+
+| 表 | 公开性 | 说明 |
+|---|---|---|
+| `CharacterLocation` | **私有** | **权威**存储：`CharacterId`（主键）/ `AccountId`（索引）/ `TownId` / `EnteredAt` |
+| `WorldTime` | 公开，**全服一行** | 当前时段。`Id`（固定 1）/ `BandId` / `ChangedAt` |
+| `WorldTimeTimer` | 定时表 | 每 60 秒跑一次 `TickWorldTime` 重算时段 |
+
+位置存在**角色**上不是账号上：一个账号多个角色，各自在哪个城镇是各自的进度
+（用户 2026-08-25 定的）。按文档约定玩法态**单开表挂 CharacterId**，不往 `Character` 上堆。
+
+`CharacterSelection`（公开表）上**冗余了一列 `TownId`**：客户端进游戏后本来就订着这张表，
+不用再多订一个 View；顺带也是「谁在哪个城镇」的在线列表。**权威仍然是 `CharacterLocation`**。
+
+### 时段：服务端算，公开表下发
+
+用户 2026-08-25 明确选的这条路（另一条是客户端按服务器时间自己算）。理由：
+
+1. 全服统一 —— 所有人同时切段，以后做「夜间刷夜行怪」这类玩法才对得上；
+2. 玩家改本地时钟没用；
+3. 切段是**推送**，客户端不用轮询。
+
+**边界写在配置表里，不写死**（也是用户定的）：`TbTimeBand` 的 `StartHour` 是
+「服务器本地时」的起始小时，落在「StartHour ≤ 当前小时 里 StartHour 最大的那一段」，
+比所有 StartHour 都小就是跨午夜那段。时区偏移是常量
+`Module.ServerUtcOffsetHours`（现在是 8）—— 那是**部署属性**不是策划要调的数值，
+所以没做成配置列。
+
+⚠️ **段数固定 3 段。** 因为城镇表是三列背景（`BgMorning` / `BgNoon` / `BgNight`）
+按 BandId 硬对应。`world_time_self_test` 会守住「必须恰好 3 行」。
+要加第四段（比如黄昏）就得同时改城镇表的列和客户端取图的分支。
+
+定时器是**固定间隔轮询**而不是「精确排到下一个边界」：间隔重复是自愈的
+（改了边界、或者重新 publish 过，下一跳自然就对了），排精确时刻是一次性的、边界改了要记得重排。
+**段没变就不写表**，所以订阅者一天只收到 3 次推送，不是每分钟一次。
+
+⚠️ **`WorldTime` 那一行和定时器不能只在 `Init` 里建。** `Init` 只在首次 publish 或
+`--delete-data` 清库后跑一次，而世界时间是往一个**已经有数据的库**上加的功能 ——
+只写 Init 的话不清库就永远没有这一行。所以做成幂等的 `EnsureWorldTime`，
+由 `ClientConnected` 兜一次（它不会抛，那个钩子里抛异常会**拒绝连接**）。
+
+### 进城镇
+
+位置的**写入口只有一处**：`PlaceCharacter`，由 `SelectCharacter`（进入游戏）调用。
+已有位置行就沿用（顺手刷 `EnteredAt`），没有就落到配置里的初始城镇 ——
+也就是**新角色第一次进游戏时才建位置行**，不是建角色时。这样「建了但从没进过游戏」
+的角色不占玩法态数据。配置里那个城镇被删了会退回初始城镇而不是抛错：
+让玩家能进游戏比精确保留位置重要。
+
+**没有「玩家自己在城镇之间走」的 Reducer** —— 那要先定清楚城镇怎么解锁、能不能随便去，
+玩法没定型之前不开这个口子。
+
+### 配置表
+
+| 表 | 列 | group | 谁用 |
+|---|---|---|---|
+| `Town` | `TownId` | 不标 | 两端 |
+| | `IsStartTown` | `s` | 新角色落哪个城镇。**有且只能有一个 True** |
+| | `Name` / `SortOrder` | `c` | 城镇名（中文原文）、排序 |
+| | `BgMorning` / `BgNoon` / `BgNight` | `c` | 三个时段的**背景控制器预制体**，填 Addressable 完整路径 |
+| `TimeBand` | `BandId` / `StartHour` | 不标 | 段 id（早=1 中=2 晚=3）、起始小时 |
+| | `Name` | `c` | 时段名（中文原文） |
+
+服务端**看不到那三列背景**（`group="c"`），所以自检查不了路径对不对 —— 那半边只能靠客户端跑起来。
+
+### 自检
+
+改完这两张表跑一次：
+
+```bash
+spacetime call rediv town_config_self_test
+```
+
+```bash
+spacetime call rediv world_time_self_test
+```
+
+前者查：城镇表非空、id 是正数且不重复、`IsStartTown` 恰好一个、有多少位置行指向了失效城镇。
+后者查：段数恰好 3、`StartHour` 在 0~23、边界互不相同、段 id 不重复，并把当前算出来的时段打进日志。
+
+### CLI 测试速查
+
+```bash
+spacetime sql rediv "SELECT * FROM world_time"
+```
+
+```bash
+spacetime sql rediv "SELECT character_id, town_id, entered_at FROM character_location"
+```
+
+想验切段不用等到晚上，写 SQL 直接把当前时段改掉就行，客户端会立刻收到推送：
+
+```bash
+spacetime sql rediv "UPDATE world_time SET band_id = 3 WHERE id = 1"
+```
+
+⚠️ 改完**最多一分钟就会被定时器算回真实时段**（那是定时器的本职），
+所以这只够看一眼客户端表现，不是「把服务器调成夜晚」。
+要长期停在某个时段就改配置里的 `StartHour` 再导出 + publish。
+
+⚠️ 这条能用是因为 `EnsureWorldTime` **只保证行存在、不重算时段**。
+一开始它也调了 `ApplyWorldTime`，结果每条新连接都会重算一次 ——
+而 `spacetime sql` / `spacetime call` 每条命令都是一条新连接，
+于是刚用 SQL 改完、下一条命令的连接钩子就给算回去了，这个调试手段当场失效。
+实测踩过，别把重算加回连接钩子里。
 
 ---
 

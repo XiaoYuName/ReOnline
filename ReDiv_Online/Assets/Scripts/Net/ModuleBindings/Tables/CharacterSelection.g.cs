@@ -79,6 +79,7 @@ namespace ReDiv.Net.Bindings
         public global::SpacetimeDB.Col<CharacterSelection, uint> Level { get; }
         public global::SpacetimeDB.Col<CharacterSelection, SpacetimeDB.Timestamp> EnteredAt { get; }
         public global::SpacetimeDB.Col<CharacterSelection, uint> FormId { get; }
+        public global::SpacetimeDB.Col<CharacterSelection, uint> TownId { get; }
 
         public CharacterSelectionCols(string tableName)
         {
@@ -91,6 +92,7 @@ namespace ReDiv.Net.Bindings
             Level = new global::SpacetimeDB.Col<CharacterSelection, uint>(tableName, "level");
             EnteredAt = new global::SpacetimeDB.Col<CharacterSelection, SpacetimeDB.Timestamp>(tableName, "entered_at");
             FormId = new global::SpacetimeDB.Col<CharacterSelection, uint>(tableName, "form_id");
+            TownId = new global::SpacetimeDB.Col<CharacterSelection, uint>(tableName, "town_id");
         }
     }
 

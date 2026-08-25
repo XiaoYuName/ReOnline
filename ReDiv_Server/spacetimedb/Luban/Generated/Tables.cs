@@ -21,11 +21,21 @@ public partial class Tables
     /// 角色形态表，联合主键 JobId+FormId。基础线(FormType=1)按星级现算当前形态，爆发线(FormType=2)一个角色可多个。结构看 CharacterForm.xlsx 表头
     /// </summary>
     public TbCharacterForm TbCharacterForm {get; }
+    /// <summary>
+    /// 城镇表。结构和分组看 Town.xlsx 表头。三列背景控制器对应早/中/晚三个时段
+    /// </summary>
+    public TbTown TbTown {get; }
+    /// <summary>
+    /// 时间段表。段数固定3段(早/中/晚)，只有边界(StartHour)可调
+    /// </summary>
+    public TbTimeBand TbTimeBand {get; }
 
     public Tables(System.Func<string, ByteBuf> loader)
     {
         TbCharacterJob = new TbCharacterJob(loader("tbcharacterjob"));
         TbCharacterForm = new TbCharacterForm(loader("tbcharacterform"));
+        TbTown = new TbTown(loader("tbtown"));
+        TbTimeBand = new TbTimeBand(loader("tbtimeband"));
         ResolveRef();
     }
     
@@ -33,6 +43,8 @@ public partial class Tables
     {
         TbCharacterJob.ResolveRef(this);
         TbCharacterForm.ResolveRef(this);
+        TbTown.ResolveRef(this);
+        TbTimeBand.ResolveRef(this);
     }
 }
 

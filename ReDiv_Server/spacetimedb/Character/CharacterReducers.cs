@@ -145,6 +145,9 @@ public static partial class Module
         character.LastPlayedAt = ctx.Timestamp;
         ctx.Db.Character.CharacterId.Update(character);
 
+        // 进城镇：沿用角色记录的城镇，新角色落到配置里的初始城镇（见 Town/TownReducers.cs）
+        uint townId = PlaceCharacter(ctx, accountId, characterId);
+
         // 本连接换角色：先删旧行再插新行（重复选同一个也走这条，幂等）
         ctx.Db.CharacterSelection.ConnectionId.Delete(connectionId);
 
@@ -159,9 +162,11 @@ public static partial class Module
             Level = character.Level,
             EnteredAt = ctx.Timestamp,
             FormId = CurrentBaseFormId(character.JobId, character.Star),
+            TownId = townId,
         });
 
-        Log.Info($"[Character] 选择角色 character={characterId} name={character.Name} account={accountId}");
+        Log.Info($"[Character] 选择角色 character={characterId} name={character.Name} " +
+                 $"town={townId} account={accountId}");
     }
 
     /// <summary>返回选人界面。只清本连接的选角状态，不影响登录态。</summary>

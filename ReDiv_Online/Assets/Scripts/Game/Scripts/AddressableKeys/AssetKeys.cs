@@ -138,6 +138,8 @@ namespace XFramework
         public const string XMixerPath = "Assets/AddressableAssets/Remote/Configs/Audio/XMixer.mixer";
         public const string TbcharacterformPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbcharacterform.json";
         public const string TbcharacterjobPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbcharacterjob.json";
+        public const string TbtimebandPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbtimeband.json";
+        public const string TbtownPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbtown.json";
         public const string UIPageConfigurationPath = "Assets/AddressableAssets/Remote/Configs/UI/UIPageConfiguration.asset";
         public const string MusicSourcePath = "Assets/AddressableAssets/Remote/Prefabs/AudioItem/MusicSource.prefab";
         public const string CommonUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/CommonUI.prefab";
@@ -179,10 +181,10 @@ namespace XFramework
         public const string LoginUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoginUI/LoginUI.prefab";
         public const string PopDialogueUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopDialogueUI/PopDialogueUI.prefab";
         public const string PopLoadingUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopLoadingUI/PopLoadingUI.prefab";
+        public const string ReviseCharacterNameUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/ReviseCharacterNameUI/ReviseCharacterNameUI.prefab";
         public const string CharacterSlotUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/SelectCharacterUI/CharacterSlotUI.prefab";
         public const string SelectCharacterUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/SelectCharacterUI/SelectCharacterUI.prefab";
-        public const string AtlasManifestPath = "Assets/AddressableAssets/Remote/Texture2D/Common/Data/atlas_manifest.json";
-        public const string CommonAtlasPath = "Assets/AddressableAssets/Remote/Texture2D/Common/Data/common_atlas.png";
+        public const string MainWordPath = "Assets/AddressableAssets/Remote/Scenes/MainWord.unity";
         public const string BalloonDungeonEventPath = "Assets/AddressableAssets/Remote/Texture2D/Common/balloon_dungeon_event.png";
         public const string BalloonStory2nd16SkipPath = "Assets/AddressableAssets/Remote/Texture2D/Common/balloon_story_2nd_16_skip.png";
         public const string BalloonStoryLastchapterPath = "Assets/AddressableAssets/Remote/Texture2D/Common/balloon_story_lastchapter.png";
@@ -800,14 +802,16 @@ namespace XFramework
         public const string LoginButtonPath = "Assets/AddressableAssets/Remote/Texture2D/Download/LoginButton.png";
         public const string CurrencybarPath = "Assets/AddressableAssets/Remote/Texture2D/Download/currencybar.png";
         public const string RedivClassicLoginUiElementsSheet2kPath = "Assets/AddressableAssets/Remote/Texture2D/Download/rediv-classic-login-ui-elements-sheet-2k.png";
-        public const string AtlasManifestPath2 = "Assets/AddressableAssets/Remote/Texture2D/Farme/atlas_manifest.json";
+        public const string AtlasManifestPath = "Assets/AddressableAssets/Remote/Texture2D/Farme/atlas_manifest.json";
         public const string CommonframePath = "Assets/AddressableAssets/Remote/Texture2D/Farme/commonframe.png";
         public const string LoginUIPath2 = "Assets/AddressableAssets/Remote/Texture2D/LoginUI/LoginUI.png";
+        public const string Bg500020Path = "Assets/AddressableAssets/Remote/Texture2D/MainWord/bg_500020.png";
+        public const string Bg500039Path = "Assets/AddressableAssets/Remote/Texture2D/MainWord/bg_500039.png";
         public const string ChatGPTImage2026年8月22日175020Path = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/ChatGPT Image 2026年8月22日 17_50_20.png";
         public const string ChatGPTImage2026年8月23日161057Path = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/ChatGPT Image 2026年8月23日 16_10_57.png";
         public const string ChatGPTImage2026年8月23日163924Path = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/ChatGPT Image 2026年8月23日 16_39_24.png";
         public const string SelectedCharacterUIPath = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/SelectedCharacterUI.png";
-        public const string AtlasManifestPath3 = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/atlas_manifest.json";
+        public const string AtlasManifestPath2 = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/atlas_manifest.json";
         public const string AtlascooptopPath = "Assets/AddressableAssets/Remote/Texture2D/SelectCharacterUI/atlascooptop.png";
         public const string LoadingPath = "Assets/AddressableAssets/Remote/Video/Loading/Loading.asset";
     }

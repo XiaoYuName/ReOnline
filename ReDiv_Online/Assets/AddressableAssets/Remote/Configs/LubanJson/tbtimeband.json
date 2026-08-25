@@ -1,0 +1,17 @@
+[
+  {
+    "BandId": 1,
+    "Name": "早晨",
+    "StartHour": 5
+  },
+  {
+    "BandId": 2,
+    "Name": "白天",
+    "StartHour": 11
+  },
+  {
+    "BandId": 3,
+    "Name": "夜晚",
+    "StartHour": 18
+  }
+]

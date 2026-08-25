@@ -144,5 +144,20 @@ public static partial class Module
         /// 等战斗系统定型后单开表。
         /// </summary>
         public uint FormId;
+
+        /// <summary>
+        /// 当前所在城镇。**权威存储是私有表 <c>CharacterLocation</c>**，这里是给
+        /// 客户端看的一份投影 —— 客户端进游戏后本来就订着这张表，不用再多订一个 View。
+        ///
+        /// 顺带也是「谁在哪个城镇」的在线列表（以后做同城镇玩家列表要用）。
+        ///
+        /// ⚠️ 字段只能**加在 struct 末尾**（插中间会被判成列重排，publish 直接拒绝），
+        /// 而且追加的列**必须带 `[Default]`**，否则 publish 报
+        /// 「Adding a column ... requires a default value annotation」。
+        /// 这里 `[Default(0)]` 只是给迁移时的已有行回填 —— 新插入的行一律在
+        /// SelectCharacter 里显式赋值（`[Default]` 对新行无效，这个坑踩过）。
+        /// </summary>
+        [Default(0)]
+        public uint TownId;
     }
 }
