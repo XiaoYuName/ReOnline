@@ -207,6 +207,10 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 - **接 UGUI 界面前先看** [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节
   「UGUI 界面开发的坑」—— 装饰图吃点击、亮/灭切的是 `Image.enabled` 不是 `SetActive`、
   `Destroy` 延迟到帧末、节点名和实际位置可能是反的，这几条都实测踩过
+- **本工程 Canvas 是 `ScreenSpaceCamera`，不是 Overlay**（2026-08-25 订正）。
+  在 `eval` 里算点击坐标必须传 `canvas.worldCamera`，传 `null` 会一个都打不中；
+  `capture_game_view` 默认渲 `MainCamera`（UI 在 `UICamera` 上）⇒ 拍出来是纯色背景，
+  要整屏得加 `--source screen`。细节见客户端文档第 5 节坑 10
 - **服务端表加字段只能加在 struct 末尾**。插到中间会被判成 reorder，publish 直接要求
   手工迁移（`Reordering table xxx requires a manual migration`，实测撞过）。
   追加的字段要带 `[Default(...)]`，已有行才能拿到值、不用清库

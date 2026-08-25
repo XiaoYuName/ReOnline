@@ -462,9 +462,35 @@ UIAutoBindGenerator 没有业务组件」就手动补一下（挂到预制体上
 
 **10. 验界面别只看编译过。** 用 `unity command editor_play` 进 Play，
 `eval` 里对按钮中心 `RaycastAll` + `ExecuteEvents.ExecuteHierarchy` 派发点击，
-就是玩家真实的点击路径。要看渲染结果用 `ScreenCapture.CaptureScreenshot` ——
-本工程 Canvas 是 **ScreenSpaceOverlay**，`capture_game_view` 那种走相机的截图**拍不到 UI**
-（拍出来是一张纯色背景）。
+就是玩家真实的点击路径。
+
+⚠️ **本工程的 Canvas 全是 `ScreenSpaceCamera`，不是 Overlay**（2026-08-25 实测订正，
+以前这里写的 Overlay 是错的）。场景里三个根 Canvas：
+
+| 根 Canvas | renderMode | worldCamera |
+|---|---|---|
+| `UIBackground` | ScreenSpaceCamera | `MainCamera`（depth -1，clear Skybox） |
+| `UILayout`（所有界面都在这下面） | ScreenSpaceCamera | `UICamera`（depth 0，clear Nothing） |
+| `PopLoadingUI` | ScreenSpaceCamera | `UICamera` |
+
+由此有两条直接影响调试的后果：
+
+- **算点击坐标必须传 canvas 的相机**：`RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, rt.position)`。
+  传 `null`（Overlay 的写法）拿到的是世界坐标，`RaycastAll` **一个都打不中**，
+  表现成「点击派发了但界面毫无反应」，很容易误判成事件被谁吃了。
+- **`capture_game_view` 默认拍不到 UI，但原因不是 Overlay**：它默认 `source=camera`，
+  渲的是 `MainCamera`，而 UI 挂在 `UICamera` 上 ⇒ 出来是一张纯色背景。
+  加 `--source screen` 抓合成后的 backbuffer 就整屏都有（**仅 Play 模式**）：
+
+```bash
+unity command capture_game_view --source screen --save_path "Temp/shots/screen.png"
+```
+
+⚠️ `save_path` 必须在项目根内（给项目外的绝对路径会 400 `outside the project root`），
+而且**相对路径是相对 `Assets/` 解析的** —— 上面这条实际存到了 `Assets/Temp/shots/screen.png`，
+会进资源库，用完记得删。
+
+要在运行时代码里截图仍可用 `ScreenCapture.CaptureScreenshot`。
 
 ### 服务端操作面板
 

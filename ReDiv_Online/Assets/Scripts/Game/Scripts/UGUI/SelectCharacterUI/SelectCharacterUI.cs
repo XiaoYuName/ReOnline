@@ -17,7 +17,8 @@ using XFramework;
 /// 其余置空」。
 ///
 /// 选中是**单选**：格子自己不决定谁被选中，被点了只 <see cref="CharacterSlotUI.Clicked"/>
-/// 喊一声，由这里统一取消别的、选中这个。
+/// 喊一声，由这里统一取消别的、选中这个。再点一次**已选中**的格子则取消选中
+/// （「进入游戏」会跟着变回不可点）。
 /// </summary>
 public partial class SelectCharacterUI : UIBase
 {
@@ -167,7 +168,10 @@ public partial class SelectCharacterUI : UIBase
     // 交互
     // ------------------------------------------------------------------
 
-    /// <summary>单选：取消别的，选中这个。点空格子不做任何事。</summary>
+    /// <summary>
+    /// 单选：取消别的，选中这个。**再点一次已选中的格子就取消选中**。
+    /// 点空格子不做任何事。
+    /// </summary>
     private void HandleSlotClicked(CharacterSlotUI slot)
     {
         if (slot == null || !slot.HasCharacter)
@@ -175,12 +179,15 @@ public partial class SelectCharacterUI : UIBase
             return;
         }
 
+        // 点的就是当前选中的那个 ⇒ 这次是取消选中，下面所有格子都置成未选中
+        bool deselect = selectedSlot == slot;
+
         foreach (CharacterSlotUI other in content)
         {
-            other.SetSelected(other == slot);
+            other.SetSelected(!deselect && other == slot);
         }
 
-        selectedSlot = slot;
+        selectedSlot = deselect ? null : slot;
         RefreshEnterButton();
     }
 
