@@ -21,6 +21,10 @@ ReDiv 服务端。C# 编写的 **SpacetimeDB 模块**，编译成 WebAssembly �
 - [CLAUDE.md](CLAUDE.md) / [AGENTS.md](AGENTS.md) —— SpacetimeDB 2.8 官方 AI 规则
   （`spacetime init` 生成，勿手改）
 
+**本文件怎么读**：改业务代码看「账号系统」/「角色系统」；改配置表看「配置表」；
+**动手之前先扫一眼「写代码前必须知道的」** —— 那节是 2.8 的 API 约定和这个
+wasi-wasm 环境的地雷，两者都能让「编译通过的代码」在运行时炸。
+
 ---
 
 ## 环境实况
@@ -66,7 +70,7 @@ ReDiv_Server/
     │   ├── CharacterForms.cs     形态计算（按星级现算）+ AwakenCharacter 觉醒
     │   ├── CharacterConfigSelfTest.cs  配置表自检（改完 Excel 跑一次）
     │   └── CharacterViews.cs     MyCharacter / MyAccountProfile（per-subscriber View）
-    ├── Security/           口令哈希（自己写的，原因见「已知坑」）
+    ├── Security/           口令哈希（自己写的，原因见「写代码前必须知道的」）
     │   ├── Sha256.cs
     │   ├── Pbkdf2Sha256.cs
     │   └── PasswordHasher.cs
@@ -91,63 +95,30 @@ ReDiv_Server/
 
 ### 命令行
 
-```bash
-spacetime publish
-```
+| 干什么 | 命令 |
+|---|---|
+| 发布模块 | `spacetime publish` |
+| 生成客户端绑定 | `spacetime generate` |
+| **清库重发**（改了表结构没法自动迁移时） | `spacetime publish --delete-data=always --yes` |
+| 看日志 | `spacetime logs rediv --follow` |
+| 查数据 | `spacetime sql rediv "SELECT * FROM st_table"` |
+| 调 Reducer（**snake_case**） | `spacetime call rediv ping` |
+| 看已发布的 schema | `spacetime describe rediv --json` |
+| 列出本机数据库 | `spacetime list -s rediv-local`（不带 `-s` 会去查 maincloud） |
 
-```bash
-spacetime generate
-```
+`publish` / `generate` 都自动读根目录的 `spacetime.json`，不用传 `--server` / `--module-path`。
+绑定落在 `../ReDiv_Online/Assets/Scripts/Net/ModuleBindings`（命名空间 `ReDiv.Net.Bindings`），
+**那个目录是生成物，不要手改**。
 
-两个命令都会自动读根目录的 `spacetime.json`，不用再传 `--server` / `--module-path` / `--out-dir`。
-
-生成的 C# 绑定落在 `../ReDiv_Online/Assets/Scripts/Net/ModuleBindings`，命名空间
-`ReDiv.Net.Bindings`。那个目录是**生成物，不要手改**。
-
-**`spacetime generate` 之后必须回客户端跑一次编译验证** —— schema 变了可能让现有客户端代码编不过：
+⚠️ **`spacetime generate` 之后必须回客户端跑一次编译验证** —— schema 变了可能让现有客户端
+代码编不过：
 
 ```bash
 cd ../ReDiv_Online && unity command recompile && unity command recompile_status
 ```
 
-注意 `recompile` 返回 `up_to_date` 不代表没错误，还要单独查控制台。完整规则见
+`recompile` 返回 `up_to_date` **不代表没错误**，还要单独查控制台。完整规则见
 [../CLAUDE.md](../CLAUDE.md) 第 2 节。
-
-改了表结构导致无法自动迁移时，清库重发：
-
-```bash
-spacetime publish --delete-data=always --yes
-```
-
-看日志：
-
-```bash
-spacetime logs rediv --follow
-```
-
-查数据：
-
-```bash
-spacetime sql rediv "SELECT * FROM st_table"
-```
-
-调 Reducer（注意用 **snake_case**，见下）：
-
-```bash
-spacetime call rediv ping
-```
-
-列出本机服务器上的数据库（`spacetime list` 默认查 maincloud，必须带 `-s`）：
-
-```bash
-spacetime list -s rediv-local
-```
-
-看已发布的 schema：
-
-```bash
-spacetime describe rediv --json
-```
 
 ---
 
@@ -214,7 +185,7 @@ PBKDF2-HMAC-SHA256，10000 次迭代，每账号 16 字节随机盐（`ctx.Rng`�
 迭代次数存在行里，将来提高参数后，旧账号在下次登录成功时会自动用新参数重算
 （`PasswordHasher.NeedsRehash`）。
 
-**SHA-256 / HMAC / PBKDF2 都是自己写的**（`Security/`），不是调 BCL —— 原因见「已知坑」。
+**SHA-256 / HMAC / PBKDF2 都是自己写的**（`Security/`），不是调 BCL —— 原因见「写代码前必须知道的 → 环境地雷」。
 自己写的哈希算错了症状很隐蔽（「密码永远验不过」，或者更糟「所有密码都验得过」），
 所以拿测试向量钉住。**改过 `Security/` 下任何文件就跑一次**：
 
@@ -314,13 +285,11 @@ CharacterJob      角色 / 职业（凯露）—— 建角色时选的就是这�
 | `Character` | **私有** | 角色档案。`AccountId`（索引）/ `NameKey`（唯一）/ `Name` / `JobId` / `Level` / `Exp` / `DeletedAt` / `Star` |
 | `CharacterSelection` | 公开 | 这条连接当前选了哪个角色，主键 `ConnectionId`。带 `FormId`，天然就是在线角色列表 |
 
-⚠️ **新字段只能追加到 struct 末尾**，插到中间会被判成 reorder（`Reordering table
-character requires a manual migration`）。**删列 SpacetimeDB 根本不支持** ——
-开发期直接清库重发就行，见「已知坑」里那一条。
+⚠️ 加字段 / 删列 / `[Default]` 的规矩见「写代码前必须知道的 → 环境地雷」，
+字段顺序不是随便排的。
 
-`Account` 上有 `CharacterSlots`（默认 4，上限常量 8），栏位可扩展所以存在账号上。
-⚠️ 它由 `Register` 插入时**显式赋值**，不要指望表上的 `[Default]`（那个只在迁移时
-给已有行回填，对新插入的行无效 —— 踩过，见「已知坑」）。
+`Account` 上有 `CharacterSlots`（默认 4，上限常量 8），栏位可扩展所以存在账号上，
+由 `Register` 插入时显式赋值。
 
 玩法态（地图 / 坐标 / HP / 体力）**故意还没建表**。定型后以 `CharacterId` 为主键单开表，
 别往 `Character` 上堆 —— 那张表只在选人界面读一次。
@@ -500,7 +469,7 @@ ExcelTool/LubanTools/DataTables/
    入口是 `Luban/ServerConfig.cs`，用法 `ServerConfig.Tables.TbCharacterJob.GetOrDefault(id)`。
 2. **服务端必须用 `cs-bin`，不能用客户端那套 `cs-newtonsoft-json`。**
    cs-bin 生成的代码零反射（构造函数按顺序读 ByteBuf），AOT + 裁剪安全；Newtonsoft 走反射，
-   在这个环境里是雷（和 `System.Security.Cryptography` 一个道理，见「已知坑」）。
+   在这个环境里是雷（和 BCL 密码学一个道理，见「写代码前必须知道的」）。
 3. **`Luban.Runtime` 不在 NuGet 上。** cs-bin 只需要 3 个文件（`ByteBuf` / `BeanBase` /
    `StringUtil`，零 Unity、零 Newtonsoft 依赖），已 vendored 到 `spacetimedb/Luban/Runtime/`。
    它要求 csproj 开 `<AllowUnsafeBlocks>`（ByteBuf 有两个 `*_Unsafe` 优化方法用了指针）——
@@ -613,30 +582,137 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
   `##group` 那一行写 `c` / `s` / `c,s`，所以注释里不用再写「仅客户端」「仅服务端」。
   `##group` 行就是**权威定义**（`read_schema_from_file=True`），不用再去改 XML。
 
-### ⚠️ 两张表的结构定了，还有几个占位数值
+### 现在的配置内容（会随开发变，以表里为准）
 
-`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下现在是：
+`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下两张表：
 
-| 表 | 现有内容 |
+| 表 | 内容 |
 |---|---|
-| `CharacterJob.xlsx` | `JobId=1`（Name=`凯露`、`MaxStar=6`、`StartLevel=1`、`StartStar=1`，Subtitle 空着） |
-| `CharacterForm.xlsx` | 基础线 `1` 魔法士（1 星）/ `2` 魔导士（3 星、30 级）/ `3` 黑魔法师（6 星、60 级）；爆发线 `101` 公主 / `102` 暗黑圣灵 |
+| `CharacterJob.xlsx` | `1` 凯露 / `2` 优衣，都是 `MaxStar=6`、`StartLevel=1`、`StartStar=1` |
+| `CharacterForm.xlsx` | 每个角色 4 行：基础线 3 个（1★/3★/6★）+ 爆发线 1 个（6★） |
 
-**结构是最终设计，可以照着往下写代码。** 资源路径也填好了（用的是
-`Assets/AddressableAssets/Remote/Character/100002/` 那套图：`0Common` 给基础形态、
-`201` 给觉醒线、`202` 给爆发线）。但这些还没定：
+美术资源都填好了（在 `Assets/AddressableAssets/Remote/Character/<JobId>/` 下，
+`0Common` 给基础形态、另两个子目录给觉醒线和爆发线）。还没定的：
 
-- **觉醒等级是占位数字**
+- **觉醒等级是占位数字**（现在 15 / 30）
 - `CharacterJob.Subtitle`（选人界面职业名下面那行小字）还空着
-- **`JobId=2`（优衣）刚加进 CharacterJob 表，形态一行都还没配** —— 自检现在就报这条。
-  美术资源在 `Character/100001/` 下已经有了
-- **启动视频全是空的** —— 现在的素材每个形态只有一支（文件名后缀 `_000002`，是循环那支）
 
 填表约定：`Name` / `Subtitle` **直接写中文原文**（项目纯中文，没有多语言这一层）；
 资源列填 Addressable **完整路径**，但**别手打** —— 用客户端的
 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，它会写回 Excel。
-
 改完跑一次 `spacetime call rediv character_config_self_test`。
+
+---
+
+## 写代码前必须知道的
+
+分两块：**API 约定**是 SpacetimeDB 2.8 的写法规则（照 1.x 写会报错或静默失效），
+**环境地雷**是这个 wasi-wasm + NativeAOT 环境里实测踩过的。
+
+### API 约定（2.8）
+
+- 表属性是 `Accessor = "Xxx"`，**不是** 1.x 的 `Name =`。`Name` 现在只用来覆盖 SQL 规范名
+- 索引必须写全 `[SpacetimeDB.Index.BTree]`，裸 `Index` 会和 `System.Index` 撞名。
+  多列索引用 `Columns = new[] { nameof(A), nameof(B) }`，属性里**不能用集合表达式** `[...]`
+- 多列索引 `(a, b)` 已覆盖 `a` 的前缀查询，**不要**再为 `a` 单独建索引
+- 只有 `[PrimaryKey]` 才有 `Update` 方法，`[Unique]` 没有了
+- 客户端连接用 `WithDatabaseName`（不是 `WithModuleName`）；`light_mode`、`CallReducerFlags` 已删
+- **全局 reducer 回调没了**。别的客户端调 Reducer 你收不到参数。要广播「发生了什么」用
+  **事件表** `[Table(Public = true, Event = true)]`：插入的行事务提交时推给订阅者然后立即删除，
+  客户端只有 `OnInsert`。事件表的 `Event` 标记**发布后不可更改**，改了迁移会失败
+- Reducer 里禁止 `DateTime.Now` / `new Random()` / 网络 IO / 可变 static，
+  时间和随机只能取 `ctx.Timestamp` 和 `ctx.Rng`（事务可能被重放，必须确定性）
+- 定时 Reducer 默认私有，不用再自己校验 sender
+- `spacetime generate` 默认**不生成**私有表的绑定，需要就加 `--include-private`
+- confirmed reads 默认开启（等落盘才推给客户端）。要低延迟可在客户端 `WithConfirmedReads(false)`
+- 行级安全（RLS）是实验特性，官方建议用 **View** 做访问控制。
+  `ViewContext`（读 `ctx.Sender`）是 per-subscriber 计算，`AnonymousViewContext` 全服共享
+  一份物化 —— 能用后者就别用前者
+- View 里**不能 `.Iter()`**，只能索引 `.Find()` / `.Filter()` / `.Count`
+- 订阅查询只能返回**单表整行**，不能投影列；`JOIN` 最多两表且两侧 join 列都要有索引
+- **SQL 不支持 `IS NULL`**（`WHERE x IS NULL` 直接 400 `Unsupported expression`）。
+  可空列没法用订阅 SQL 过滤 —— 这是角色列表必须走 View 的原因之一
+
+### 环境地雷（都实测踩过）
+
+**BCL 的密码学在 wasi-wasm 上链接得过、一调就抛。** `SHA256.HashData`、
+`Rfc2898DeriveBytes.Pbkdf2`、`CryptographicOperations.FixedTimeEquals` 全是
+`SystemSecurityCryptography_PlatformNotSupported` —— 编译、`spacetime build`、
+`spacetime publish` 全绿，只有真正 `call` 到才炸。所以口令哈希是 `Security/` 下自己写的
+纯托管实现。**以后用到任何不确定的 API，先假定它用不了，写个探针 Reducer 真 call 一次**
+（同理还有 Newtonsoft 那套反射，见「配置表」第 2 点）。
+
+**表加字段只能加在 struct 末尾，删列根本不支持。** 插到中间会被判成列重排，
+publish 直接拒绝（`Reordering table ... requires a manual migration`）；
+删列是 `Removing a column ... requires a manual migration`。**开发期的做法就是清库重发**
+`spacetime publish --delete-data=always --yes`，别为了保住测试数据留兼容分支。
+⚠️ `[Default(...)]` **只在迁移时给已有行回填，对新插入的行无效** —— 新字段要有初值必须在
+Insert 处显式赋值（`Account.CharacterSlots` 只标了 `[Default(4)]`，清库后新账号栏位数是 0，
+一个角色都建不出来）。
+
+**CLI 用 snake_case，客户端绑定用 PascalCase。** C# 写 `public static void Ping(...)`，
+规范名会转成 `ping`：`spacetime call rediv Ping` 报 `No such reducer`，`ping` 才对；
+而生成的绑定里仍是 `Conn.Reducers.Ping()`。表名同理（`Accessor` 决定 `ctx.Db.Xxx`，
+SQL / CLI 用规范名）。写裸 SQL 前先 `spacetime describe rediv --json` 核对真名。
+
+**`spacetime sql` 能写。** owner 身份可以直接 `UPDATE` / `DELETE`，调试改数据很方便：
+`spacetime sql rediv "UPDATE character SET level = 30 WHERE character_id = 9"`。
+
+**csproj 必须显式写 `<OutputType>Library</OutputType>`。** `spacetime init` 的 .NET 10 模板
+漏了它，缺了会 `error CS8899`：源生成器在 AOT 下把 `Main` 标成 `[UnmanagedCallersOnly]`
+当 preinit 导出用，而 `SelfContained=true` 会把 `OutputType` 推成 `Exe`，两者冲突。已修。
+
+**构建环境的四个小事实：**
+
+- 首次 publish 会下载 **535MB** 的 WASI SDK 到 `~/.wasi-sdk/`，之后不再下
+- `dotnet build` 只做语法检查，真正的 wasm 产物要 `dotnet publish -c Release`（或
+  `spacetime build`），出在 `bin/Release/net10.0/wasi-wasm/publish/StdbModule.wasm`，约 6.5MB
+- 没装 wasm-opt，每次 build 都提示 `Could not find wasm-opt` —— 只是产物偏大，功能不受影响。
+  要消掉从 <https://github.com/WebAssembly/binaryen/releases> 下 binaryen 丢进 PATH
+- `spacetime.json` 里的 `"native-aot": true` 在 .NET 10 下是多余的（本来就走 NativeAOT-LLVM），
+  已删掉
+
+---
+
+## 客户端接线
+
+Unity 侧的详细文档在 [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 5 节，
+这里只记**服务端契约相关**的部分。
+
+三个门面，界面只跟它们打交道、不碰 `Conn`：
+
+| 文件（`../ReDiv_Online/Assets/Scripts/Net/`） | 职责 |
+|---|---|
+| `SpacetimeConnection.cs` | 只管连接生命周期 + `ServerLinkState`，**不建立任何订阅** |
+| `AuthManager.cs` | 账号：`session` / `session_closed` 的订阅、登录态、Register/Login/Logout |
+| `CharacterManager.cs` | 角色：`my_character` / `my_account_profile` 的订阅、角色列表 |
+
+已接好的界面：`CommonUI`（标题）、`LoginUI`、`SelectCharacterUI`（选人）、
+`CreatCharacterUI`（创角，只有展示逻辑）。
+
+**四条契约，改的时候别破坏：**
+
+1. **订阅必须在调 Reducer 之前建立**，否则成功那一行的 `OnInsert` 会漏。
+   identity 在订阅 SQL 里是十六进制字面量，**要带 `0x` 前缀**（`Identity.ToString()` 不带）。
+2. **订阅要分段**：连上订 `session` → **登录成功后**才订 `my_character` /
+   `my_account_profile`。订阅 SQL join 不到会话，连上就订的话 View 返回空。
+   两个 View 都是 per-subscriber 的，订阅时**不用带 where**。
+3. **成功与否看表，不看 Reducer 有没有报错**：登录看 `Session` 表里有没有自己这条连接的行
+   （判断用 `ConnectionId == Conn.ConnectionId`，不是 identity —— 同一 identity 可能有多条连接）；
+   建角色看 `my_character` 多出一行。
+4. **失败文案从 `ctx.Event.Status` 的 `Status.Failed(reason)` 取**，reason 就是服务端抛的
+   中文原文（「角色栏位已满（4/4）」这种），直接显示给玩家。
+
+⚠️ 表回调**要连 `OnUpdate` 一起挂**：同主键的删+插在同一事务里会被合并成一次 update，
+只挂 Insert/Delete 会漏。带主键的 View 同理。
+
+Unity SDK 不走 manifest 依赖，而是**内嵌**在
+`../ReDiv_Online/Packages/com.clockworklabs.spacetimedbsdk/`（v2.8.2，带两处本地补丁，
+原因和升级步骤见该目录下的 `UPSTREAM.md`）。挂 `SpacetimeConnection` 时它会自动补一个
+`SpacetimeDBNetworkManager`（SDK 靠它驱动 `FrameTick()`，是必需组件），
+**不要再手动挂第二个** —— 那是单例，重复挂会抛异常。
+
+真机 / 局域网调试把 Inspector 里的地址改成 `http://192.168.10.226:2383`。
 
 ---
 
@@ -660,202 +736,6 @@ spacetime server ping rediv-local
 
 ⚠️ 这个身份是**发布者身份**，也就是模块的 owner。换电脑或清了 CLI 配置就拿不回来了，
 届时无法覆盖发布同一个数据库，只能 `--delete-data=always` 重来。
-
----
-
-## 已知坑（踩过并已修）
-
-### csproj 缺 `OutputType`
-
-`spacetime init` 针对 .NET 10 生成的模板里，AOT 那个 `PropertyGroup` 少了
-`<OutputType>Library</OutputType>`。缺了会编译失败：
-
-```
-error CS8899: 无法使用 "UnmanagedCallersOnly" 对应用程序入口点进行特性化
-```
-
-原因：源生成器在 AOT 模式下把 `Main` 标成 `[UnmanagedCallersOnly(EntryPoint = "__preinit__10_init_csharp")]`
-当 preinit 导出用，而 `SelfContained=true` 会让 SDK 把 `OutputType` 推成 `Exe`，
-`UnmanagedCallersOnly` 不允许标在入口点上。已在 csproj 里显式压回 `Library`。
-
-### CLI 调 Reducer 要用 snake_case，客户端绑定用 PascalCase
-
-C# 里写 `public static void Ping(...)`，规范名（canonical name）会被转成 `ping`：
-
-```
-spacetime call rediv Ping   →  Error: No such reducer `Ping` ... 相似的名字: `ping`
-spacetime call rediv ping   →  OK
-```
-
-而生成的 C# 客户端绑定里仍然是 `Conn.Reducers.Ping()`。表名同理：
-`Accessor = "Xxx"` 决定代码里的 `ctx.Db.Xxx`，SQL / CLI 里用的是规范名。
-写 RLS 过滤器或裸 SQL 之前，先用 `spacetime describe rediv --json` 核对真实名字。
-
-### `System.Security.Cryptography` 在 wasi-wasm 上运行时不可用
-
-**链接得过，一调就抛。** 2026-08-22 实测（SpacetimeDB 2.8.2 / .NET 10 / NativeAOT-LLVM）：
-
-```
-Error: Response text: SystemSecurityCryptography_PlatformNotSupported
-```
-
-`SHA256.HashData` 和 `Rfc2898DeriveBytes.Pbkdf2` 都是这个结果 —— 编译和 `spacetime build`
-全绿，`spacetime publish` 也成功，只有真正 `call` 到那个 Reducer 才炸。
-`CryptographicOperations.FixedTimeEquals` 同理不能用。
-
-所以口令哈希用的是 `spacetimedb/Security/` 下自己写的纯托管实现
-（SHA-256 + HMAC + PBKDF2），正确性靠 `auth_self_test` 的测试向量守。
-以后要用别的哈希 / 签名 / 加密，先假定 BCL 那套用不了，**并且必须真的 call 一次验证**，
-光看编译通过说明不了任何问题。
-
-### 表加字段只能加在 struct 末尾
-
-插到中间会被判成列重排，publish 直接拒绝：
-
-```
-Reordering table character requires a manual migration
-```
-
-实测：给 `Character` 加字段时放在 `Exp` 后面就撞了，挪到 struct 末尾就过。
-所以那些字段的顺序**不是随便排的**，别为了「看起来整齐」挪它。
-
-**删列干脆不支持**（`Removing a column spec_id from table character requires a manual
-migration`，2026-08-24 改形态设定时撞的）。**开发期的做法就是清库重发**：
-
-```bash
-spacetime publish --delete-data=always --yes
-```
-
-⚠️ 别为了保住开发库里那点测试数据去留废弃字段、`[Default]` 回填、「读到 0 就退回默认值」
-这类兼容分支 —— 那些东西留下来只会误导后面看代码的人。正式版发布之后再谈迁移。
-
-⚠️ 另外：`[Default(...)]` **只在迁移时给已有行回填，对新插入的行无效**。
-新字段要有初值必须在 Insert 那里显式赋值。踩过：`Account.CharacterSlots` 只标了
-`[Default(4)]`，清库后新注册的账号栏位数是 0，一个角色都建不出来。
-
-### Luban 联合主键的表不能用 `mode = map`
-
-形态表用 `JobId+FormId` 联合主键，`mode` 写 `map` 会报：
-
-```
-是单主键表，index:'JobId+FormId' 不能包含多个 key
-```
-
-改成 `mode = list` + index 写 `JobId+FormId` 就对了，生成的访问器是
-`TbCharacterForm.Get(jobId, formId)`。
-
-### `spacetime sql` 能写，但不支持 `IS NULL`
-
-owner 身份可以直接 `UPDATE` / `DELETE`，调试改数据很方便：
-
-```bash
-spacetime sql rediv "UPDATE character SET level = 30 WHERE character_id = 9"
-```
-
-但 `WHERE x IS NULL` 会 400（`Unsupported expression`）—— 可空列没法用 SQL 过滤，
-这也是角色列表必须走 View 的原因之一（见「角色系统」）。
-
-### 首次 publish 会下载 535MB 的 WASI SDK
-
-NativeAOT-LLVM 需要 wasi-sdk，第一次构建会自动下到 `~/.wasi-sdk/`。之后不再下载。
-
-### `dotnet build` 只做语法检查
-
-真正的 wasm 产物要 `dotnet publish -c Release`（或 `spacetime build`），
-出在 `bin/Release/net10.0/wasi-wasm/publish/StdbModule.wasm`，约 6.5MB。
-
-### 没装 wasm-opt，模块未经优化
-
-每次 build 都会提示 `Could not find wasm-opt to optimise the module`。功能不受影响，
-只是产物偏大、运行稍慢。要消掉就从
-<https://github.com/WebAssembly/binaryen/releases> 下 binaryen 丢进 PATH。
-
-### `native-aot` 配置项在 .NET 10 下是多余的
-
-`spacetime init` 会往 `spacetime.json` 里塞 `"native-aot": true`，
-但 .NET 10 本来就走 NativeAOT-LLVM，CLI 每次都会提示一句。已删掉。
-
----
-
-## SpacetimeDB 2.8 写代码时必须记住的
-
-来自官方文档，1.x 的老写法在 2.8 会直接报错或静默失效：
-
-- 表属性是 `Accessor = "Xxx"`，**不是** 1.x 的 `Name =`。`Name` 现在只用来覆盖 SQL 规范名
-- 索引必须写全 `[SpacetimeDB.Index.BTree]`，裸 `Index` 会和 `System.Index` 撞名。
-  多列索引用 `Columns = new[] { nameof(A), nameof(B) }`，属性里**不能用集合表达式** `[...]`
-- 多列索引 `(a, b)` 已覆盖 `a` 的前缀查询，**不要**再为 `a` 单独建索引
-- 只有 `[PrimaryKey]` 才有 `Update` 方法，`[Unique]` 没有了
-- 客户端连接用 `WithDatabaseName`（不是 `WithModuleName`）；`light_mode`、`CallReducerFlags` 已删
-- **全局 reducer 回调没了**。别的客户端调 Reducer 你收不到参数。
-  要广播「发生了什么」，用**事件表** `[Table(Public = true, Event = true)]`：
-  插入的行事务提交时推给订阅者然后立即删除，客户端只有 `OnInsert`
-- 事件表的 `Event` 标记发布后**不可更改**，改了迁移会失败
-- Reducer 里禁止 `DateTime.Now` / `new Random()` / 网络 IO / 可变 static，
-  时间和随机只能取 `ctx.Timestamp` 和 `ctx.Rng`（事务可能被重放，必须确定性）
-- 定时 Reducer 默认私有，不用再自己校验 sender
-- `spacetime generate` 默认**不生成**私有表的绑定，需要就加 `--include-private`
-- confirmed reads 默认开启（等落盘才推给客户端）。要低延迟可在客户端
-  `WithConfirmedReads(false)`
-- 行级安全（RLS）是实验特性，官方建议用 **View** 做访问控制。
-  `ViewContext`（读 `ctx.Sender`）是 per-subscriber 计算，
-  `AnonymousViewContext` 全服共享一份物化 —— 能用后者就别用前者
-- View 里**不能 `.iter()`**，只能索引 `.Find()` / `.Filter()` / `.Count`
-- 订阅查询只能返回**单表整行**，不能投影列；`JOIN` 最多两表且两侧 join 列都要有索引
-
----
-
-## 客户端接线
-
-Unity 侧已经就位：
-
-- Unity SDK 不走 manifest 依赖，而是**内嵌**在 `../ReDiv_Online/Packages/com.clockworklabs.spacetimedbsdk/`
-  （v2.8.2，带两处本地补丁，原因和升级步骤见该目录下的 `UPSTREAM.md`）
-- 生成的绑定在 `../ReDiv_Online/Assets/Scripts/Net/ModuleBindings/`（命名空间
-  `ReDiv.Net.Bindings`，由 `spacetime generate` 覆盖写入，**不要手改**）
-- 连接管理器 `../ReDiv_Online/Assets/Scripts/Net/SpacetimeConnection.cs`（命名空间 `ReDiv.Net`）
-
-用法：新建一个空 GameObject，挂上 `SpacetimeConnection`，Inspector 里确认地址和库名。
-它会自动补一个 `SpacetimeDBNetworkManager`（SDK 靠它在 Update 里驱动 `FrameTick()`，
-WebGL 下还靠它跑消息解析协程，是必需组件），所以**不要再手动挂第二个** —— 那是单例，
-重复挂会抛异常。
-
-连上后 Console 应该出现：
-
-```
-[Stdb] 正在连接 http://127.0.0.1:2383 / rediv
-[Stdb] 已连接，identity=...
-[Stdb] 订阅已生效
-```
-
-服务端 `spacetime logs rediv -f` 同时应能看到 `[Connect] ...`。
-
-真机 / 局域网调试记得把 Inspector 里的地址改成 `http://192.168.10.226:2383`。
-
-### 客户端已经接好了
-
-Unity 侧的登录逻辑已经完成，入口都在 `../ReDiv_Online/Assets/Scripts/Net/`：
-
-| 文件 | 职责 |
-|---|---|
-| `SpacetimeConnection.cs` | 只管连接生命周期 + `ServerLinkState`。**不再建立任何订阅** |
-| `AuthManager.cs` | 账号门面：订阅、表回调、Reducer 回调、登录态、`RegisterAsync/LoginAsync/LogoutAsync` |
-| `AuthValidation.cs` | `AuthRules.cs` 的客户端镜像，少一次白跑的往返（服务端仍是权威） |
-
-界面在 `Assets/Scripts/Game/Scripts/UGUI/`：`LoginUI`（登录/注册）、
-`CommonUI`（服务器状态 + 账号栏 + 点屏幕的三种走向）。
-
-契约上有三条容易踩的，客户端已经按这个实现，改的时候别破坏：
-
-1. **订阅必须在调 Login 之前建立**，否则成功那一行的 `OnInsert` 会漏。
-   `AuthManager` 在 `OnConnect` 里就订阅了
-   `session` / `session_closed` 里自己 identity 的行。
-   identity 在 SQL 里是十六进制字面量，要带 `0x` 前缀（`Identity.ToString()` 不带）。
-2. **登录成功看 `Session` 表里有没有自己这条连接的行**，不是看 Reducer 有没有报错。
-   判断用 `ConnectionId == Conn.ConnectionId` 而不是 identity —— 同一 identity 可能有多条连接。
-3. **失败文案从 Reducer 回调的 `Status.Failed(reason)` 取**，reason 就是服务端抛的中文原文。
-
----
 
 ---
 
