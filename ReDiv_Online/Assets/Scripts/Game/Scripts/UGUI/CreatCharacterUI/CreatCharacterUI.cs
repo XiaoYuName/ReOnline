@@ -7,7 +7,11 @@ using CharacterFormConfig = XFramework.CharacterForm;
 using CharacterJobConfig = XFramework.CharacterJob;
 
 /// <summary>
-/// 创建角色界面 —— **目前只有展示逻辑，创建按钮还没接**。
+/// 创建角色界面。
+///
+/// 「创建」按钮（预制体上叫 <c>CreatButton</c>）**不直接建角色** —— 它打开
+/// <see cref="ReviseCharacterNameUI"/> 让玩家起名字，查重通过后由那边调 CreateCharacter。
+/// 没选角色时它是灰的：建角色必须知道建哪个。
 ///
 /// 布局和数据的对应：
 /// <code>
@@ -42,6 +46,12 @@ public partial class CreatCharacterUI : UIBase
 
     private readonly List<CharacterHeadSlot> headSlots = new List<CharacterHeadSlot>();
 
+    /// <summary>
+    /// 「创建」按钮。和 NameImg 一样没被登记进 UIAutoBindGenerator 的绑定项，
+    /// 所以 AutoBind 里没有它，这里手动 Get。
+    /// </summary>
+    private Button creatButton;
+
     /// <summary>上面那张卡：基础线。</summary>
     private CharacterJobSlotUI baseSlot;
 
@@ -62,6 +72,10 @@ public partial class CreatCharacterUI : UIBase
         InitAutoBind();
 
         nameImg = Get<Image>("UIMask/NameImg");
+        creatButton = Get<Button>("UIMask/CreatButton");
+
+        // 第三个参数是点击音效 ID，不传的话 AudioManager 会拿空 ID 去查表并报错
+        Bind(creatButton, OpenNameDialog, AudioKeys.CursorClick01);
 
         // 两张卡是预制体里摆好的，按层级顺序拿：先 BaseTitle+基础卡，再 JobTitle+爆发卡
         var slots = rightJobsPanel.GetComponentsInChildren<CharacterJobSlotUI>(true);
@@ -190,6 +204,7 @@ public partial class CreatCharacterUI : UIBase
 
         rightJobsPanel.gameObject.SetActive(false);
         artImage.gameObject.SetActive(false);
+        SetCreatInteractable(false);
 
         if (nameImg != null)
         {
@@ -240,6 +255,7 @@ public partial class CreatCharacterUI : UIBase
             .ToList();
 
         rightJobsPanel.gameObject.SetActive(true);
+        SetCreatInteractable(true);
 
         baseSlot?.SetForms(baseForms);
         burstSlot?.SetForms(burstForms);
@@ -252,6 +268,37 @@ public partial class CreatCharacterUI : UIBase
 
         // 默认落在基础线的第一个形态上 —— 也就是基础形态，显示普通立绘
         SetCurrentSlot(baseSlot);
+    }
+
+    // ------------------------------------------------------------------
+    // 创建
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// 打开名字输入界面。真正的创建在那边 —— 玩家要先查重，通过了创建按钮才亮。
+    ///
+    /// 职业 id 在这里传过去而不是让那边自己去问：那边只管名字，
+    /// 「在建哪个角色」是本界面的状态。
+    /// </summary>
+    private void OpenNameDialog()
+    {
+        if (selectedJob == null)
+        {
+            // 按钮本来就该是灰的，走到这说明状态没同步上，给一句而不是静默吞掉
+            UIUtility.ShowWindow("请先选择一个角色。");
+            return;
+        }
+
+        var ui = UISystem.Instance.OpenUI<ReviseCharacterNameUI>(UIKeys.ReviseCharacterNameUI);
+        ui?.SetJob((uint)selectedJob.JobId);
+    }
+
+    private void SetCreatInteractable(bool value)
+    {
+        if (creatButton != null)
+        {
+            creatButton.interactable = value;
+        }
     }
 
     // ------------------------------------------------------------------

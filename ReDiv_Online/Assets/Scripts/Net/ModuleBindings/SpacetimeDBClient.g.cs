@@ -629,6 +629,7 @@ namespace ReDiv.Net.Bindings
                 Reducer.AuthSelfTest args => Reducers.InvokeAuthSelfTest(eventContext, args),
                 Reducer.AwakenCharacter args => Reducers.InvokeAwakenCharacter(eventContext, args),
                 Reducer.CharacterConfigSelfTest args => Reducers.InvokeCharacterConfigSelfTest(eventContext, args),
+                Reducer.CheckCharacterName args => Reducers.InvokeCheckCharacterName(eventContext, args),
                 Reducer.CheckVersion args => Reducers.InvokeCheckVersion(eventContext, args),
                 Reducer.CreateCharacter args => Reducers.InvokeCreateCharacter(eventContext, args),
                 Reducer.DeleteCharacter args => Reducers.InvokeDeleteCharacter(eventContext, args),

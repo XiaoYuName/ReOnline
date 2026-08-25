@@ -1,12 +1,38 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using ReDiv.Net.Bindings;
+using SpacetimeDB;
 using SpacetimeDB.ClientApi;
 using UnityEngine;
 
 namespace ReDiv.Net
 {
+    /// <summary>
+    /// 一次角色请求（查重 / 创建 / 删除）的结果。
+    /// 失败时 <see cref="Message"/> 是可以直接显示给玩家的中文文案 ——
+    /// 要么来自 <see cref="CharacterValidation"/>，要么就是服务端抛的那句原文。
+    ///
+    /// 和 <see cref="AuthResult"/> 形状一样但**故意分开**：两个门面各自演进，
+    /// 一个叫 AuthResult 的东西从角色接口返回读起来别扭。
+    /// </summary>
+    public readonly struct CharacterResult
+    {
+        public readonly bool Ok;
+        public readonly string Message;
+
+        private CharacterResult(bool ok, string message)
+        {
+            Ok = ok;
+            Message = message;
+        }
+
+        public static CharacterResult Success() => new CharacterResult(true, string.Empty);
+
+        public static CharacterResult Fail(string message) => new CharacterResult(false, message);
+    }
+
     /// <summary>
     /// 角色门面 —— 选人界面唯一要打交道的类，和 <see cref="AuthManager"/> 一个套路。
     ///
@@ -112,6 +138,10 @@ namespace ReDiv.Net
                 return;
             }
 
+            // Reducer 回调挂在**连接**上，不跟订阅走：订阅要等登录成功才建，
+            // 而 Reducer 的结果是调用方专属的，和订不订阅没关系。
+            HookReducers();
+
             // 连上时不一定已经登录（多数情况下是免密恢复中），所以这里只做准备，
             // 真正订阅要等 LoginStateChanged 说「登录好了」。
             HandleLoginStateChanged();
@@ -120,6 +150,10 @@ namespace ReDiv.Net
         /// <summary>断线和连接失败都是同一件事：订阅没了，清空重来。</summary>
         private void HandleConnectionLost(Exception ex)
         {
+            // 先把等待中的请求兑掉，否则界面会一直转到超时才恢复
+            FailPending("与服务器的连接已断开");
+
+            UnhookReducers();
             Unsubscribe();
             conn = null;
         }
@@ -298,6 +332,226 @@ namespace ReDiv.Net
 
             var profile = conn.Db.MyAccountProfile.Iter().FirstOrDefault();
             CharacterSlots = profile.CharacterSlots;
+        }
+
+        // ------------------------------------------------------------------
+        // 请求：查重 / 创建
+        // ------------------------------------------------------------------
+
+        /// <summary>一次请求等服务端回应的上限。超时只是放弃等待，不代表服务端没执行。</summary>
+        private const float RequestTimeoutSeconds = 15f;
+
+        /// <summary>
+        /// 一个等待中的请求。查重和创建**各占一个槽** —— 共用一个的话，
+        /// 两个结果回来时会互相把对方的兑掉（版本校验和登录当初就是为此分开的）。
+        /// </summary>
+        private sealed class PendingSlot
+        {
+            public UniTaskCompletionSource<CharacterResult> Source;
+
+            public bool Busy => Source != null;
+
+            public void Complete(CharacterResult result) => Source?.TrySetResult(result);
+        }
+
+        private readonly PendingSlot namePending = new PendingSlot();
+        private readonly PendingSlot createPending = new PendingSlot();
+        private readonly PendingSlot deletePending = new PendingSlot();
+        private bool reducersHooked;
+
+        /// <summary>是否有角色请求正在等服务端回应。界面据此禁用按钮。</summary>
+        public bool IsBusy => namePending.Busy || createPending.Busy || deletePending.Busy;
+
+        /// <summary>
+        /// 角色名查重 —— 「重复」按钮用。
+        ///
+        /// ⚠️ **查重通过不等于名字被占住**。从查完到真正创建之间别人随时可能抢走，
+        /// 所以 <see cref="CreateCharacterAsync"/> 那边照样会失败，界面必须处理。
+        /// 服务端也是这么设计的（<c>CheckCharacterName</c> 一张表都不写）。
+        /// </summary>
+        public async UniTask<CharacterResult> CheckNameAsync(string name)
+        {
+            string invalid = CharacterValidation.CheckName(name);
+            if (invalid != null)
+            {
+                return CharacterResult.Fail(invalid);
+            }
+
+            return await SendAsync(namePending, () => conn.Reducers.CheckCharacterName(name.Trim()));
+        }
+
+        /// <summary>
+        /// 创建角色。成功后新角色会通过 <c>my_character</c> View 推下来，
+        /// <see cref="CharactersChanged"/> 跟着触发，选人界面自己就重画了 ——
+        /// 调用方不用手动刷列表。
+        /// </summary>
+        public async UniTask<CharacterResult> CreateCharacterAsync(string name, uint jobId)
+        {
+            string invalid = CharacterValidation.CheckName(name);
+            if (invalid != null)
+            {
+                return CharacterResult.Fail(invalid);
+            }
+
+            return await SendAsync(createPending, () => conn.Reducers.CreateCharacter(name.Trim(), jobId));
+        }
+
+        /// <summary>
+        /// 删除角色。服务端是**软删**：行留着（打 DeletedAt），但名字立刻释放出来，
+        /// 而且列表里立刻看不到 —— 对玩家来说就是删掉了，**没有恢复入口**。
+        ///
+        /// 成功后角色从 <c>my_character</c> View 里消失，<see cref="CharactersChanged"/>
+        /// 跟着触发，选人界面自己就重画了。
+        /// </summary>
+        public async UniTask<CharacterResult> DeleteCharacterAsync(ulong characterId)
+        {
+            if (characterId == 0)
+            {
+                return CharacterResult.Fail("请先选择一个角色");
+            }
+
+            return await SendAsync(deletePending, () => conn.Reducers.DeleteCharacter(characterId));
+        }
+
+        private CharacterResult CheckCanSend()
+        {
+            if (conn == null || !conn.IsActive)
+            {
+                return CharacterResult.Fail("还没连上服务器，请稍后再试");
+            }
+
+            if (!AuthManager.Instance.IsLoggedIn)
+            {
+                return CharacterResult.Fail("请先登录");
+            }
+
+            // IsReady 为 false 时 Characters 不可信，这时候建角色也判不了栏位，先别放行
+            if (!IsReady)
+            {
+                return CharacterResult.Fail("正在同步角色数据，请稍后再试");
+            }
+
+            if (IsBusy)
+            {
+                return CharacterResult.Fail("正在处理上一次请求，请稍等");
+            }
+
+            return CharacterResult.Success();
+        }
+
+        /// <summary>
+        /// 调 Reducer 并等结果。结果只可能从三个地方来：Reducer 回调、连接断开、超时 ——
+        /// 三条路都会把槽兑掉，所以不会卡死在 await 上。
+        /// </summary>
+        private async UniTask<CharacterResult> SendAsync(PendingSlot slot, Action call)
+        {
+            var precheck = CheckCanSend();
+            if (!precheck.Ok)
+            {
+                return precheck;
+            }
+
+            slot.Source = new UniTaskCompletionSource<CharacterResult>();
+
+            try
+            {
+                call();
+            }
+            catch (Exception ex)
+            {
+                slot.Source = null;
+                Debug.LogError($"[Character] 调用 Reducer 失败：{ex}");
+                return CharacterResult.Fail("请求发送失败，请检查网络");
+            }
+
+            var (winner, answer, timeout) = await UniTask.WhenAny(slot.Source.Task, TimeoutAsync());
+            slot.Source = null;
+
+            return winner == 0 ? answer : timeout;
+        }
+
+        private static async UniTask<CharacterResult> TimeoutAsync()
+        {
+            await UniTask.Delay(TimeSpan.FromSeconds(RequestTimeoutSeconds), DelayType.Realtime);
+            return CharacterResult.Fail("服务器没有响应，请检查网络后重试");
+        }
+
+        private void HookReducers()
+        {
+            if (reducersHooked)
+            {
+                return;
+            }
+            reducersHooked = true;
+
+            conn.Reducers.OnCheckCharacterName += HandleCheckNameResult;
+            conn.Reducers.OnCreateCharacter += HandleCreateResult;
+            conn.Reducers.OnDeleteCharacter += HandleDeleteResult;
+        }
+
+        private void UnhookReducers()
+        {
+            if (!reducersHooked || conn == null)
+            {
+                reducersHooked = false;
+                return;
+            }
+            reducersHooked = false;
+
+            conn.Reducers.OnCheckCharacterName -= HandleCheckNameResult;
+            conn.Reducers.OnCreateCharacter -= HandleCreateResult;
+            conn.Reducers.OnDeleteCharacter -= HandleDeleteResult;
+        }
+
+        private void HandleCheckNameResult(ReducerEventContext ctx, string name) =>
+            Complete(ctx, namePending, "角色名查重");
+
+        private void HandleCreateResult(ReducerEventContext ctx, string name, uint jobId) =>
+            Complete(ctx, createPending, "创建角色");
+
+        private void HandleDeleteResult(ReducerEventContext ctx, ulong characterId) =>
+            Complete(ctx, deletePending, "删除角色");
+
+        /// <summary>
+        /// 把 Reducer 的执行状态兑给等待中的请求。
+        ///
+        /// 服务端**不返回数据**，所以「名字能不能用」这类答案就藏在执行状态里：
+        /// 提交成功 = 可以，失败 = 不行且 reason 就是那句中文原文。
+        /// 2.x 起没有全局 Reducer 回调，这里收到的只会是自己发起的调用，
+        /// 但还是核一下 CallerIdentity，免得以后协议变了埋个坑。
+        /// </summary>
+        private static void Complete(ReducerEventContext ctx, PendingSlot slot, string what)
+        {
+            if (ctx.Event.CallerIdentity != SpacetimeConnection.LocalIdentity)
+            {
+                return;
+            }
+
+            switch (ctx.Event.Status)
+            {
+                case Status.Committed:
+                    slot.Complete(CharacterResult.Success());
+                    break;
+
+                case Status.Failed(var reason):
+                    // reason 是服务端 CharacterRules.Reject 抛的中文原文，可直接显示
+                    Debug.Log($"[Character] {what}被拒绝：{reason}");
+                    slot.Complete(CharacterResult.Fail(reason));
+                    break;
+
+                case Status.OutOfEnergy:
+                    Debug.LogError($"[Character] {what}失败：服务端能量不足");
+                    slot.Complete(CharacterResult.Fail("服务器繁忙，请稍后再试"));
+                    break;
+            }
+        }
+
+        /// <summary>连接断了：把等待中的请求全部兑成失败，别让界面干等到超时。</summary>
+        private void FailPending(string message)
+        {
+            namePending.Complete(CharacterResult.Fail(message));
+            createPending.Complete(CharacterResult.Fail(message));
+            deletePending.Complete(CharacterResult.Fail(message));
         }
     }
 }

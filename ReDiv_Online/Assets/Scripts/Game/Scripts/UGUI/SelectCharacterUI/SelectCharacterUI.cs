@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using ReDiv.Net;
 using ReDiv.Net.Bindings;
 using UnityEngine;
@@ -7,8 +8,9 @@ using XFramework;
 /// <summary>
 /// 选人界面。
 ///
-/// 三个按钮（AutoBind 的名字和界面上的字对应关系容易记反，这里写死）：
-///   cancelButton  创建角色 —— 打开创建角色界面（那个界面本身还没做）
+/// 四个按钮（AutoBind 的名字和界面上的字对应关系容易记反，这里写死）：
+///   cancelButton  创建角色 —— 打开创建角色界面
+///   deleteButton  删除角色 —— **选中了角色才能点**，二次确认后软删
 ///   enterButton   进入游戏 —— **选中了角色才能点**，功能还没接
 ///   quitButton    退出     —— 关掉本界面，回主菜单 CommonUI
 ///
@@ -25,12 +27,16 @@ public partial class SelectCharacterUI : UIBase
     /// <summary>当前选中的格子，没选就是 null。</summary>
     private CharacterSlotUI selectedSlot;
 
+    /// <summary>有请求正在等服务端回应。期间所有按钮禁掉，防连点。</summary>
+    private bool busy;
+
     public override void Init()
     {
         InitAutoBind();
 
         // 第三个参数是点击音效 ID，不传的话 AudioManager 会拿空 ID 去查表并报错（工程约定要传）
         Bind(cancelButton, OpenCreateCharacter, AudioKeys.CursorClick01);
+        Bind(deleteButton, OnClickDelete, AudioKeys.CursorClick01);
         Bind(enterButton, EnterGame, AudioKeys.CursorClick01);
         Bind(quitButton, BackToCommon, AudioKeys.CursorClick01);
 
@@ -44,6 +50,7 @@ public partial class SelectCharacterUI : UIBase
     {
         base.Open();
 
+        busy = false;
         HookCharacterEvents();
         Refresh();
     }
@@ -161,7 +168,7 @@ public partial class SelectCharacterUI : UIBase
             slot.SetSelected(selectedSlot == slot);
         }
 
-        RefreshEnterButton();
+        RefreshButtons();
     }
 
     // ------------------------------------------------------------------
@@ -188,16 +195,74 @@ public partial class SelectCharacterUI : UIBase
         }
 
         selectedSlot = deselect ? null : slot;
-        RefreshEnterButton();
+        RefreshButtons();
     }
 
-    /// <summary>没选角色时「进入游戏」不可点。</summary>
-    private void RefreshEnterButton()
+    /// <summary>
+    /// 没选角色时「进入游戏」和「删除角色」都不可点；请求进行中时全部按钮禁掉。
+    /// </summary>
+    private void RefreshButtons()
     {
-        enterButton.interactable = selectedSlot != null && selectedSlot.HasCharacter;
+        bool hasSelection = selectedSlot != null && selectedSlot.HasCharacter;
+
+        enterButton.interactable = !busy && hasSelection;
+        deleteButton.interactable = !busy && hasSelection;
+        cancelButton.interactable = !busy;
+        quitButton.interactable = !busy;
     }
 
-    /// <summary>创建角色。那个界面本身还没做，这里只负责打开。</summary>
+    /// <summary>
+    /// 删除角色。**先二次确认** —— 服务端是软删，但玩家这边没有恢复入口，
+    /// 对他来说就是没了，误点的代价太大。
+    /// </summary>
+    private void OnClickDelete()
+    {
+        if (busy || selectedSlot == null || !selectedSlot.HasCharacter)
+        {
+            return;
+        }
+
+        ulong characterId = selectedSlot.CharacterId;
+        string name = selectedSlot.CharacterName;
+
+        UIUtility.ShowDialogue(
+            $"确定要删除角色「{name}」吗？\n删除后无法恢复，名字会被释放出来。",
+            "删除角色",
+            "删除",
+            "取消",
+            () => DeleteAsync(characterId, name).Forget());
+    }
+
+    private async UniTask DeleteAsync(ulong characterId, string name)
+    {
+        if (busy)
+        {
+            return;
+        }
+
+        busy = true;
+        RefreshButtons();
+
+        var result = await CharacterManager.Instance.DeleteCharacterAsync(characterId);
+
+        busy = false;
+
+        if (!result.Ok)
+        {
+            RefreshButtons();
+            UIUtility.ShowWindow(result.Message, "删除失败");
+            return;
+        }
+
+        // 删掉的角色从 my_character 里消失 ⇒ CharactersChanged ⇒ Refresh()，
+        // 选中态会自然清掉（keepSelected 对不上任何一行），按钮也跟着变灰。
+        // 这里再刷一次是兜底：万一推送比 Reducer 回调晚到，先把按钮解锁。
+        RefreshButtons();
+
+        UIUtility.ShowWindow($"角色「{name}」已删除。", "已删除");
+    }
+
+    /// <summary>打开创建角色界面。真正的创建在那边（还要经过起名字 / 查重）。</summary>
     private void OpenCreateCharacter()
     {
         UISystem.Instance.OpenUI(UIKeys.CreatCharacterUI);

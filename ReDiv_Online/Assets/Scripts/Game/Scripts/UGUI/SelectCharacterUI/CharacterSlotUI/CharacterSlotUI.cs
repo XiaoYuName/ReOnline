@@ -28,6 +28,13 @@ public partial class CharacterSlotUI : UIBase, IPointerClickHandler
     /// <summary>格子上角色的 id，空格子是 0。</summary>
     public ulong CharacterId { get; private set; }
 
+    /// <summary>
+    /// 格子上角色的名字，空格子是空串。删除时要在确认弹窗里报出名字，
+    /// 单独存一份而不是去读 <c>characterName.text</c> —— 那是显示用的，
+    /// 以后加了装饰字符就对不上了。
+    /// </summary>
+    public string CharacterName { get; private set; } = string.Empty;
+
     /// <summary>当前实例化出来的 UISpine。换角色 / 清空时要销毁，否则会越叠越多。</summary>
     private CharacterGraphicUI graphic;
 
@@ -48,6 +55,7 @@ public partial class CharacterSlotUI : UIBase, IPointerClickHandler
     {
         HasCharacter = false;
         CharacterId = 0;
+        CharacterName = string.Empty;
 
         characterName.gameObject.SetActive(false);
         characterLevel.gameObject.SetActive(false);
@@ -66,6 +74,7 @@ public partial class CharacterSlotUI : UIBase, IPointerClickHandler
     {
         HasCharacter = true;
         CharacterId = row.CharacterId;
+        CharacterName = row.Name;
 
         characterName.gameObject.SetActive(true);
         characterLevel.gameObject.SetActive(true);

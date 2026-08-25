@@ -298,6 +298,7 @@ CharacterJob      角色 / 职业（凯露）—— 建角色时选的就是这�
 
 | 客户端绑定 | CLI | 行为 |
 |---|---|---|
+| `CheckCharacterName(name)` | `check_character_name` | **建角色前查重，一张表都不写**。见下面「查重怎么把答案带回客户端」 |
 | `CreateCharacter(name, jobId)` | `create_character` | 校验顺序：会话 → 名字 → 栏位 → 重名 → 职业配置。星级落在配置的 `StartStar` |
 | `DeleteCharacter(characterId)` | `delete_character` | **软删**：打 `DeletedAt`，同时把名字释放出来 |
 | `SelectCharacter(characterId)` | `select_character` | 选完才算进城镇，写 `CharacterSelection` |
@@ -313,6 +314,26 @@ CharacterJob      角色 / 职业（凯露）—— 建角色时选的就是这�
 
 **升星（1→2、3→4→5）还没有接口。** 那是养成系统的事（材料 / 碎片来源都没定），
 现在测试要调星级直接写 SQL。
+
+### 查重怎么把答案带回客户端（没有新表）
+
+创建角色界面的「重复」按钮要问服务端「这个名字能不能用」。Reducer **不返回数据**，
+但这类问题不用为它开事件表 —— 答案就藏在 Reducer 自己的**执行状态**里：
+
+| 服务端 | 客户端收到 |
+|---|---|
+| 正常返回（什么都没写） | `Status.Committed` ⇒ 可用 |
+| `throw CharacterRules.Reject(...)` | `Status.Failed(reason)` ⇒ 不可用，reason 是能直接显示的中文 |
+
+版本校验 `CheckVersion` 就是同一个形状。事件表留给「要广播给**别的**客户端」的场景 ——
+查重的答案只有调用方要看。
+
+`CheckCharacterName` 要求有活会话（不给未登录的连接当名字探测器），
+复用 `CreateCharacter` 的名字校验和重名判断（共用 `RequireNameAvailable`，免得两处文案漂移）。
+
+⚠️ **查重通过不等于名字被占住。** 它不写任何表，所以从查完到真正 `CreateCharacter`
+之间名字随时可能被别人抢走 —— `CreateCharacter` 自己照样会查一次重名并可能失败，
+客户端必须处理那条路径（现在的做法是把「创建」按钮打回灰色、让玩家重新查）。
 
 ### 角色列表用 View 下发，不用公开表
 
@@ -364,6 +385,10 @@ InvariantGlobalization 下不可靠），白名单已经把易混淆区段挡掉
 
 ```bash
 spacetime call rediv login '"alice"' '"secret123"'
+```
+
+```bash
+spacetime call rediv check_character_name '"星尘旅人"'
 ```
 
 ```bash

@@ -52,3 +52,9 @@ MonoBehaviour:
     IsTween: 0
     IsMouseRightHide: 0
     Description: "\u521B\u5EFA\u89D2\u8272\u754C\u9762"
+  - PageID: ReviseCharacterNameUI
+    PagePath: Prefabs/UGUI/ReviseCharacterNameUI/ReviseCharacterNameUI.prefab
+    UIParent: 0
+    IsTween: 1
+    IsMouseRightHide: 0
+    Description: "\u89D2\u8272\u540D\u754C\u9762"

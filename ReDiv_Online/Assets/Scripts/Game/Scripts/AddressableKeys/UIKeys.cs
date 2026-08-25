@@ -29,5 +29,9 @@ namespace XFramework
         /// 创建角色界面 (CreatCharacterUI)
         /// </summary>
         public const string CreatCharacterUI = "CreatCharacterUI";
+        /// <summary>
+        /// 角色名界面 (ReviseCharacterNameUI)
+        /// </summary>
+        public const string ReviseCharacterNameUI = "ReviseCharacterNameUI";
     }
 }

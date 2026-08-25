@@ -1,6 +1,6 @@
 # 国服资源解包、整理与 Unity 还原工作流
 
-最后核对：2026-08-24
+最后核对：2026-08-25
 
 这份文档是国服资源工作的长期交接记忆。新对话只要先阅读本文，就应当能从当前状态继续，而不必重新猜测版本、路径、Spine 缩放或 Shader 参数来源。
 
@@ -21,7 +21,7 @@
 7. NGUI 上次批量生成的独立 `*_切割PNG` 已按要求删除；原始图集 PNG 和 `atlas_manifest.json` 保留。不要把批量切图重新塞回整理目录。
 8. Spine 角色已经按正确基准重新完成 730 个 `sdnormal` 外观的 3.6 → 3.8.99 → 4.3.23 批处理。**骨架 Scale 必须在 3.8 导入阶段设为 `0.5`，且只应用一次；创建 3.8 和升级 4.3 时必须暂时隐藏图片，之后才恢复完整画布并导出。**
 9. 怪物已经组装为 Spine 3.6 的“一怪物一文件夹”，但**尚未批量升级到 4.3**。当前 4.3 脚本只识别角色目录布局，不能直接声称也支持怪物。
-10. `VariantCard.shader` 和通用材质一键还原工具已在 Unity 中工作；`still_unit_105831` 是已验证样例。完整视觉还依赖正确的通用纹理、PathID 映射、导入设置及原始参数。
+10. `VariantCard.shader` 和通用材质一键还原工具已在 Unity 中工作；`still_unit_105831` 与背景 `bg_500020` 是已验证样例。工具会按原 Shader PathID 识别 VariantCard 主材质，不能假定所有背景都使用同一个 Shader。完整视觉还依赖正确的通用纹理、PathID 映射、导入设置及原始参数。
 
 ## 2. 路径总览与数据真相源
 
@@ -456,11 +456,16 @@ Tools > ReDiv > VariantCard > 一键还原材质
 
 工具流程：
 
-1. 拖入整理目录外部的 `still_unit_xxxxxx` 文件夹。
+1. 拖入整理目录外部的 `still_unit_xxxxxx` 或 `bg_xxxxxx` 文件夹。
 2. 点击自动定位通用纹理与 `animationtexture_asset_map.json`，必要时手动选择。
 3. 选择 Unity 工程 `Assets` 下输出目录。
-4. “解析并检查”确认所有 Texture PathID 已匹配。
+4. “解析并检查”会按原 Shader PathID `8273635072764025099` 选择 VariantCard 主材质，并确认所有 Texture PathID 已匹配；同目录有其他 Shader 的材质不会被误选。
 5. “一键还原”生成纹理副本、Material 和预览 Prefab；源目录不修改。
+
+本地纹理名同时兼容立绘的 `still_unit_xxxxxx_mask.png`、常规背景的
+`bg_xxxxxx_mask.png`、另一批背景的 `bg_mask_xxxxxx.png`，并以目录名和唯一语义匹配
+处理 `bg_bg_xxxxxx_mat`、目录 ID 与材质名不一致等已发现变体。若材质的原 Shader
+PathID 不同，工具会明确报告它不是当前 VariantCard，而不是强行套用。
 
 解析保留 Unity 6000 Material 的 Shader PPtr、keywords、LightmapFlags、instancing、double-sided GI、render queue、tag map、disabled passes、TexEnv/PPtr/scale/offset、ints、floats、colors 等。工具的二进制布局已针对当前国服 `202608171854` / 原包回退 `6000.0.58f2` 验证，不能未经验证就宣称适用于所有 Unity 版本。
 
@@ -494,7 +499,39 @@ D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\Restored\still_unit_105831\Text
 
 已在 Unity 6000.4.8f1 核对：77 floats、5 colors、7 组 scale/offset、keywords 和 queue 均与解析值一致；Shader 编译错误 0、Console 错误 0。
 
-### 9.3 Mask 和“完全一致”的边界
+### 9.3 已验证背景样例 `bg_500020`
+
+源数据：
+
+```text
+D:\AssetsStudio\Rediv\CN_分类完成\场景与背景\背景\bg\main_bundleroot\bg_500020
+```
+
+原 `bg_500020_mat.bin` 的 Shader PPtr 为 `FileID 1 / PathID 8273635072764025099`，
+与已验证立绘 VariantCard 材质相同。此前一键工具失败不是 Shader 不同，而是只尝试
+`bg_500020_mask.png`，实际本地文件名为 `bg_mask_500020.png`。
+
+已在 Unity 6000.4.8f1 重新生成并核对：
+
+- 7 个纹理槽全部匹配；`_MaskTex` 精确指向 `bg_mask_500020`。
+- 通用纹理为 `tx_foil_cloud`、`tx_foil_light`、`tx_foil_distortion`、`tx_shadow2`、`tx_foil_light`。
+- 77 个 Float、5 个 Color、全部 Texture Scale/Offset 与原始 bin 字段级一致。
+- Keyword 为 `USE_FRONT2`，Render Queue 为 `2000`，Shader 为 `Cygames/VariantCardShader`。
+- Shader 编译错误 0。
+
+Unity 输出：
+
+```text
+D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\Restored\bg_500020\bg_500020_mat.mat
+D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\Restored\bg_500020\bg_500020_Preview.prefab
+D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\Restored\bg_500020\Textures\
+```
+
+附加回归：`bg_501470`（`bg_bg_...` 材质名）、`bg_530011`（同目录多个材质）、
+`bg_710081`（目录 ID 与材质名不一致）均可完整解析；`bg_500114` 的 Shader PathID
+为 `8992227300827615762`，工具会正确拒绝，不会误判为 VariantCard。
+
+### 9.4 Mask 和“完全一致”的边界
 
 当前 VariantCard 实现按通道使用 mask：R 控制前层、G 控制后层、B 控制扭曲影响。mask 是 Shader 输入纹理，不是简单透明裁剪图。
 

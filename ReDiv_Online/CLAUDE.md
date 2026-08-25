@@ -59,11 +59,12 @@ Assets/Scripts/
     ├── AuthManager.cs          账号门面（纯 C# 单例，UI 只跟它打交道）
     ├── CharacterManager.cs     角色门面，同上。登录成功后才订角色数据
     ├── AuthValidation.cs       服务端 AuthRules 的客户端镜像
+    ├── CharacterValidation.cs  服务端 CharacterRules 的客户端镜像（角色名格式）
     └── ModuleBindings/         生成物，不要手改
 ```
 
 `UGUI/` 下已接好的界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
-`SelectCharacterUI`（选人）、`CreatCharacterUI`（创角，只有展示逻辑）。
+`SelectCharacterUI`（选人）、`CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字）。
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
 `AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
@@ -369,6 +370,8 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
 | `Characters` | 角色列表（最近玩过的在前），来自 `my_character` View |
 | `CharacterSlots` | 已解锁栏位数，来自 `my_account_profile` View |
 | `CharactersChanged` | 列表变了，界面重画即可 |
+| `IsBusy` | 有查重 / 创建 / 删除请求正在等回应，界面据此禁用按钮 |
+| `CheckNameAsync` / `CreateCharacterAsync` / `DeleteCharacterAsync` | 返回 `CharacterResult { Ok, Message }`，Message 是可直接显示的中文 |
 
 两条实现约束（改的时候别破坏）：
 
@@ -390,15 +393,28 @@ UI：`Game/Scripts/UGUI/LoginUI`（登录/注册）、`Game/Scripts/UGUI/CommonU
   多的隐藏 —— 全显出来玩家点第 5 个只会撞「角色栏位已满」
 - 空格子隐藏名字 / 等级 / Spine；有角色的按 `(JobId, FormId)` 取 `SkeletonUI` 预制体
   实例化到 `SkeletonPoint`，调 `CharacterGraphicUI.PlayIdle()` 播待机
-- 单选，选中后「进入游戏」才可点
+- 单选，选中后「进入游戏」和「删除角色」才可点；**再点一次已选中的格子取消选中**
+
+四个按钮（AutoBind 的名字和界面上的字容易记反）：
+
+| AutoBind 字段 | 界面上的字 | 干什么 |
+|---|---|---|
+| `cancelButton` | 创建角色 | 打开 `CreatCharacterUI` |
+| `deleteButton` | 删除角色 | **选中才可点**。二次确认后调 `DeleteCharacterAsync` |
+| `enterButton` | 进入游戏 | **选中才可点**。**还没接** |
+| `quitButton` | 退出 | 关掉本界面回 `CommonUI` |
 
 **「进入游戏」还没接** —— 接的时候调 `SelectCharacter(characterId)`，服务端写完
 `character_selection` 才算进城镇。
 
+**删除角色**走 `UIUtility.ShowDialogue` 二次确认（服务端是软删，但玩家这边**没有恢复入口**，
+对他来说就是没了）。删完不用手动刷列表：角色从 `my_character` 消失 ⇒ `CharactersChanged`
+⇒ `Refresh()`，选中态因为 `keepSelected` 对不上任何一行而自然清空，两个按钮跟着变灰。
+请求期间 `busy` 会把四个按钮全禁掉防连点。
+
 #### 创建角色界面（`CreatCharacterUI`）
 
-`Assets/Scripts/Game/Scripts/UGUI/CreatCharacterUI/`。**只有展示逻辑，创建按钮没接**
-（还缺名字输入框）。
+`Assets/Scripts/Game/Scripts/UGUI/CreatCharacterUI/`。
 
 ```
 HeadContent     每个可创建角色一个 CharacterHeadSlot（动态生成，头像取基础形态的 IconKey）
@@ -406,6 +422,7 @@ NameImg         选中角色后显示 NameIconKey
 ArtImage        选中角色后显示 ArtImage（普通立绘）
 RightJobsPanel  两张 CharacterJobSlotUI（预制体里摆好的）：上=基础线，下=爆发线
 Fall            觉醒 / 爆发形态的全屏立绘（StillUnitPrefab）生成在这里
+CreatButton     「创建」—— 没选角色时是灰的，点了打开 ReviseCharacterNameUI
 ```
 
 立绘规则（互斥，同时只显示一个）：**基础形态**→ `ArtImage`，Fall 清空；
@@ -413,6 +430,34 @@ Fall            觉醒 / 爆发形态的全屏立绘（StillUnitPrefab）生成�
 
 「在看哪个形态」由两张卡里**当前选中的那张**决定 —— 点卡片或点它的箭头都会让它成为当前卡。
 两张卡同时摆着但立绘只有一处，所以必须有这个概念。
+
+`NameImg` 和 `CreatButton` 都**没登记进 AutoBind**，代码里 `Get<T>("路径")` 手动取（见坑 4）。
+
+#### 角色名界面（`ReviseCharacterNameUI`）
+
+`Assets/Scripts/Game/Scripts/UGUI/ReviseCharacterNameUI/`。由创角界面的「创建」按钮打开，
+**真正调 `CreateCharacter` 的是这里**。三个按钮（名字和界面上的字容易记反）：
+
+| AutoBind 字段 | 界面上的字 | 干什么 |
+|---|---|---|
+| `repeatButton` | 重复 | 查重。本地先查格式，再问服务端重名，结果弹窗 |
+| `actionButton` | 创建 | **查重通过前是灰的**。调 `CreateCharacterAsync` |
+| `cancelButton` | 取消 | 关掉本界面，回创角界面 |
+
+流程：创角界面点「创建」→ `SetJob(jobId)` 把要建的角色传进来并清空上次输入 →
+玩家输入 → 点「重复」→ 通过后「创建」才亮 → 点「创建」→ 成功后关掉本界面**和创角界面**，
+回到选人界面（那边挂着 `CharactersChanged`，新角色自己就出现了）。
+
+两条别破坏的约束：
+
+1. **「查重通过」绑在具体某个名字上**（`checkedName` 字段），不是一个 bool。
+   玩家改一个字就必须把「创建」打回灰色，否则会拿没查过的名字去建。
+2. **查重通过 ≠ 名字被占住**。服务端的 `CheckCharacterName` 一张表都不写，
+   查完到点创建之间名字可能被别人抢走 ⇒ 创建失败那条路必须处理
+   （现在是弹窗 + 把「创建」打回灰色让玩家重查）。
+
+长度提示那行字（`Tips`）在 `Init` 里从 `CharacterValidation.LengthHint` 赋值，
+**不用 prefab 里写死的**（prefab 原文是「$请输入1-10字」，和真实规则 2~8 汉字对不上）。
 
 #### Spine 在 UI 里的播法
 

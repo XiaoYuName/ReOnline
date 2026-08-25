@@ -11,6 +11,7 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
 {
     private const string ShaderAssetPath = "Assets/Shader/ReDiv/VariantCard.shader";
     private const string DefaultOutputAssetPath = "Assets/Shader/ReDiv/Restored";
+    private const long OriginalVariantCardShaderPathId = 8273635072764025099L;
     private const string AnimationTextureRelativePath = "场景与背景/背景/bg/animationtexture_bundle";
     private const string AnimationTextureMapFileName = "animationtexture_asset_map.json";
     private const string Default105831Source =
@@ -51,12 +52,12 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
         EditorGUILayout.HelpBox(
-            "拖入 still_unit_xxxxxx 文件夹即可。工具会解析原始 *_mat.bin，恢复纹理槽、Scale/Offset、Float、Color、Keyword 和 RenderQueue；源文件不会被修改。",
+            "拖入 still_unit_xxxxxx 或 bg_xxxxxx 文件夹即可。工具会识别原版 VariantCard 材质，解析 *_mat.bin，并恢复纹理槽、Scale/Offset、Float、Color、Keyword 和 RenderQueue；源文件不会被修改。",
             MessageType.Info);
 
         EditorGUILayout.Space(4f);
         EditorGUILayout.LabelField("输入", EditorStyles.boldLabel);
-        DrawExternalPathField("立绘素材目录", ref sourceDirectory, selectFolder: true);
+        DrawExternalPathField("VariantCard 素材目录", ref sourceDirectory, selectFolder: true);
 
         EditorGUILayout.BeginHorizontal();
         GUILayout.Space(EditorGUIUtility.labelWidth);
@@ -106,6 +107,7 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
             EditorGUILayout.IntField("Color", analyzedMaterial.Colors.Count);
             EditorGUILayout.IntField("Render Queue", analyzedMaterial.CustomRenderQueue);
             EditorGUILayout.TextField("有效 Keywords", string.Join(", ", analyzedMaterial.ValidKeywords));
+            EditorGUILayout.LongField("原 Shader PathID", analyzedMaterial.ShaderPathId);
         }
 
         foreach (TextureResolution texture in analyzedTextures)
@@ -128,7 +130,7 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
             ValidateSourceDirectory();
             AutoDetectSharedData(overwriteExisting: false);
 
-            string materialBinary = FindSingleMaterialBinary(sourceDirectory);
+            string materialBinary = FindVariantCardMaterialBinary(sourceDirectory);
             analyzedMaterial = MaterialBinaryReader.Read(materialBinary);
             Dictionary<long, string> textureMap = LoadTextureMap(animationTextureMapPath);
             analyzedTextures = ResolveTextures(analyzedMaterial, sourceDirectory, animationTextureDirectory, textureMap);
@@ -161,8 +163,8 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
             if (variantCardShader == null)
                 throw new InvalidOperationException($"未指定 VariantCard Shader。默认位置：{ShaderAssetPath}");
 
-            string stillName = new DirectoryInfo(sourceDirectory).Name;
-            string assetRoot = CombineAssetPath(outputAssetDirectory, SanitizeFileName(stillName));
+            string sourceName = new DirectoryInfo(sourceDirectory).Name;
+            string assetRoot = CombineAssetPath(outputAssetDirectory, SanitizeFileName(sourceName));
             string textureAssetRoot = CombineAssetPath(assetRoot, "Textures");
             EnsureAssetFolder(textureAssetRoot);
 
@@ -248,15 +250,7 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
 
             if (source.FileId == 0)
             {
-                string expectedFileName = source.PropertyName switch
-                {
-                    "_MainTex" => snapshot.Name.Replace("_mat", string.Empty) + ".png",
-                    "_MaskTex" => snapshot.Name.Replace("_mat", "_mask") + ".png",
-                    _ => string.Empty
-                };
-
-                if (!string.IsNullOrEmpty(expectedFileName))
-                    path = FindFileIgnoringCase(localDirectory, expectedFileName);
+                path = ResolveLocalTexture(snapshot.Name, source.PropertyName, localDirectory);
             }
             else if (textureMap.TryGetValue(source.PathId, out string textureName))
             {
@@ -267,6 +261,54 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         }
 
         return result;
+    }
+
+    private static string ResolveLocalTexture(string materialName, string propertyName, string localDirectory)
+    {
+        if (propertyName is not ("_MainTex" or "_MaskTex"))
+            return null;
+
+        string materialStem = materialName.EndsWith("_mat", StringComparison.OrdinalIgnoreCase)
+            ? materialName.Substring(0, materialName.Length - "_mat".Length)
+            : materialName;
+        string directoryStem = new DirectoryInfo(localDirectory).Name;
+
+        var stems = new List<string> { materialStem, directoryStem };
+        if (materialStem.StartsWith("bg_bg_", StringComparison.OrdinalIgnoreCase))
+            stems.Add(materialStem.Substring("bg_".Length));
+
+        var expectedFileNames = new List<string>();
+        foreach (string stem in stems.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (propertyName == "_MainTex")
+            {
+                expectedFileNames.Add(stem + ".png");
+                continue;
+            }
+
+            expectedFileNames.Add(stem + "_mask.png");
+            if (stem.StartsWith("bg_", StringComparison.OrdinalIgnoreCase))
+                expectedFileNames.Add("bg_mask_" + stem.Substring("bg_".Length) + ".png");
+        }
+
+        foreach (string expectedFileName in expectedFileNames.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            string exactMatch = FindFileIgnoringCase(localDirectory, expectedFileName);
+            if (!string.IsNullOrEmpty(exactMatch))
+                return exactMatch;
+        }
+
+        string[] pngFiles = Directory.EnumerateFiles(localDirectory, "*", SearchOption.TopDirectoryOnly)
+            .Where(path => string.Equals(Path.GetExtension(path), ".png", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        string[] semanticMatches = propertyName == "_MaskTex"
+            ? pngFiles.Where(path => Path.GetFileNameWithoutExtension(path).Contains("mask", StringComparison.OrdinalIgnoreCase)).ToArray()
+            : pngFiles.Where(path =>
+                    !Path.GetFileNameWithoutExtension(path).Contains("mask", StringComparison.OrdinalIgnoreCase)
+                    && !Path.GetFileNameWithoutExtension(path).Contains("effect", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+        return semanticMatches.Length == 1 ? semanticMatches[0] : null;
     }
 
     private static Dictionary<long, string> LoadTextureMap(string path)
@@ -420,12 +462,37 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         File.Copy(sourcePath, targetAbsolutePath, overwrite: true);
     }
 
-    private static string FindSingleMaterialBinary(string directory)
+    private static string FindVariantCardMaterialBinary(string directory)
     {
         string[] matches = Directory.GetFiles(directory, "*_mat.bin", SearchOption.TopDirectoryOnly);
-        if (matches.Length != 1)
-            throw new InvalidOperationException($"目录内必须恰好有一个 *_mat.bin，当前找到 {matches.Length} 个：{directory}");
-        return matches[0];
+        if (matches.Length == 0)
+            throw new InvalidOperationException($"目录内没有 *_mat.bin：{directory}");
+
+        var variantCardMatches = new List<string>();
+        var detectedShaders = new List<string>();
+        foreach (string path in matches)
+        {
+            try
+            {
+                MaterialSnapshot snapshot = MaterialBinaryReader.Read(path);
+                detectedShaders.Add($"{Path.GetFileName(path)} → {snapshot.ShaderFileId}:{snapshot.ShaderPathId}");
+                if (snapshot.ShaderPathId == OriginalVariantCardShaderPathId)
+                    variantCardMatches.Add(path);
+            }
+            catch (Exception exception) when (exception is InvalidDataException or EndOfStreamException)
+            {
+                detectedShaders.Add($"{Path.GetFileName(path)} → 无法按当前 Unity Material 布局解析");
+            }
+        }
+
+        if (variantCardMatches.Count == 1)
+            return variantCardMatches[0];
+        if (variantCardMatches.Count > 1)
+            throw new InvalidOperationException(
+                $"目录内找到 {variantCardMatches.Count} 个 VariantCard 材质，无法自动决定主材质：\n{string.Join("\n", variantCardMatches.Select(Path.GetFileName))}");
+
+        throw new InvalidOperationException(
+            $"目录内没有找到原版 VariantCardShader（PathID {OriginalVariantCardShaderPathId}）。这个背景可能使用其他 Shader。\n{string.Join("\n", detectedShaders)}");
     }
 
     private static string FindFileIgnoringCase(string directory, string fileName)
@@ -615,6 +682,8 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
     private sealed class MaterialSnapshot
     {
         public string Name;
+        public int ShaderFileId;
+        public long ShaderPathId;
         public readonly List<string> ValidKeywords = new();
         public readonly List<string> InvalidKeywords = new();
         public uint LightmapFlags;
@@ -645,8 +714,8 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
             var reader = new CheckedBinaryReader(File.ReadAllBytes(path));
             var result = new MaterialSnapshot { Name = reader.ReadAlignedString() };
 
-            reader.ReadInt32(); // m_Shader.m_FileID
-            reader.ReadInt64(); // m_Shader.m_PathID
+            result.ShaderFileId = reader.ReadInt32();
+            result.ShaderPathId = reader.ReadInt64();
             result.ValidKeywords.AddRange(reader.ReadAlignedStringArray());
             result.InvalidKeywords.AddRange(reader.ReadAlignedStringArray());
             result.LightmapFlags = reader.ReadUInt32();

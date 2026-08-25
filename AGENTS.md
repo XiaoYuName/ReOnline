@@ -268,22 +268,25 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 |---|---|---|---|
 | 账号（注册 / 登录 / 登出 / 会话 / 顶号 / 免密重连） | ✅ | ✅ | [ReDiv_Server/README.md](ReDiv_Server/README.md)「账号系统」 |
 | 版本校验（不一致弹窗 + 禁止登录） | ✅ | ✅ | 同上「版本号」 |
-| 角色（多角色 / 创建 / 软删 / 选择 / 选角状态） | ✅ | ✅ 选人界面已完成 | 同上「角色系统」 |
+| 角色（多角色 / 创建 / 软删 / 选择 / 选角状态） | ✅ | ✅ 选人 + 创角（含查重）+ 删角已完成 | 同上「角色系统」 |
 | 形态与觉醒（基础 → 一觉 → 二觉，按**星级**现算；觉醒永久不可逆） | ✅ | ✅ 展示已完成 | 同上「角色系统」 |
 | 爆发形态（一个角色多个，战斗中装宝石切换） | 配置就绪 | ✅ 展示已完成 | 同上「角色系统」 |
 | 配置表通路（Excel → Luban → 编进 wasm / 进 Addressables） | ✅ | ✅ | 同上「配置表」 |
 | 角色美术资源（头像 / 略缩图 / 名字图 / 立绘 / 预览图 / UI Spine / 战斗 Spine） | — | ✅ 两个角色都配好了 | 同上「配置表」 |
 
 客户端界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
-`SelectCharacterUI`（选人：格子 / 单选 / Spine 待机）、`CreatCharacterUI`（创角：
-头像列表 / 立绘 / 形态卡翻页 / 全屏立绘）。细节见
+`SelectCharacterUI`（选人：格子 / 单选可取消 / Spine 待机 / 删除角色）、`CreatCharacterUI`（创角：
+头像列表 / 立绘 / 形态卡翻页 / 全屏立绘 / 创建按钮）、`ReviseCharacterNameUI`
+（起名字：输入 → 查重 → 创建）。细节见
 [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节。
 
 ### 下一步大概率是这些
 
-1. **两个按钮还没接**：选人界面的「进入游戏」（调 `SelectCharacter`，服务端写完
-   `character_selection` 才算进城镇）、创角界面的「创建」（调 `CreateCharacter`，
-   还缺一个名字输入框）。
+1. **「进入游戏」还没接**：选人界面那个按钮要调 `SelectCharacter`，
+   服务端写完 `character_selection` 才算进城镇。
+   （创建角色整条链路 2026-08-25 已打通：创角界面「创建」→ `ReviseCharacterNameUI`
+   输入名字 → 「重复」查重 → 通过后「创建」才亮 → `CreateCharacter`。
+   查重走新的 `check_character_name` Reducer，**不写任何表**，答案靠执行状态回来。）
 2. **补配置的占位值**：`CharacterJob.Subtitle` 还空着，觉醒等级（15 / 30）是占位数字。
    资源列**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产写回 Excel。
    改完跑 `spacetime call rediv character_config_self_test` 自检。

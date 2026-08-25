@@ -6,7 +6,8 @@ using SpacetimeDB;
 /// <summary>
 /// 角色系统的 Reducer：建角色 / 删角色 / 选角色 / 返回选人界面。
 ///
-/// 对外四个入口（客户端绑定是 PascalCase，CLI 是 snake_case）：
+/// 对外五个入口（客户端绑定是 PascalCase，CLI 是 snake_case）：
+///   CheckCharacterName(name)      check_character_name  —— 建角色前查重，**不写库**
 ///   CreateCharacter(name, jobId)  create_character
 ///   DeleteCharacter(characterId)  delete_character   —— 软删
 ///   SelectCharacter(characterId)  select_character   —— 选完才算进城镇
@@ -24,6 +25,28 @@ public static partial class Module
     // ------------------------------------------------------------------
     // 对外 Reducer
     // ------------------------------------------------------------------
+
+    /// <summary>
+    /// 角色名查重 —— 创建角色界面的「重复」按钮用，玩家点了才发，不是每敲一个字就发。
+    ///
+    /// **一张表都不写。** 结果靠 Reducer 自己的执行状态回给调用方：
+    ///   名字可用   → 正常返回 ⇒ 客户端收到 <c>Status.Committed</c>
+    ///   格式不合法 / 已被占用 → 抛异常 ⇒ 客户端在 <c>Status.Failed(reason)</c> 里拿到中文原文
+    /// 版本校验 <c>CheckVersion</c> 就是这个形状 —— Reducer 不返回数据，
+    /// 所以「问一句 yes/no」这类需求走执行状态，不用为它专门开事件表。
+    ///
+    /// 要求有活会话：不给未登录的连接当「名字探测器」用。
+    ///
+    /// ⚠️ 查重结果**没有任何保留效果**。查完到真正 <c>CreateCharacter</c> 之间，
+    /// 名字随时可能被别人抢走 —— 所以 CreateCharacter 自己也照查一次，
+    /// 这里只是让玩家早点知道，不是前置校验。
+    /// </summary>
+    [SpacetimeDB.Reducer]
+    public static void CheckCharacterName(ReducerContext ctx, string name)
+    {
+        RequireAccountId(ctx);
+        RequireNameAvailable(ctx, CharacterRules.NormalizeName(name));
+    }
 
     /// <summary>
     /// 创建角色。校验顺序是从便宜到贵：会话 → 名字格式 → 栏位 → 重名 → 职业配置。
@@ -45,12 +68,7 @@ public static partial class Module
             throw CharacterRules.Reject($"角色栏位已满（{used}/{account.CharacterSlots}）");
         }
 
-        // 唯一索引也会挡住重名，但那样报出来的是一句数据库层的英文约束错误，
-        // 玩家看不懂。这里先查一次，给一句能直接显示的中文。
-        if (ctx.Db.Character.NameKey.Find(nameKey) is not null)
-        {
-            throw CharacterRules.Reject("这个角色名已经被使用了");
-        }
+        RequireNameAvailable(ctx, nameKey);
 
         var job = ServerConfig.Tables.TbCharacterJob.GetOrDefault((int)jobId);
         if (job == null)
@@ -196,6 +214,21 @@ public static partial class Module
         }
 
         return character;
+    }
+
+    /// <summary>
+    /// 名字没被占用才放行。<c>CreateCharacter</c> 和 <c>CheckCharacterName</c> 共用，
+    /// 免得两处的判断和文案各写一遍然后慢慢漂开。
+    ///
+    /// 唯一索引本身也会挡住重名，但那样报出来的是一句数据库层的英文约束错误，
+    /// 玩家看不懂 —— 所以先查一次，给一句能直接显示的中文。
+    /// </summary>
+    private static void RequireNameAvailable(ReducerContext ctx, string nameKey)
+    {
+        if (ctx.Db.Character.NameKey.Find(nameKey) is not null)
+        {
+            throw CharacterRules.Reject("这个角色名已经被使用了");
+        }
     }
 
     /// <summary>数一个账号下还活着的角色数（软删的不算）。</summary>

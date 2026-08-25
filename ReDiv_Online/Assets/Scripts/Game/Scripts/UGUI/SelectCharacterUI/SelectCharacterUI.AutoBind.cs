@@ -9,6 +9,7 @@ public partial class SelectCharacterUI
     private UnityEngine.UI.Button enterButton;
     private UnityEngine.UI.Button quitButton;
     private List<CharacterSlotUI> content;
+    private UnityEngine.UI.Button deleteButton;
 
     private void InitAutoBind()
     {
@@ -16,6 +17,7 @@ public partial class SelectCharacterUI
         enterButton = Get<UnityEngine.UI.Button>("UIMask/Buttons/EnterButton");
         quitButton = Get<UnityEngine.UI.Button>("UIMask/Buttons/QuitButton");
         content = Get<Transform>("UIMask/CharacterList/Scroll View/Viewport/Content").GetComponentsInChildren<CharacterSlotUI>(true).Where(item => item.transform != Get<Transform>("UIMask/CharacterList/Scroll View/Viewport/Content")).ToList();
+        deleteButton = Get<UnityEngine.UI.Button>("UIMask/Buttons/DeleteButton");
 
         foreach (CharacterSlotUI element in content)
         {
