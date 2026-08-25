@@ -23,7 +23,7 @@ MonoBehaviour:
     SerializationNodes: []
   DataList:
   - audioID: Cursor_Click_01
-    audioType: 0
+    audioType: 4
     audioClip: {fileID: 8300000, guid: 8446e2c28d5d43447ad8d6e1ec7c5bcf, type: 3}
     InitVolume: 1
     soundPitchMin: 0.8
@@ -68,3 +68,6 @@ MonoBehaviour:
   - Type: 3
     Snapshot: {fileID: 2056470108741604723, guid: 4ea25540cc73f4f4b8b22fb3aeb097e6, type: 2}
   MusicSourcePath: Assets/AddressableAssets/Remote/Prefabs/AudioItem/MusicSource.prefab
+  AudioKeysOutputPath: Assets/Scripts/Game/Scripts/AddressableKeys/AudioKeys.cs
+  AudioKeysClassName: AudioKeys
+  AudioKeysNamespace: XFramework

@@ -25,8 +25,8 @@ using XFramework;
 /// </summary>
 public sealed class TownCharacterSpawner
 {
-    /// <summary>场景里那个世界空间父节点的 Tag。</summary>
-    public const string RootTag = "SkeletonCharacters";
+    /// <summary>场景里那个世界空间父节点的 Tag。见 <see cref="TownWorldRoots"/>。</summary>
+    public const string RootTag = TownWorldRoots.CharactersTag;
 
     /// <summary>外层控制器预制体。所有角色共用，所以是常量而不是配置列。</summary>
     public const string ControllerPrefabKey =
@@ -57,31 +57,17 @@ public sealed class TownCharacterSpawner
             return true;
         }
 
-        GameObject rootObject = FindRoot();
+        GameObject rootObject = TownWorldRoots.Find(RootTag);
 
         if (rootObject == null)
         {
-            Debug.LogError($"[TownSpawner] 场景里找不到 Tag 为 {RootTag} 的节点，城镇角色没地方挂");
+            // TownWorldRoots 内部已经报过错（节点不在 / Tag 没登记）
             return false;
         }
 
         root = rootObject.transform;
         pool = PoolManager.Pools.Create(PoolName, rootObject);
         return true;
-    }
-
-    private static GameObject FindRoot()
-    {
-        try
-        {
-            return GameObject.FindGameObjectWithTag(RootTag);
-        }
-        catch (UnityException)
-        {
-            // Tag 没在 Project Settings 里登记时 FindGameObjectWithTag 会抛
-            Debug.LogError($"[TownSpawner] Tag「{RootTag}」没在 Tags & Layers 里登记");
-            return null;
-        }
     }
 
     /// <summary>

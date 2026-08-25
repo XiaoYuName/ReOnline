@@ -53,7 +53,7 @@ Assets/Scripts/
 │       ├── Save/
 │       ├── System/            GameManager / GameDataManager / LubanManager
 │       ├── Tools/
-│       ├── Town/              城镇背景 / 角色两层控制器 + 取用回收（PoolManager）
+│       ├── Town/              城镇背景（世界空间，含出生点）/ 角色两层控制器 + 取用回收（PoolManager）
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
     ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState，不建任何订阅
@@ -61,7 +61,7 @@ Assets/Scripts/
     ├── CharacterManager.cs     角色门面，同上。登录成功后才订角色数据
     ├── AuthValidation.cs       服务端 AuthRules 的客户端镜像
     ├── CharacterValidation.cs  服务端 CharacterRules 的客户端镜像（角色名格式）
-    ├── TownManager.cs          城镇 + 世界时间门面（当前城镇 / 当前时段）
+    ├── TownManager.cs          城镇门面：当前城镇 / 时段 / 同城镇玩家 / 坐标上报
     └── ModuleBindings/         生成物，不要手改
 ```
 
@@ -141,7 +141,8 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 > 2026-08-24 就是因为 `AddColumn` 写死了 1/2/3，给 `CharacterJob` 加
 > `StartStar` / `MaxStar` / `Subtitle` 时把中文注释写进了 `##group` 行。
 >
-> 现在 `CharacterJob` / `CharacterForm` 两张数据表都是 4 行表头。
+> 现在**五张**数据表（`CharacterJob` / `CharacterForm` / `Town` / `TimeBand` / `LevelExp`）
+> 都是 4 行表头，`read_schema_from_file` 全是 `True`。
 > `__tables__` / `__beans__` / `__enums__` 是 Luban 的**元表**，自己有 `group` **列**，
 > 不适用这一行，别给它们加。
 >
@@ -170,6 +171,20 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 > 改表结构时在提交信息里写清楚改了什么。
 
 `__enums__.xlsx` 特殊，同一 sheet 里首尾相接堆了多个枚举块。
+
+### 现在有哪些配置表
+
+| Excel | 运行时入口 | 内容 |
+|---|---|---|
+| `CharacterJob.xlsx` | `TbCharacterJob` | 角色 / 职业（凯露、优衣） |
+| `CharacterForm.xlsx` | `TbCharacterForm` | 形态（基础线 / 爆发线）+ **全部美术资源** |
+| `Town.xlsx` | `TbTown` | 城镇 + 三个时段的背景预制体（**世界空间 SpriteRenderer**） |
+| `TimeBand.xlsx` | `TbTimeBand` | 早 / 中 / 晚三段的边界（起始小时） |
+| `LevelExp.xlsx` | `TbLevelExp` | 升级所需经验 + 该等级体力上限。**数值是占位的** |
+
+⚠️ **加了表要跑 ConfigTools 的第 2、3 步**（AssetKeys / LubanManager），
+不然 `LubanManager.TbXxx` 那个属性生成不出来 —— 只跑第 1 步导出会编译报
+「does not contain a definition for 'TbXxx'」。这个坑 2026-08-25 加 LevelExp 时刚踩过。
 
 ---
 
@@ -492,48 +507,108 @@ CreatButton     「创建」—— 没选角色时是灰的，点了打开 Revis
    不是「自己 identity 的第一行」—— 同一 identity 可能有多条连接
    （编辑器 + 真机、或者开两个客户端），拿错行会显示成别的窗口所在的城镇。
 
-#### 城镇主界面（`MainCommonUI`）与背景
+#### 城镇主界面（`MainCommonUI`）、背景与出生点
 
 选人界面点「进入游戏」→ `SelectCharacter` 成功 → 关掉选人界面、打开
-**`MainCommonUI`**（城镇主界面）。玩家移动和功能按钮以后加在这里，现在它只做一件事：
-**按「当前城镇 + 当前时段」显示背景**。
+**`MainCommonUI`**（城镇主界面）。
+
+**背景是世界空间的 `SpriteRenderer`，不是 UI**（2026-08-25 改的，之前挂在
+`UIBackground` Canvas 下）。改的理由是硬的：那个 Canvas 是 ScreenSpaceCamera +
+CanvasScaler，背景的实际大小会随分辨率 / 宽高比变，而角色、出生点、坐标都是世界空间的。
+**两套坐标系的比例一旦随分辨率变，同一个世界坐标在不同人屏幕上就落在美术的不同位置**
+—— 联机里就是「他站喷泉边、我看他站台阶上」，边界做出来之后更是各人一堵墙。
+现在美术钉死在世界坐标里，适配交给相机（那一步还没做，见本节末尾）。
+
+背景和角色**同一套两层结构**（用户 2026-08-25 定的）：
+
+```
+Games/Backgrounds                      ← 场景节点，Tag = Backgrounds
+└── TownBackgroundController           ← 外层，**所有城镇共用一个预制体**
+    ├── Background                     ← 运行时按「城镇 + 时段」把背景塞进来
+    │   └── Town_50022                 ← SpriteRenderer（材质 VariantCard，Sorting Layer Ground）
+    └── StartPoint                     ← **出生点**：进城镇就站这儿
+```
+
+| 文件 | 职责 |
+|---|---|
+| `Game/Scripts/Town/TownBackgroundController.cs` | 外层：出生点 + `Bind()` / `Unbind()` 把背景塞进来 / 摘出去 |
+| `Game/Scripts/Town/TownWorldRoots.cs` | 按 Tag 找两个世界空间根节点 |
+| `Game/Scripts/UGUI/MainCommonUI/MainCommonUI.cs` | 听 `TownManager` 的事件，决定该显示哪张、负责取用回收 |
+
+**场景里的两个世界空间根节点**（2026-08-25 从 `Managers` 下挪到了新的 `Games` 这一层）：
+
+| 节点 | Tag | 挂什么 |
+|---|---|---|
+| `GameManager/Games/SkeletonCharacters` | `SkeletonCharacters` | 城镇角色（外层控制器 + 按形态的 Spine），走 PoolManager |
+| `GameManager/Games/Backgrounds` | `Backgrounds` | 背景外层控制器（里面按时段塞背景），出生点也在它身上 |
+
+两个节点连同 `Games` 这一层**都是原点 + 缩放 1**，所以挂上去的东西 local 坐标就是世界坐标。
+查找一律走 `TownWorldRoots.Find(tag)` —— **按 Tag 不按路径**（节点在层级里挪位置不该改代码），
+代价是 Tag 必须在 Tags & Layers 里登记过，没登记 `FindGameObjectWithTag` 会**抛异常**
+而不是返回 null，所以那个 try/catch 收在 `TownWorldRoots` 一处，别各处再写。
 
 ```
 TownManager.CurrentTownId ──┐
                             ├─→ CurrentBackgroundKey（配置表 Town 的三列之一）
 TownManager.CurrentBandId ──┘         │
                                       ↓
-       UISystem.LoadUIBackground<TownBackgroundController>(key)
+    AssetsManager.Instantiate(key) → TownBackgroundController.Bind(view)
 ```
 
-| 文件 | 职责 |
-|---|---|
-| `Game/Scripts/UGUI/MainCommonUI/MainCommonUI.cs` | 城镇主界面。听 `TownManager` 的三个事件，按 key 换背景 |
-| `Game/Scripts/Town/TownBackgroundController.cs` | 挂在**背景预制体根节点**上，派生自 `UIBackground`（即 `UIBase`） |
+- **外层进城镇建一次**（`EnsureController`），换时段只换里面那张（`ReleaseBackgroundView`）。
+  外层是共用预制体，所以换城镇也不用重建。
+- 回收统一用 `AssetsManager.ReleaseGameObject`（销毁 + 卸 AA 引用），不回池 ——
+  背景一张就满屏，留在池里白占内存。**先 `SetActive(false)` 再销毁**，
+  否则 `Destroy` 延迟到帧末会和下一张叠着（坑 3）。
+- `RefreshBackground()` 是**幂等**的：key 没变什么都不做，所以时段推送和位置推送
+  连着到达也不会重建两遍。
+- **背景必须在角色之前刷** —— 出生点在背景外层身上，反过来第一次进城镇会落在原点。
+  `Open()` / `HandleTownReady()` / `HandleLocationChanged()` 里的顺序都是 背景 → 信息 → 自己 → 别人。
 
-**背景走框架的背景层 API**（都在 `UISystem` 的「背景管理」区）：
+三条美术侧的约定（都在预制体里，代码不碰）：
 
-| 方法 | 干什么 |
-|---|---|
-| `LoadUIBackground<T>(key, parentLayer = UIPanel)` | 从对象池取实例，挂到 `UIBackground` 层下，`Init()` + `Open()` 后返回 |
-| `HideUIBackground(bg)` | `Close()` + 回收进池。**同一个 key 下次直接复用，不重新加载** |
-| `ReleaseUIBackground(bg)` | `Close()` + 真销毁，该 key 没实例在用了连 Addressables 引用一起卸 |
+1. **比例烘在内层的 `localScale` 里**。贴图是 1024×1024 的方图（美术压扁存的），
+   靠 `scale.x ≈ 1.7778` 拉成 16:9。**代码不去覆盖它** —— 想改画面大小就改那个预制体。
+2. **Sorting Layer `Ground`**（order -1），角色在 `Character` ⇒ 角色永远在背景前面。
+   以后要做遮挡物（房子、栏杆挡住角色）就在内层加子 `SpriteRenderer` 放 `EffectTop`。
+3. 三列（`BgMorning` / `BgNoon` / `BgNight`）和三个时段**按 BandId 硬对应**，
+   段数固定 3 段（服务端自检守住）。某列为空 ⇒ 那个时段没背景，不报错。
 
-换时段 / 换城镇用 **`HideUIBackground`**（早↔中↔晚来回切、回选人界面再进来都很常见）；
-只有确定某个城镇短期不会再进才值得 `Release`。
+**出生点**：进城镇的落点规则只有一条 —— **每次进城镇都站到 `StartPoint`**。
+服务端只记「在哪个城镇」、从来不存坐标（`CharacterTransform` 是连接级、断线就清），
+所以新角色进初始城镇、以后换城镇走的都是同一条路。用户 2026-08-25 明确定的
+**不记住上次站的位置**。没有外层实例时退回原点（老行为），**配漏了要退化，不能让人进不了城镇**。
 
-因为背景是 `UIBase` 派生类，**入场 / 离场表现直接重写 `Open()` / `Close()`**，
-不要再另造 `Show()` / `Hide()` 钩子（早先有过一对，改成 `UIBackground` 派生后就完全重复了，已删）。
-也因此不需要手动 `SetActive(false)` + `Destroy` 那一套 —— 对象池负责回收，不会出现坑 3 的叠加。
-
-`MainCommonUI.RefreshBackground()` 是**幂等**的：key 没变就什么都不做，
-所以时段推送和位置推送连着到达也不会重建两遍。
-
-三列（`BgMorning` / `BgNoon` / `BgNight`）和三个时段**按 BandId 硬对应**，
-所以段数固定 3 段（服务端自检守住）。某列为空 ⇒ 那个时段不显示背景，不报错。
+> ⚠️ **`StartPoint` 在共用外层上 ⇒ 现在所有城镇是同一个落点。** 只有一个城镇时没问题，
+> 加第二个城镇之前要先定怎么按城镇分（外层做预制体变体 + 配置加一列，
+> 或者内层背景带一个可选 `StartPoint` 覆盖）。**别默认它已经是按城镇的。**
 
 > ⚠️ **背景不认识网络层。** 它不订阅任何东西、不碰 `Conn`、不自己算时段 ——
-> 「该显示哪个」全由 `MainCommonUI` 从 `TownManager` 算好再喂给它。
+> 「该显示哪张」全由 `MainCommonUI` 从 `TownManager` 算好再喂给它。
+
+> `UISystem` 的 `LoadUIBackground` / `HideUIBackground` / `UIBackground` 基类**还留着**，
+> 只是城镇背景不再走它了（现在没有调用方）。纯 UI 界面要垫背景仍然可以用。
+
+##### 还没做：相机适配（固定视野盒 + 黑边）
+
+现在**没有任何适配** —— 相机 `orthoSize` 恒定 5，可视高 10 个世界单位、宽 = 10×宽高比。
+所以窗口宽高比一变，看到的世界范围就跟着变（编辑器里把 Game 面板拖窄就能看到被"放大"的效果）。
+
+2026-08-25 定下的方向（**别再提 cover / 按比例缩放美术**，那会让不同宽高比的玩家
+看到的范围和距离都不一样）：
+
+- 固定视野盒 = **17.7778 × 10 世界单位**（16:9 那一档），所有人看到同一块世界；
+- 实现方式：算出屏幕内最大的居中 16:9 像素区，**同时赋给 MainCamera 和 UICamera 的
+  `Camera.rect`** ⇒ 相机 aspect 恒为 16:9，`orthoSize` 保持 5，一行缩放公式都不用；
+  视口外的像素相机根本不渲染，不会出现「角色走出盒子还被看见」；
+- 宽屏两边是空的 —— 视野一致和填满屏幕本质冲突。要好看就让美术把背景画宽（画框式装饰），
+  视野盒不变；
+- **固定的是"看到多少世界"，不是"1 单位等于多少像素"** —— 1080p 和 1440p 的
+  px/unit 必然不同，那只是分辨率，两点距离**占画面的比例**是一致的；
+- 长期方向是「城镇地图比一屏宽 + 相机跟随角色」（DNF 那类游戏就是这样），
+  那时宽屏多看到的是地图内容，黑边可以撤掉，相机组件之外的东西都不用改。
+
+HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没定**。
 
 #### 右上角信息栏
 
@@ -549,8 +624,9 @@ TownManager.CurrentBandId ──┘         │
 
 #### 城镇角色：两层结构
 
-城镇角色是**世界空间**的（不是 Canvas 下的 `SkeletonGraphic`），实例挂在场景里
-**`SkeletonCharacters`** 节点下（靠 Tag 找）。它是**两层**的（用户 2026-08-25 定的）：
+城镇角色是**世界空间**的（不是 Canvas 下的 `SkeletonGraphic`），实例挂在
+**`Games/SkeletonCharacters`** 节点下（靠 Tag 找，见上面「场景里的两个世界空间根节点」）。
+它是**两层**的（用户 2026-08-25 定的）：
 
 ```
 TownCharacterController          ← 所有角色共用一个预制体。位置都作用在这层
@@ -689,7 +765,7 @@ UIAutoBindGenerator 没有业务组件」就手动补一下（挂到预制体上
 
 | 根 Canvas | renderMode | worldCamera |
 |---|---|---|
-| `UIBackground` | ScreenSpaceCamera | `MainCamera`（depth -1，clear Skybox） |
+| `UIBackground` | ScreenSpaceCamera | `MainCamera`（depth -1，clear Skybox）。**城镇背景已经不用它了**，见本节「城镇主界面、背景与出生点」 |
 | `UILayout`（所有界面都在这下面） | ScreenSpaceCamera | `UICamera`（depth 0，clear Nothing） |
 | `PopLoadingUI` | ScreenSpaceCamera | `UICamera` |
 
@@ -699,7 +775,9 @@ UIAutoBindGenerator 没有业务组件」就手动补一下（挂到预制体上
   传 `null`（Overlay 的写法）拿到的是世界坐标，`RaycastAll` **一个都打不中**，
   表现成「点击派发了但界面毫无反应」，很容易误判成事件被谁吃了。
 - **`capture_game_view` 默认拍不到 UI，但原因不是 Overlay**：它默认 `source=camera`，
-  渲的是 `MainCamera`，而 UI 挂在 `UICamera` 上 ⇒ 出来是一张纯色背景。
+  渲的是 `MainCamera`，而 UI 挂在 `UICamera` 上 ⇒ **UI 一个都没有**。
+  （2026-08-25 起 `MainCamera` 上有世界空间的城镇背景和角色了，所以 `camera` 源现在能拍到
+  城镇画面、只是缺 UI；在那之前拍出来是一张纯色背景。）
   加 `--source screen` 抓合成后的 backbuffer 就整屏都有（**仅 Play 模式**）：
 
 ```bash

@@ -12,6 +12,8 @@
 | [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) | 客户端技术文档 |
 | [ReDiv_Server/README.md](ReDiv_Server/README.md) | 服务端技术文档 |
 
+（`ReDiv_GM/` 没有自己的文档，说明在服务端技术文档的「本地 Web GM 工具」一节。）
+
 外加一份长期交接记忆：
 [ReDiv_Online/Docs/CN资源解包与还原工作流.md](ReDiv_Online/Docs/CN资源解包与还原工作流.md)
 —— 国服 AA 下载、解包、复杂分类、NGUI、Spine 与 Shader 还原。**素材相关的新对话必须先读它。**
@@ -40,11 +42,15 @@ REDIV/                  ← 唯一的 git 仓库（分支 main）
 │   └── spacetimedb/
 │       ├── Auth/       账号系统
 │       ├── Character/  角色系统
-│       ├── Town/       城镇与世界时间
+│       ├── Town/       城镇 / 世界时间 / 玩家状态（坐标·体力·钱包）
 │       ├── Security/   口令哈希（自己写的，wasm 上 BCL crypto 不可用）
 │       ├── Luban/      配置表代码 + vendored 运行时
 │       └── Configs/    配置 bin 数据，以嵌入资源编进 wasm
-├── .gitignore          只管根这一层；Unity / 服务端的忽略在各自子目录里
+├── ReDiv_GM/           本地 Web GM 控制台（Next.js 网页 + .NET 后端）
+│   ├── app/            前端
+│   ├── Server/         后端，固定监听 127.0.0.1:5168
+│   └── data/           审计日志运行文件（已 gitignore）
+├── .gitignore          只管根这一层；Unity / 服务端 / GM 的忽略在各自子目录里
 └── .mcp.json           MCP for Unity 的注册（HTTP，指向 127.0.0.1:8848）
 ```
 
@@ -118,6 +124,19 @@ cd ReDiv_Online/ExcelTool/LubanTools/DataTables && ./gen_server.bat
 ```
 
 配置是以嵌入资源编进 wasm 的，**导出完必须再 `spacetime publish`** 才生效。
+
+起本地 GM 控制台（两个终端，浏览器开 `http://localhost:3000/`）：
+
+```bash
+cd ReDiv_GM/Server && dotnet run
+```
+
+```bash
+cd ReDiv_GM && npm install && npm run dev
+```
+
+> ⚠️ 它用的是本机 SpacetimeDB **owner** 的 CLI 权限，所以只监听 `127.0.0.1`，
+> **不要部署到公网** —— 那等于把数据库管理权交出去。
 
 想真的跑一遍功能（不只是编译）：
 

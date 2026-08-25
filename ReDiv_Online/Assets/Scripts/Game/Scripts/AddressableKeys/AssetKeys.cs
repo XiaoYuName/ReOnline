@@ -152,6 +152,8 @@ namespace XFramework
         public const string TbtownPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbtown.json";
         public const string UIPageConfigurationPath = "Assets/AddressableAssets/Remote/Configs/UI/UIPageConfiguration.asset";
         public const string MusicSourcePath = "Assets/AddressableAssets/Remote/Prefabs/AudioItem/MusicSource.prefab";
+        public const string TownBackgroundControllerPath = "Assets/AddressableAssets/Remote/Prefabs/Town/TownBackgroundController.prefab";
+        public const string TownCharacterControllerPath = "Assets/AddressableAssets/Remote/Prefabs/Town/TownCharacterController.prefab";
         public const string CommonUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/CommonUI.prefab";
         public const string IllustSpecial12AtlasPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/Spine/illust_special12.atlas.txt";
         public const string IllustSpecial12Path = "Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/Spine/illust_special12.json";
@@ -195,9 +197,9 @@ namespace XFramework
         public const string ReviseCharacterNameUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/ReviseCharacterNameUI/ReviseCharacterNameUI.prefab";
         public const string CharacterSlotUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/SelectCharacterUI/CharacterSlotUI.prefab";
         public const string SelectCharacterUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/SelectCharacterUI/SelectCharacterUI.prefab";
-        public const string Town500020Path = "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_500020.prefab";
-        public const string Town500021Path = "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_500021.prefab";
-        public const string Town500022Path = "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_500022.prefab";
+        public const string Town50020Path = "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50020.prefab";
+        public const string Town50021Path = "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50021.prefab";
+        public const string Town50022Path = "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50022.prefab";
         public const string Bg500020MatPath = "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/bg_500020_mat.mat";
         public const string MainWordPath = "Assets/AddressableAssets/Remote/Scenes/MainWord.unity";
         public const string BalloonDungeonEventPath = "Assets/AddressableAssets/Remote/Texture2D/Common/balloon_dungeon_event.png";

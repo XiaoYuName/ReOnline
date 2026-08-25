@@ -71,13 +71,13 @@ ReDiv_Server/
     │   ├── CharacterForms.cs     形态计算（按星级现算）+ AwakenCharacter 觉醒
     │   ├── CharacterConfigSelfTest.cs  配置表自检（改完 Excel 跑一次）
     │   └── CharacterViews.cs     MyCharacter / MyAccountProfile（per-subscriber View）
-    ├── Town/               城镇与世界时间
-    │   ├── TownTables.cs         CharacterLocation（私有）/ WorldTime（公开）/ WorldTimeTimer（定时）
+    ├── Town/               城镇 / 世界时间 / 玩家状态
+    │   ├── TownTables.cs         CharacterLocation（私有）/ WorldTime（公开）/ WorldTimeControl（私有，GM）/ WorldTimeTimer（定时）
     │   ├── TownPlayerTables.cs   CharacterTransform（公开，坐标）/ AccountWallet（私有，金币钻石）
     │   ├── TownPlayerReducers.cs UpdateTransform（坐标上报）+ 体力每日重置 + 钱包
     │   ├── TownRules.cs          时段计算 + 初始城镇（纯函数，只读配置）
     │   ├── TownReducers.cs       PlaceCharacter（进城镇）+ 配置自检
-    │   └── WorldTimeReducers.cs  定时重算时段 + 自检
+    │   └── WorldTimeReducers.cs  定时重算时段 + GM 锁定（RefreshWorldTime）+ 自检
     ├── Security/           口令哈希（自己写的，原因见「写代码前必须知道的」）
     │   ├── Sha256.cs
     │   ├── Pbkdf2Sha256.cs
@@ -290,8 +290,12 @@ CharacterJob      角色 / 职业（凯露）—— 建角色时选的就是这�
 
 | 表 | 公开性 | 说明 |
 |---|---|---|
-| `Character` | **私有** | 角色档案。`AccountId`（索引）/ `NameKey`（唯一）/ `Name` / `JobId` / `Level` / `Exp` / `DeletedAt` / `Star` |
-| `CharacterSelection` | 公开 | 这条连接当前选了哪个角色，主键 `ConnectionId`。带 `FormId`，天然就是在线角色列表 |
+| `Character` | **私有** | 角色档案。`AccountId`（索引）/ `NameKey`（唯一）/ `Name` / `JobId` / `Level` / `Exp` / `DeletedAt` / `Star` / `Stamina` / `StaminaDay` |
+| `CharacterSelection` | 公开 | 这条连接当前选了哪个角色，主键 `ConnectionId`。带 `FormId` / `TownId`，天然就是「谁在哪个城镇」的在线列表 |
+
+`Stamina` / `StaminaDay`（体力和它的每日重置标记）见下面「城镇与世界时间 → 体力」；
+`TownId` 是私有表 `CharacterLocation` 的投影，见「城镇里的玩家状态」。
+坐标**不在这两张表里**，单开了 `CharacterTransform`（理由见那节）。
 
 ⚠️ 加字段 / 删列 / `[Default]` 的规矩见「写代码前必须知道的 → 环境地雷」，
 字段顺序不是随便排的。
@@ -499,6 +503,13 @@ GM 需要长期预览某个时段时，修改私有 `WorldTimeControl`，再调�
 **没有「玩家自己在城镇之间走」的 Reducer** —— 那要先定清楚城镇怎么解锁、能不能随便去，
 玩法没定型之前不开这个口子。
 
+**出生点是纯客户端的事，服务端一个字段都没加。** 服务端只记「在哪个城镇」、
+从来不存坐标（`CharacterTransform` 是连接级、断线就清），所以落点规则就一条：
+**每次进城镇都站到出生点**，坐标取自客户端背景外层预制体上的 `StartPoint` 节点
+（世界空间，服务端看不到）。用户 2026-08-25 明确定的**不记住上次站的位置** ——
+要改成记住，就得给 `CharacterLocation` 追加 `LastX` / `LastY`（加在 struct 末尾）
+并在断线 / `LeaveCharacter` 时各写一次。
+
 ### 配置表
 
 | 表 | 列 | group | 谁用 |
@@ -506,7 +517,7 @@ GM 需要长期预览某个时段时，修改私有 `WorldTimeControl`，再调�
 | `Town` | `TownId` | 不标 | 两端 |
 | | `IsStartTown` | `s` | 新角色落哪个城镇。**有且只能有一个 True** |
 | | `Name` / `SortOrder` | `c` | 城镇名（中文原文）、排序 |
-| | `BgMorning` / `BgNoon` / `BgNight` | `c` | 三个时段的**背景控制器预制体**，填 Addressable 完整路径 |
+| | `BgMorning` / `BgNoon` / `BgNight` | `c` | 三个时段的**背景预制体**（世界空间 SpriteRenderer），填 Addressable 完整路径 |
 | `TimeBand` | `BandId` / `StartHour` | 不标 | 段 id（早=1 中=2 晚=3）、起始小时 |
 | | `Name` | `c` | 时段名（中文原文） |
 
@@ -827,12 +838,19 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 
 ### 现在的配置内容（会随开发变，以表里为准）
 
-`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下两张表：
+`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下**五张**数据表
+（外加 `__tables__` / `__beans__` / `__enums__` 三张元表）：
 
-| 表 | 内容 |
-|---|---|
-| `CharacterJob.xlsx` | `1` 凯露 / `2` 优衣，都是 `MaxStar=6`、`StartLevel=1`、`StartStar=1` |
-| `CharacterForm.xlsx` | 每个角色 4 行：基础线 3 个（1★/3★/6★）+ 爆发线 1 个（6★） |
+| 表 | 内容 | 两端 |
+|---|---|---|
+| `CharacterJob.xlsx` | `1` 凯露 / `2` 优衣，都是 `MaxStar=6`、`StartLevel=1`、`StartStar=1` | c,s |
+| `CharacterForm.xlsx` | 每个角色 4 行：基础线 3 个（1★/3★/6★）+ 爆发线 1 个（6★）。资源列全是 `c` | c,s |
+| `Town.xlsx` | `TownId=1` 兰德索尔（`IsStartTown=True`）。三列背景 + 三个时段硬对应 | c,s |
+| `TimeBand.xlsx` | 固定 3 行：早 5 点起 / 白天 11 点起 / 夜晚 18 点起 | c,s |
+| `LevelExp.xlsx` | 1~60 级的 `ExpToNext` + `MaxStamina`。**数值是占位的** | c,s |
+
+⚠️ `LevelExp` 的数值是占位公式（`ExpToNext = Level×100`、`MaxStamina = 15+(Level-1)/2`），
+`CharacterJob.Subtitle` 还空着、觉醒等级还是占位数字 —— 等养成系统定了一起配。
 
 美术资源都填好了（在 `Assets/AddressableAssets/Remote/Character/<JobId>/` 下，
 `0Common` 给基础形态、另两个子目录给觉醒线和爆发线）。还没定的：

@@ -8,7 +8,8 @@ using XFramework;
 /// 城镇主界面 —— 选人界面点「进入游戏」之后进的就是这里。
 ///
 /// 四件事：
-///   1. **背景** —— 按「当前城镇 + 当前时段」走 <c>UISystem.LoadUIBackground</c>；
+///   1. **背景 + 出生点** —— 背景是**世界空间**的，按「当前城镇 + 当前时段」换；
+///      出生点在背景外层控制器的 <c>StartPoint</c> 上；
 ///   2. **右上角信息** —— 等级 / 经验 / 体力（角色级）+ 金币 / 钻石（账号级，全角色共享）；
 ///   3. **自己的角色** —— 按 (JobId, FormId) 取城镇控制预制体，摇杆驱动移动并上报坐标；
 ///   4. **同城镇的其他玩家** —— 按服务端推的坐标插值跟随。
@@ -38,7 +39,13 @@ public partial class MainCommonUI : UIBase
     // 状态
     // ------------------------------------------------------------------
 
+    /// <summary>
+    /// 背景的**外层控制器**（世界空间，挂在 <c>Games/Backgrounds</c> 下）。
+    /// 所有城镇共用一个预制体，里面按时段塞背景，**出生点也在它身上**。
+    /// </summary>
     private TownBackgroundController townBackground;
+
+    /// <summary>当前塞在外层里的背景 key（配置表 Town 的三列之一）。空 = 没有背景。</summary>
     private string townBackgroundKey = string.Empty;
 
     private readonly TownCharacterSpawner spawner = new TownCharacterSpawner();
@@ -79,6 +86,8 @@ public partial class MainCommonUI : UIBase
         base.Open();
 
         HookEvents();
+        // ⚠️ 背景必须在角色之前刷：**出生点在背景外层控制器身上**，
+        // 反过来的话第一次进城镇会落在原点
         RefreshBackground();
         RefreshInfo();
         RefreshSelfCharacter();
@@ -90,7 +99,7 @@ public partial class MainCommonUI : UIBase
         UnhookEvents();
 
         ClearCharacters();
-        HideBackground();
+        ReleaseBackground();
 
         base.Close();
     }
@@ -99,6 +108,7 @@ public partial class MainCommonUI : UIBase
     {
         UnhookEvents();
         ClearCharacters();
+        ReleaseBackground();
 
         base.OnDestroy();
     }
@@ -290,15 +300,17 @@ public partial class MainCommonUI : UIBase
 
         selfCharacter.SetName(found.Name);
 
-        // 进城镇的落点：服务端还没有坐标的概念（第一次进来），先落在原点。
-        // 以后城镇配置里加「出生点」的话在这里取
-        selfCharacter.Teleport(Vector2.zero);
-        lastReportedPosition = Vector2.zero;
+        // 进城镇的落点：**出生点**，来自城镇区域预制体（配置表 Town 的 AreaPrefab 列）。
+        // 服务端只记「在哪个城镇」、从来不存坐标，所以每次进城镇都是从出生点开始走
+        Vector2 spawn = CurrentSpawnPosition();
+
+        selfCharacter.Teleport(spawn);
+        lastReportedPosition = spawn;
         lastReportTime = 0f;
         lastReportedMoving = false;
 
         // 立刻上报一次，别人才能马上看见我
-        town.ReportTransform(0f, 0f, selfCharacter.Facing, false);
+        town.ReportTransform(spawn.x, spawn.y, selfCharacter.Facing, false);
     }
 
     /// <summary>每帧按摇杆走，并按节流上报坐标。</summary>
@@ -380,11 +392,13 @@ public partial class MainCommonUI : UIBase
                 continue;
             }
 
-            // ⚠️ 还没收到坐标就先别摆到 (0,0) —— 那会让他在原点闪一下再跳走。
-            // 摆到自己看不见的地方不行（要能看见他站在原点也是合理的），
-            // 所以：有坐标就用坐标，没坐标就用原点，但下一帧插值会立刻纠正
+            // ⚠️ 还没收到坐标的人别摆到 (0,0) —— 那会让他在画面正中闪一下再跳走。
+            // 有坐标就用坐标，没坐标就用**出生点**（他刚进城镇，那儿最接近真值），
+            // 下一帧插值会立刻纠正
             controller.SetName(player.Name);
-            controller.Teleport(player.HasTransform ? new Vector2(player.X, player.Y) : Vector2.zero);
+            controller.Teleport(player.HasTransform
+                ? new Vector2(player.X, player.Y)
+                : CurrentSpawnPosition());
             controller.SetFacing(player.Facing);
             otherCharacters[pair.Key] = controller;
         }
@@ -434,12 +448,15 @@ public partial class MainCommonUI : UIBase
     }
 
     // ------------------------------------------------------------------
-    // 背景
+    // 背景（**世界空间**）+ 出生点
     // ------------------------------------------------------------------
 
     /// <summary>
     /// 按当前状态刷背景。**幂等** —— 该显示的 key 没变就什么都不做，
     /// 所以时段推送和位置推送先后到达（会连着触发两次）也不会重建两遍。
+    ///
+    /// 两层结构和角色一样：**外层控制器**所有城镇共用（出生点在它身上），
+    /// 里面按「城镇 + 时段」塞一张背景。所以换时段只换里面那张，外层不动。
     /// </summary>
     private void RefreshBackground()
     {
@@ -450,40 +467,131 @@ public partial class MainCommonUI : UIBase
             return;
         }
 
-        HideBackground();
-        townBackgroundKey = key;
-
         if (string.IsNullOrEmpty(key))
         {
             // 不在城镇里（订阅还没生效），或者这个城镇的这个时段还没配背景。
-            // 都不是错误 —— 服务端自检和配置侧会把没配的报出来，运行时别反复刷日志
-            return;
-        }
-
-        townBackground = UISystem.Instance.LoadUIBackground<TownBackgroundController>(key);
-
-        if (townBackground == null)
-        {
-            // LoadUIBackground 内部已经报过错（找不到挂载层 / 预制体上没有那个组件）
+            // 都不是错误 —— 服务端自检和配置侧会把没配的报出来，运行时别反复刷日志。
+            // ⚠️ 外层**不收**：出生点还要用，而且下一次推送马上就会把背景补回来
+            ReleaseBackgroundView();
             townBackgroundKey = string.Empty;
             return;
         }
 
+        if (!EnsureController())
+        {
+            townBackgroundKey = string.Empty;
+            return;
+        }
+
+        ReleaseBackgroundView();
+        townBackgroundKey = key;
+
+        GameObject view = AssetsManager.Instance.Instantiate(key);
+
+        if (view == null)
+        {
+            Debug.LogError($"[MainCommonUI] 背景预制体加载不出来：{key}");
+            townBackgroundKey = string.Empty;
+            return;
+        }
+
+        townBackground.Bind(view);
+
         Debug.Log($"[MainCommonUI] 城镇={TownManager.Instance.CurrentTownId}" +
                   $"（{TownManager.Instance.CurrentTown?.Name}）" +
                   $" 时段={TownManager.Instance.CurrentBandId}" +
-                  $"（{TownManager.Instance.CurrentBand?.Name}） 背景={key}");
+                  $"（{TownManager.Instance.CurrentBand?.Name}） 背景={key}" +
+                  $" 出生点={townBackground.SpawnPosition}");
     }
 
-    private void HideBackground()
+    /// <summary>
+    /// 确保外层控制器在场上。所有城镇共用同一个预制体，所以进城镇建一次就够，
+    /// 换城镇 / 换时段都不用重建。
+    /// </summary>
+    private bool EnsureController()
     {
         if (townBackground != null)
         {
-            // Hide 而不是 Release：回收进对象池，同一个 key 下次直接复用
-            UISystem.Instance.HideUIBackground(townBackground);
+            return true;
+        }
+
+        GameObject root = TownWorldRoots.Find(TownWorldRoots.BackgroundsTag);
+
+        if (root == null)
+        {
+            // TownWorldRoots 内部已经报过错
+            return false;
+        }
+
+        GameObject instance = AssetsManager.Instance.Instantiate(TownBackgroundController.PrefabKey);
+
+        if (instance == null)
+        {
+            Debug.LogError($"[MainCommonUI] 背景外层预制体加载不出来：{TownBackgroundController.PrefabKey}");
+            return false;
+        }
+
+        // 挂到 Games/Backgrounds 下（它和上面几层都是原点 + 缩放 1，
+        // 所以预制体里摆的坐标就是世界坐标）。⚠️ 不能挂 UI 的 Canvas 下
+        instance.transform.SetParent(root.transform, false);
+        instance.transform.localPosition = Vector3.zero;
+
+        townBackground = instance.GetComponent<TownBackgroundController>();
+
+        if (townBackground == null)
+        {
+            Debug.LogError($"[MainCommonUI] {TownBackgroundController.PrefabKey} 上没有 TownBackgroundController 组件");
+            instance.SetActive(false);
+            AssetsManager.Instance.ReleaseGameObject(instance);
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>只回收里面那张背景，外层留着（出生点还要用）。换时段走这条。</summary>
+    private void ReleaseBackgroundView()
+    {
+        GameObject view = townBackground != null ? townBackground.Unbind() : null;
+
+        if (view == null)
+        {
+            return;
+        }
+
+        // 先 SetActive(false) 再销毁 —— Destroy 延迟到帧末，紧接着又实例化下一个时段的背景时
+        // 两张会在同一帧里叠着
+        view.SetActive(false);
+        AssetsManager.Instance.ReleaseGameObject(view);
+    }
+
+    /// <summary>
+    /// 里外都收。离开城镇（本界面关闭 / 销毁）时调。
+    ///
+    /// 用 <c>ReleaseGameObject</c>（销毁 + 卸掉 Addressables 引用）而不是回池：
+    /// 背景一张就满屏，留在池里白占内存和引用。
+    /// </summary>
+    private void ReleaseBackground()
+    {
+        ReleaseBackgroundView();
+
+        if (townBackground != null)
+        {
+            GameObject instance = townBackground.gameObject;
             townBackground = null;
+
+            instance.SetActive(false);
+            AssetsManager.Instance.ReleaseGameObject(instance);
         }
 
         townBackgroundKey = string.Empty;
     }
+
+    /// <summary>
+    /// 当前城镇的出生坐标 —— 来自背景外层控制器的 <c>StartPoint</c>。
+    /// 外层还没建起来就退回原点（那是加出生点之前的老行为），
+    /// **配漏了要退化，不能让人进不了城镇**。
+    /// </summary>
+    private Vector2 CurrentSpawnPosition() =>
+        townBackground != null ? townBackground.SpawnPosition : Vector2.zero;
 }

@@ -3,8 +3,8 @@
     "TownId": 1,
     "Name": "兰德索尔",
     "SortOrder": 1,
-    "BgMorning": "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_500020.prefab",
-    "BgNoon": "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_500021.prefab",
-    "BgNight": "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_500022.prefab"
+    "BgMorning": "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50020.prefab",
+    "BgNoon": "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50021.prefab",
+    "BgNight": "Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50022.prefab"
   }
 ]
