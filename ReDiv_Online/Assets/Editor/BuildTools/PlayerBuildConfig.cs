@@ -717,6 +717,10 @@ namespace XFramework
 
         private void ValidateAndroid(List<string> errors)
         {
+            // 外部工具链先查 —— 路径不对的话 BuildPipeline 才抛异常，那时 Addressable 已经白构建了一遍。
+            // NDK 只有 IL2CPP 用得上，Mono 时别拿它挡路。
+            errors.AddRange(AndroidToolchainCheck.FindProblems(IsIL2Cpp));
+
             if (Architectures == AndroidArchitecture.None)
             {
                 errors.Add("没有勾选任何 CPU 架构。");
