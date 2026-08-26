@@ -2293,6 +2293,13 @@ MonoBehaviour:
     FieldName: sendButton
     Path: UIMask/Background/Panel/SendButton
     AutoInit: 1
+  - Target: {fileID: 4447375266186742252}
+    BindMode: 0
+    ComponentTypeName: UnityEngine.UI.Button, UnityEngine.UI, Version=1.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    FieldName: closeButton
+    Path: UIMask/CloseButton
+    AutoInit: 1
 --- !u!114 &1730070229371895911
 MonoBehaviour:
   m_ObjectHideFlags: 0

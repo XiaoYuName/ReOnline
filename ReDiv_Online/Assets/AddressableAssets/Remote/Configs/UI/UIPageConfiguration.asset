@@ -64,3 +64,9 @@ MonoBehaviour:
     IsTween: 0
     IsMouseRightHide: 0
     Description: "\u57CE\u9547\u4E3B\u754C\u9762"
+  - PageID: PopMessageUI
+    PagePath: Prefabs/UGUI/PopMessageUI/PopMessageUI.prefab
+    UIParent: 0
+    IsTween: 0
+    IsMouseRightHide: 1
+    Description: "\u804A\u5929UI"
