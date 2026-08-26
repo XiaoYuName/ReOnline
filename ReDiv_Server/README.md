@@ -432,17 +432,21 @@ spacetime call rediv character_config_self_test
 - 想调星级看形态变化，走觉醒要先满足等级，**直接写 SQL 最省事**：
   `spacetime sql rediv "UPDATE character SET star = 5 WHERE character_id = 2"`。
 
-### 现在的数据状态（会随开发变，以库里为准）
+### 现在配了哪些角色（以表里为准）
 
-配置：只有 `JobId=1`（凯露，`MaxStar=6`、`StartLevel=1`、`StartStar=1`）。形态五行 ——
-基础线 `FormId=1` 魔法士（1 星）/ `2` 魔导士（3 星、30 级）/ `3` 黑魔法师（6 星、60 级），
-爆发线 `FormId=101` 公主 / `102` 暗黑圣灵。
+两个角色，都是 `MaxStar=6` / `StartLevel=1` / `StartStar=1`，每个**四行形态**：
 
-⚠️ 两个角色（凯露 / 优衣）的形态和美术资源都配好了（`Character/<JobId>/` 下），
-但 `CharacterJob.Subtitle` 还空着、觉醒等级（15 / 30）还是占位数字。
+| JobId | 角色 | 基础线（`FormType=1`） | 爆发线（`FormType=2`） |
+|---|---|---|---|
+| 1 | 凯露 | `1` 魔法士(1★) / `2` 魔导士(3★,15 级) / `3` 黑魔法师(6★,30 级) | `101` 公主(6★) |
+| 2 | 优衣 | `1` 圣职者(1★) / `2` 神赐者(3★,15 级) / `3` 大天使(6★,30 级) | `201` 公主(6★) |
 
-⚠️ 2026-08-24 因为改形态设定**清过一次库**。现在库里是 `alice` / `Carol_01` / `bob_2`
-三个账号，alice 名下有「影狼」（60 级 / 6 星 / 二觉）和「祭星者」（1 级 / 1 星 / 基础）。
+美术资源都配好了（`Character/<JobId>/` 下）。还有几个占位数值没配 ——
+见「配置表 → 现在的配置内容」，别在这儿再列一遍。
+
+> **库里有哪些账号和角色不写在这儿** —— 那是活数据，建 / 删角色一直在变，写死必然漂移。
+> 测试账号见 [../CLAUDE.md](../CLAUDE.md) 第 5 节「本地测试数据」，查当前角色用
+> `spacetime sql rediv "SELECT character_id, name, level, star, job_id FROM character"`。
 
 ---
 
@@ -824,8 +828,10 @@ spacetime sql rediv "DELETE FROM chat_message"
 - **世界频道的独立冷却 / 发言等级门槛 / 喇叭道具** —— 现在世界和附近共用 1 秒冷却，
   全服喊话没有任何额外成本。真要收紧那是经济和道具系统的事
 - 消息里的**表情 / 超链接 / @某人**
-- ~~头顶气泡~~ —— **2026-08-26 已经做了**，纯客户端表现，服务端不知道它的存在，
-  见 [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 5 节「说话气泡」
+
+> 说话气泡（头上冒一句）**做了**，但那是**纯客户端表现** —— 服务端不知道它的存在，
+> 所以这里没有任何相关字段。见
+> [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 5 节「说话气泡」。
 
 ## 版本号
 
@@ -1006,7 +1012,7 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 
 ### 现在的配置内容（会随开发变，以表里为准）
 
-`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下**五张**数据表
+`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下**六张**数据表
 （外加 `__tables__` / `__beans__` / `__enums__` 三张元表）：
 
 | 表 | 内容 | 两端 |
@@ -1016,16 +1022,14 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 | `Town.xlsx` | `TownId=1` 兰德索尔（`IsStartTown=True`）。三列背景 + 三个时段硬对应 | c,s |
 | `TimeBand.xlsx` | 固定 3 行：早 5 点起 / 白天 11 点起 / 夜晚 18 点起 | c,s |
 | `LevelExp.xlsx` | 1~60 级的 `ExpToNext` + `MaxStamina`。**数值是占位的** | c,s |
-| `TownNpc.xlsx` | 城镇 NPC 站在哪个城镇的哪个世界坐标。**服务端看不到**（整表 `group=c`），现在是空表 | c |
-
-⚠️ `LevelExp` 的数值是占位公式（`ExpToNext = Level×100`、`MaxStamina = 15+(Level-1)/2`），
-`CharacterJob.Subtitle` 还空着、觉醒等级还是占位数字 —— 等养成系统定了一起配。
+| `TownNpc.xlsx` | 城镇 NPC 站在哪个城镇的哪个世界坐标。**服务端看不到**（整表 `group=c`） | c |
 
 美术资源都填好了（在 `Assets/AddressableAssets/Remote/Character/<JobId>/` 下，
-`0Common` 给基础形态、另两个子目录给觉醒线和爆发线）。还没定的：
+`0Common` 给基础形态、另两个子目录给觉醒线和爆发线）。
 
-- **觉醒等级是占位数字**（现在 15 / 30）
-- `CharacterJob.Subtitle`（选人界面职业名下面那行小字）还空着
+⚠️ **三处占位数值**，等养成系统定了一起配：`LevelExp` 的整张表
+（`ExpToNext = Level×100`、`MaxStamina = 15+(Level-1)/2`）、觉醒等级（15 / 30）、
+`CharacterJob.Subtitle`（选人界面职业名下面那行小字，现在是空的）。
 
 填表约定：`Name` / `Subtitle` **直接写中文原文**（项目纯中文，没有多语言这一层）；
 资源列填 Addressable **完整路径**（资产上右键 Copy Path，别手敲）。
@@ -1181,7 +1185,8 @@ spacetime server ping rediv-local
 - 登录相关的补齐项：改密码 / 找回密码 / 删号、失败次数锁定（要改错误回报方式，
   见「账号系统 → 有意没做的事」）
 - 角色相关的补齐项：改名、软删角色的恢复入口、扩栏位的入口（付费 / 活动）、敏感词过滤
-- **角色配置的觉醒等级还是占位数字**，`CharacterJob.Subtitle` 还空着
+- 配置里那几个占位数值（觉醒等级 / `Subtitle` / `LevelExp` 整张表）——
+  见「配置表 → 现在的配置内容」
 - 待机动画名不进配置表：编在 `SkeletonUI` 预制体的 `CharacterGraphicUI` 组件上
 - **升星（1→2、3→4→5）还没有接口** —— 那是养成系统的事（材料 / 碎片来源都没定）。
   现在只有觉醒能推星级，测试时用 SQL 直接改
@@ -1189,9 +1194,5 @@ spacetime server ping rediv-local
   装备 / 背包 / 战斗表一张都还没有
 - 「觉醒任务」：现在 `AwakenCharacter` 只校验等级。任务系统做好后在
   `CharacterForms.cs` 那一处 TODO 加条件，表结构不用动
-- Luban 配置怎么进服务端 —— **已解决**，见「配置表」一节
 - 战斗由谁裁定：服务端全权模拟 / 服务端发种子+校验结果
-- **聊天的世界频道** —— 表结构 / 裁剪 / 冷却已经是共用的，缺的就是一个
-  `SendWorldMessage`（域填 `ChatWorldScopeTownId`）+ 客户端多订一句
-  `WHERE town_id = 0`。见「聊天系统」一节
-- 聊天的补齐项：禁言 / 拉黑 / 举报、私聊与队伍频道、敏感词过滤、头顶气泡
+- 聊天的补齐项 —— 见「聊天系统 → 有意没做的事」，别在这里重复一遍
