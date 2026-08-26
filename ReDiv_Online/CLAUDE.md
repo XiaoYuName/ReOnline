@@ -71,7 +71,8 @@ Assets/Scripts/
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
 `AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
-`ServerTools/`、`Tools/`、`UGUI/`、`UITools/`、`PathologicalGames/`（第三方）。
+`ServerTools/`、`TownTools/`（NPC 摆位 + Excel 写回壳子）、`Tools/`、`UGUI/`、`UITools/`、
+`PathologicalGames/`（第三方）。
 
 > 注意 `Framework` 有 asmdef，`Game` 和 `Net` 没有。所以 `Game`/`Net` 可以引用
 > `UnityFramework`，反过来不行。往 `Framework` 里加代码时别引用 `Game` 的类型。
@@ -220,14 +221,20 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 直接用的话编辑器下会解析不到、拿到 null，然后在 `Instantiate` 处炸成一句和资源
 毫无关系的 `ArgumentException: The Object you want to instantiate is null`。
 
-### 角色美术资源在 Luban 的形态表里，但用窗口录入
+### 角色美术资源在 Luban 的形态表里
 
 资源全在 `CharacterForm`（形态表）的客户端列上，填 **Addressable 完整资源路径**。
-**Excel 是唯一真相源**，但**别手打路径** —— 用
-`Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，它算好路径写回 Excel。
+**Excel 是唯一真相源。**
+
+> ⚠️ **原来那个「角色资源配置」窗口 2026-08-26 按用户要求删掉了**（用着不方便），
+> `Assets/Editor/CharacterTools/` 整个目录已经没了。别再在文档或代码里找它，
+> 也别未经要求重新做一个。
+>
+> 现在填路径的做法：在 Project 面板选中资产 **右键 Copy Path**，粘进 Excel ——
+> 手敲容易错，而且改名不同步，只会在运行时表现成「加载不出来」。
 
 > 2026-08-23 和 08-24 各试过一次把资源整套挪进 Odin ScriptableObject，两次都当天退回。
-> **结论：数据留在 Excel，只把录入体验做成窗口。** 别再提议搬走。
+> **结论：数据留在 Excel。** 别再提议搬走。
 
 形态分两条线（`FormType`）：**基础线 1** 是「基础 → 一觉 → 二觉」，按角色**星级**现算；
 **爆发线 2** 一个角色可多个、不分阶段，战斗中装宝石才切。
@@ -253,28 +260,38 @@ View 下发的 `FormId`，**客户端不要自己按星级算**；爆发线自�
 > （`[SpineAnimation] IdleName`，Inspector 里是下拉，选不出不存在的动画名）。
 > 视频列 2026-08-24 已删。
 
-#### 配置窗口：`Tools > XFramework > 配置 > 角色资源配置`
+#### NPC 摆位窗口：`Tools > XFramework > 配置 > NPC 摆位`
 
-实现在 `Assets/Editor/CharacterTools/CharacterResourceWindow.cs`。闭环：
+实现在 `Assets/Editor/TownTools/TownNpcPlacementWindow.cs`（2026-08-26 加的）。
+解决的是「`TownNpc` 表里的 `PosX`/`PosY` 是世界坐标，在 Excel 里只能填数字、看不到背景」。
 
 ```
-CharacterForm.xlsx --(Luban 导出)--> tbcharacterform.json --(窗口读)--> 拖资产
-                   <--(ExcelTable.ps1 UpdateRows)-- 「写入 Excel」
+TownNpc.xlsx --(Luban 导出)--> tbtownnpc.json --(窗口读)--> 场景里的预览对象（可拖）
+             <--(ExcelTable.ps1 AddRows/UpdateRows/DeleteRows)-- 「写入 Excel」
 ```
 
-- 形态行**从导出的 json 读**，不是手敲 —— 配不出表里不存在的 FormId
-- 拖拽录入：图收 `Sprite`、预制体收 `GameObject`，类型不对拖不进去，路径由 `AssetDatabase` 算
-- 校验：资产还在不在、有没有漏配头像 / UI 展示预制体、`SkeletonUI` 上有没有
-  `CharacterGraphicUI`（没有就播不了待机动画）。这和服务端自检**互补** ——
-  那边查表间引用和星级门槛，查不了资源
-- 「写入 Excel」按 `JobId+FormId` 定位，**只写资源列**，不碰数值 / 名字 / 排序；
-  默认勾着「写完自动重新导出配置」
+用法：选城镇 → 「打开预览」（把那张背景和这个城镇所有 NPC 生成到场景里）→
+在 **Scene 视图**里直接拖（列表里点「选中」能跳过去）→ 「写入 Excel」（默认顺手重新导出）。
 
-⚠️ 窗口显示的是**上次导出**的内容。绕过窗口直接改 Excel 又没导出的话窗口看不到 ——
-好在写回只动资源列、按联合主键定位，不会覆盖别人改的列。服务端那份改完仍要 `spacetime publish`。
+- **预览对象全带 `HideFlags.DontSave`** —— 不会被存进场景，进 Play / 重开场景就没。
+  关窗口时也会自动收干净，另外还按名字兜了一次底（域重载之后引用可能丢）
+- 背景直接放在**原点**，和运行时挂法一致（`Games/Backgrounds` 那一串都是原点 + 缩放 1），
+  所以窗口里拖出来的世界坐标和游戏里所见一致
+- 「预览背景」下拉只影响**用哪张图当参照**（早/中/晚），不影响数据 ——
+  NPC 表没有时段这一列，一个 NPC 三个时段都在
+- Spine 预制体是**拖进去的**（`GameObject` 字段），路径由 `AssetDatabase` 算，手打不了
+- 写回顺序是 **先删、再改、后加** —— 反过来新加的 id 可能和待删的撞上
+- 坐标写回时**留三位小数**（世界单位下 0.001 已经是亚像素了，位数多了表里难看）
 
-要加跑 / 攻击 / 受击这类资源：给形态表 `AddColumn`（带 `-Group c`），
-再在窗口的 `FormRow` 上加一对「路径字段 + 拖拽属性」，TableList 会自动多一列。
+⚠️ 窗口显示的是**上次导出**的内容。有人绕过窗口直接改了 Excel 又没导出的话这里看不到，
+点「重新读取」之前先跑一次配置导出（F6）。
+
+⚠️ 成功路径**不弹框**（每写一次点一下很烦，而且模态框会卡住无人值守的自动化 ——
+用 `unity command eval` 驱动窗口时实测卡死过）。只有失败才弹。
+
+跑 Excel 那一步会后台起一个 EXCEL.EXE，**秒级**，比 Pipeline 的 5 秒超时还长 ——
+用 `eval` 驱动时会看到一条 `/api/exec ... timed out`，那是 Pipeline 自己的超时，
+写入其实成功了，别当成失败。
 
 ### 编辑器菜单约定
 
@@ -678,9 +695,8 @@ HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没
 3. **NPC 不需要每帧 tick**：站着不动，摆完就不管了。别学远端玩家那套插值。
 4. `ClearNpcs()` 必须在 `spawner.Release()` **之前**调 —— 那一步会把对象池整个拆掉。
 
-⚠️ 坐标只能在 Excel 里填数字、**看不到背景**，得反复导出试位置（和出生点当初一样的问题）。
-NPC 多起来之后值得做个「NPC 摆位」窗口：场景里拖空节点 → 写回 Excel，
-和 `角色资源配置` 窗口一个套路。
+**坐标别手填** —— 用 `Tools > XFramework > 配置 > NPC 摆位` 窗口在场景里对着背景拖，
+拖完一键写回 Excel，见第 4 节「NPC 摆位窗口」。
 
 #### 右上角信息栏
 

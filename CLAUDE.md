@@ -331,7 +331,8 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 3. **双客户端实测同城镇玩家**：渲染路径验过了（注入合成玩家 + 按 town_id 的订阅确实在收数据），
    但**两个真客户端同时在线没试过** —— 要出个包和编辑器对着跑一次。
 4. **补配置的占位值**：`CharacterJob.Subtitle` 还空着，觉醒等级（15 / 30）是占位数字。
-   资源列**别手打路径** —— 用 `Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产写回 Excel。
+   资源列填 Addressable 完整路径（**在资产上右键 Copy Path 粘过去**，别手敲）。
+   ⚠️ 那个「角色资源配置」窗口 **2026-08-26 按用户要求删了**（不好用），别再找它。
    改完跑 `spacetime call rediv character_config_self_test` 自检。
 5. **再加城镇**：新城镇要做三个背景预制体（**世界空间 SpriteRenderer**，Sorting Layer
    `Ground`，比例烘在 localScale 里），每张上面还要有 `StartPoints`（出生点）和
@@ -362,7 +363,9 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
 | `SkeletonTown` | 城镇 Spine 预制体的 Addressable 完整路径，预制体上要有 `TownSkeletonController` |
 
 改完跑 ConfigTools 第 1 步（导出）就生效。**坐标只能填数字、看不到背景**，
-嫌麻烦可以让 AI 做个「NPC 摆位」窗口（在场景里拖空节点、写回 Excel），像角色资源配置那个窗口一样。
+**坐标别手填** —— 用 `Tools > XFramework > 配置 > NPC 摆位` 窗口：选城镇 → 打开预览
+（把那张背景和所有 NPC 生成到场景里）→ 在 Scene 视图里直接拖 → 「写入 Excel」。
+新增 / 删除 NPC、拖 Spine 预制体（路径工具算）也在那个窗口里。
 
 ### 本地测试数据（开发库 `rediv` 里现成的）
 
@@ -413,7 +416,7 @@ spacetime sql rediv "UPDATE character SET star = 5, level = 30 WHERE character_i
   城镇和世界时间是例外，已经建了（用户 2026-08-25 指定的）
 - 「玩家自己在城镇之间走」的 Reducer —— 只有「进游戏时落位」（`PlaceCharacter`）。
   城镇怎么解锁 / 能不能随便去还没定，**要动手前先问**
-- 城镇背景资源的录入窗口 —— 角色资源有窗口，城镇没有（城镇少，路径暂时手填）
+- 城镇背景资源的录入窗口 —— 城镇少，那三列路径暂时手填（NPC 有摆位窗口，背景没有）
 - ~~可行走边界~~ —— **2026-08-26 已经做了**：美术在每张背景预制体里画
   `EdgeCollider2D`（节点 `GroundCollider`，物理层 `Ground`），
   客户端走 `TownGround` 的扫掠查询挡住自己，见客户端文档第 5 节

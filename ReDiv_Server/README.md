@@ -752,11 +752,10 @@ ExcelTool/LubanTools/DataTables/
 | `Name` / `SortOrder` | `c` | 形态名（中文原文）、同一条线内的排序 |
 | `IconKey` / `UnitPlateIconKey` / `NameIconKey` / `ArtImage` / `StillUnitPrefab` / `SkeletonUI` / `SkeletonScreen` | `c` | 头像 / 略缩图 / 名字图 / 立绘 / 预览图预制体 / UI展示预制体 / 战斗Spine预制体，都填 **Addressable 完整路径** |
 
-⚠️ 资源列**别手打路径**：客户端有个
-`Tools > XFramework > 配置 > 角色资源配置` 窗口，拖资产、算路径、写回 Excel，
-详见 [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 4 节。
-（2026-08-23 和 08-24 各试过一次把资源整套挪进 ScriptableObject，两次都退回来了 ——
-**结论是数据留在 Excel，只把录入体验做成窗口**，别再提议搬走。）
+⚠️ 资源列填 Addressable 完整路径：在 Project 面板选中资产**右键 Copy Path** 粘过去，别手敲。
+（原来有个「角色资源配置」窗口专门干这个，**2026-08-26 按用户要求删了**，别再找。
+另外 2026-08-23 和 08-24 各试过一次把资源整套挪进 ScriptableObject，两次都退回来了 ——
+**结论是数据留在 Excel**，别再提议搬走。）
 
 **服务端完全看不到这些资源**（它们是 `group="c"`），所以自检 Reducer 查不了它们 ——
 资源那半边的校验在那个窗口里，两边互补。
@@ -861,8 +860,7 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 - `CharacterJob.Subtitle`（选人界面职业名下面那行小字）还空着
 
 填表约定：`Name` / `Subtitle` **直接写中文原文**（项目纯中文，没有多语言这一层）；
-资源列填 Addressable **完整路径**，但**别手打** —— 用客户端的
-`Tools > XFramework > 配置 > 角色资源配置` 窗口拖资产，它会写回 Excel。
+资源列填 Addressable **完整路径**（资产上右键 Copy Path，别手敲）。
 改完跑一次 `spacetime call rediv character_config_self_test`。
 
 ---

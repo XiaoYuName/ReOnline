@@ -406,7 +406,7 @@ public class ConfigTools : OdinEditorWindow
     /// <summary>
     /// 给**别的编辑器工具**调：重新导出客户端 + 服务端配置，参数照样取自 ConfigToolsSettings。
     ///
-    /// 现在的调用方是角色资源配置窗口（写完 Excel 顺手重新导出）。
+    /// 现在的调用方是 NPC 摆位窗口（写完 Excel 顺手重新导出）。
     /// 有这个入口是为了别在各处另写一份 dotnet Luban.dll 的调用 —— 那样输出目录迟早对不上，
     /// 这个坑踩过（见 <see cref="RunLuban"/> 上面的注释）。
     ///
