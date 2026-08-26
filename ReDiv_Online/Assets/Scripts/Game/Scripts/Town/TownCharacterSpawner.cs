@@ -76,7 +76,32 @@ public sealed class TownCharacterSpawner
     /// 配置里没配 <c>SkeletonTown</c> 时**照样返回外层**（只是没有形象）——
     /// 名字之类的还得显示，而且这样「美术还没做那个形态」不会让人整个消失。
     /// </summary>
-    public TownCharacterController Acquire(uint jobId, uint formId)
+    public TownCharacterController Acquire(uint jobId, uint formId) =>
+        AcquireByKey(ResolveSkeletonKey(jobId, formId));
+
+    /// <summary>
+    /// 按 **Spine 预制体路径**取一只（NPC 用）。
+    ///
+    /// NPC 没有 JobId / FormId —— 它的形象路径是直接写在配置表 <c>TownNpc.SkeletonTown</c> 上的，
+    /// 所以绕开形态表这一层。取出来的还是同一套两层结构，名字 / 朝向照常能用。
+    /// </summary>
+    public TownCharacterController Acquire(string skeletonKey) => AcquireByKey(skeletonKey);
+
+    /// <summary>形态表里那个形态的城镇 Spine 路径。查不到返回空串（外层照样给，只是没形象）。</summary>
+    private string ResolveSkeletonKey(uint jobId, uint formId)
+    {
+        var form = LubanManager.Instance.TbCharacterForm?.Get((int)jobId, (int)formId);
+
+        if (form == null)
+        {
+            Debug.LogWarning($"[TownSpawner] 配置里没有 (JobId={jobId}, FormId={formId}) 这个形态");
+            return string.Empty;
+        }
+
+        return form.SkeletonTown;
+    }
+
+    private TownCharacterController AcquireByKey(string skeletonKey)
     {
         if (!Initialize())
         {
@@ -107,30 +132,22 @@ public sealed class TownCharacterSpawner
             return null;
         }
 
-        controller.Bind(AcquireSkeleton(jobId, formId));
+        controller.Bind(AcquireSkeleton(skeletonKey));
         return controller;
     }
 
     /// <summary>
-    /// 取一个 Spine。取不到返回 null —— 调用方要容忍（外层照样能用）。
+    /// 取一个 Spine。取不到返回 null —— 调用方要容忍（外层照样能用，至少名字还在）。
     /// </summary>
-    private TownSkeletonController AcquireSkeleton(uint jobId, uint formId)
+    private TownSkeletonController AcquireSkeleton(string skeletonKey)
     {
-        var form = LubanManager.Instance.TbCharacterForm?.Get((int)jobId, (int)formId);
-
-        if (form == null)
+        if (string.IsNullOrEmpty(skeletonKey))
         {
-            Debug.LogWarning($"[TownSpawner] 配置里没有 (JobId={jobId}, FormId={formId}) 这个形态");
+            // 这个形态还没配城镇预制体 / NPC 没填路径。静默 —— 运行时反复刷日志没意义
             return null;
         }
 
-        if (string.IsNullOrEmpty(form.SkeletonTown))
-        {
-            // 这个形态还没配城镇预制体。静默 —— 运行时反复刷日志没意义
-            return null;
-        }
-
-        Transform prefab = GetPrefab(form.SkeletonTown);
+        Transform prefab = GetPrefab(skeletonKey);
 
         if (prefab == null)
         {
@@ -141,7 +158,7 @@ public sealed class TownCharacterSpawner
 
         if (instance == null)
         {
-            Debug.LogError($"[TownSpawner] 池子取不出 Spine：{form.SkeletonTown}");
+            Debug.LogError($"[TownSpawner] 池子取不出 Spine：{skeletonKey}");
             return null;
         }
 
@@ -149,12 +166,12 @@ public sealed class TownCharacterSpawner
 
         if (skeleton == null)
         {
-            Debug.LogError($"[TownSpawner] {form.SkeletonTown} 上没有 TownSkeletonController 组件");
+            Debug.LogError($"[TownSpawner] {skeletonKey} 上没有 TownSkeletonController 组件");
             pool.Despawn(instance);
             return null;
         }
 
-        skeletonKeys[skeleton] = form.SkeletonTown;
+        skeletonKeys[skeleton] = skeletonKey;
         return skeleton;
     }
 

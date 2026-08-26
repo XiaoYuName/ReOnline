@@ -9,8 +9,10 @@ using XFramework;
 ///
 /// <code>
 /// TownBackgroundController        ← 挂在 Games/Backgrounds 下（世界空间，原点 + 缩放 1）
-/// ├── Background                  ← 运行时按「城镇 + 时段」把背景预制体塞进这里
-/// └── StartPoint                  ← 出生点：玩家进城镇就站这儿
+/// └── Background                  ← 运行时按「城镇 + 时段」把背景预制体塞进这里
+///     └── Town_50020              ← SpriteRenderer + TownGroundController
+///         ├── StartPoints         ← **出生点**（跟着地图美术走，所以在内层）
+///         └── GroundCollider      ← **可行走边界**（同上）
 /// </code>
 ///
 /// **背景是世界空间的 SpriteRenderer，不再是 UI**（2026-08-25 改的）。原来它挂在
@@ -20,9 +22,9 @@ using XFramework;
 /// 现在美术**钉在世界坐标里**，适配交给相机做。
 ///
 /// **职责划分**（别混）：
-///   本类                     出生点、把背景塞进来 / 摘出去
-///   内层背景预制体           就一个 SpriteRenderer（材质 + Sorting Layer + 拉成 16:9 的 scale）
-///   <see cref="MainCommonUI"/>  决定「该显示哪张」并负责取用回收
+///   本类                        把背景塞进来 / 摘出去，出生点**转发**给内层
+///   <see cref="TownGroundController"/>  内层：出生点 + 可行走边界（跟着地图美术走，一张图一套）
+///   <see cref="MainCommonUI"/>          决定「该显示哪张」并负责取用回收
 ///
 /// ⚠️ **内层的 scale 是美术在预制体里烘好的**（方图压扁存，靠 x≈1.7778 拉开），
 /// 本类**不去动它** —— 想改画面大小就在那个预制体上改，代码里别偷偷覆盖。
@@ -40,26 +42,22 @@ public class TownBackgroundController : GameBase
     [SerializeField]
     private Transform backgroundTran;
 
-    [BoxGroup("节点"), LabelText("出生点"), Required]
-    [Tooltip("玩家进这个城镇时站的位置。就是个空节点，摆到背景上想让人出现的地方即可")]
-    [SerializeField]
-    private Transform startPoint;
-
     /// <summary>当前挂着的背景实例。还没塞进来 / 配置没配这个时段时是 null。</summary>
     public GameObject Background { get; private set; }
 
     /// <summary>
-    /// 出生点世界坐标。没配出生点节点就退回本节点自己的位置（通常是原点）——
-    /// 那会表现成「所有人挤在画面正中」，所以 <see cref="Awake"/> 里会明说一次。
+    /// 当前背景上的地面数据（出生点 + 边界）。背景预制体上没挂
+    /// <see cref="TownGroundController"/> 时是 null。
     /// </summary>
-    public Vector2 SpawnPosition
-    {
-        get
-        {
-            Vector3 p = startPoint != null ? startPoint.position : transform.position;
-            return new Vector2(p.x, p.y);
-        }
-    }
+    public TownGroundController Ground { get; private set; }
+
+    /// <summary>
+    /// 出生点世界坐标 —— **来自当前那张背景**（<see cref="TownGroundController"/>）。
+    /// 背景还没塞进来、或者那张图没挂地面组件时退回本节点自己的位置（通常是原点）：
+    /// **配漏了要退化，不能让人进不了城镇**。
+    /// </summary>
+    public Vector2 SpawnPosition =>
+        Ground != null ? Ground.SpawnPosition : new Vector2(transform.position.x, transform.position.y);
 
     /// <summary>
     /// 把一张背景装进来。传 null 是合法的（这个城镇的这个时段还没配图），
@@ -76,6 +74,15 @@ public class TownBackgroundController : GameBase
 
         background.transform.SetParent(backgroundTran, false);
         background.transform.localPosition = Vector3.zero;
+
+        // 出生点和边界都在这张图上，换一张图就换一套
+        Ground = background.GetComponent<TownGroundController>();
+
+        if (Ground == null)
+        {
+            Debug.LogWarning($"[TownBackground] {background.name} 上没有 TownGroundController，" +
+                             $"这张图没有出生点也没有可行走边界");
+        }
     }
 
     /// <summary>解绑并把背景交还给调用方（由它负责回收）。</summary>
@@ -83,27 +90,7 @@ public class TownBackgroundController : GameBase
     {
         GameObject background = Background;
         Background = null;
+        Ground = null;
         return background;
     }
-
-    private void Awake()
-    {
-        if (startPoint == null)
-        {
-            Debug.LogWarning($"[TownBackground] {name} 没配出生点节点，落点退回控制器自己的位置");
-        }
-    }
-
-#if UNITY_EDITOR
-    /// <summary>把出生点画出来 —— 摆位置时不用进 Play 也能看见。</summary>
-    private void OnDrawGizmos()
-    {
-        Vector3 center = startPoint != null ? startPoint.position : transform.position;
-
-        Gizmos.color = new Color(0.3f, 1f, 0.4f, 0.9f);
-        Gizmos.DrawWireSphere(center, 0.2f);
-        Gizmos.DrawLine(center + Vector3.down * 0.4f, center + Vector3.up * 0.4f);
-        Gizmos.DrawLine(center + Vector3.left * 0.4f, center + Vector3.right * 0.4f);
-    }
-#endif
 }

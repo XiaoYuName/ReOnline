@@ -20,7 +20,7 @@ using XFramework;
 /// </code>
 ///
 /// **职责划分**（别混）：
-///   本类               位置（走路 / 传送 / 远端插值）、名字
+///   本类               位置（走路 / 传送 / 远端插值）、名字、**撞不撞边界**
 ///   TownSkeletonController  动画（待机/走路）、朝向（只翻它自己）
 ///
 /// ⚠️ **朝向必须翻在 Spine 那一层，不能翻外层**。翻外层的话名字文字会跟着镜像。
@@ -45,6 +45,12 @@ public class TownCharacterController : GameBase
     [Tooltip("挂在 NameAnchor 上。头顶偏移调 Name 子节点的 localPosition.y，不是这里")]
     [SerializeField]
     private BoneFollower nameFollower;
+
+    [BoxGroup("移动"), LabelText("边界碰撞半径"), MinValue(0f)]
+    [Tooltip("按脚下这一点做扫掠检测的半径。0 = 退化成一条射线。" +
+             "调大角色会离墙更远就停下，调太大可能在窄处卡住")]
+    [SerializeField]
+    private float blockRadius = 0.05f;
 
     /// <summary>当前挂着的 Spine。没塞进来 / 配置没配城镇预制体时是 null。</summary>
     public TownSkeletonController Skeleton { get; private set; }
@@ -172,7 +178,13 @@ public class TownCharacterController : GameBase
         }
 
         Vector2 step = direction.normalized * (Skeleton.MoveSpeed * deltaTime);
-        transform.position += new Vector3(step.x, step.y, 0f);
+
+        // ⚠️ **先问边界能不能走再写位置**。判定点就是本节点的位置（角色锚点在脚下），
+        // 按轴分离 ⇒ 贴着斜墙走会自然滑动。没配边界时 TownGround 会一律放行。
+        // 只有自己走这条路：远端玩家用 MoveTowards，坐标是服务端转发的权威值，不夹
+        Vector3 current = transform.position;
+        Vector2 moved = TownGround.Move(new Vector2(current.x, current.y), step, blockRadius);
+        transform.position = new Vector3(moved.x, moved.y, current.z);
 
         // 只在水平方向有明显输入时才翻身，否则纯上下走会来回抖
         if (Mathf.Abs(direction.x) > 0.01f)
@@ -180,6 +192,8 @@ public class TownCharacterController : GameBase
             Skeleton.SetFacing(direction.x >= 0f ? 1 : -1);
         }
 
+        // ⚠️ 被边界挡住时**照样算"在走"**：玩家推着摇杆顶墙，播走路动画才对
+        //（原地踏步），而且位置没变的话调用方的节流本来就不会上报
         Skeleton.SetMoving(true);
         return true;
     }

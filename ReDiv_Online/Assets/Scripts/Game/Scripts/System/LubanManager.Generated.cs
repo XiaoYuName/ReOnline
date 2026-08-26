@@ -76,6 +76,20 @@ namespace XFramework
             }
         }
 
+        private TbTownNpc _tbTownNpc;
+
+        public TbTownNpc TbTownNpc
+        {
+            get
+            {
+                return LoadTable(
+                    ref _tbTownNpc,
+                    AssetKeys.TbtownnpcPath,
+                    json => new TbTownNpc(json)
+                );
+            }
+        }
+
         partial void ClearGeneratedCache()
         {
             _tbCharacterForm = null;
@@ -88,6 +102,8 @@ namespace XFramework
             AssetsManager.Instance.FreeAsset(AssetKeys.TbtimebandPath);
             _tbTown = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TbtownPath);
+            _tbTownNpc = null;
+            AssetsManager.Instance.FreeAsset(AssetKeys.TbtownnpcPath);
         }
     }
 }

@@ -53,7 +53,7 @@ Assets/Scripts/
 │       ├── Save/
 │       ├── System/            GameManager / GameDataManager / LubanManager
 │       ├── Tools/
-│       ├── Town/              城镇背景（世界空间，含出生点）/ 角色两层控制器 + 取用回收（PoolManager）
+│       ├── Town/              城镇背景（世界空间）/ 出生点 + 边界 / 角色与 NPC 的两层控制器 + 取用回收
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
     ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState，不建任何订阅
@@ -141,8 +141,8 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 > 2026-08-24 就是因为 `AddColumn` 写死了 1/2/3，给 `CharacterJob` 加
 > `StartStar` / `MaxStar` / `Subtitle` 时把中文注释写进了 `##group` 行。
 >
-> 现在**五张**数据表（`CharacterJob` / `CharacterForm` / `Town` / `TimeBand` / `LevelExp`）
-> 都是 4 行表头，`read_schema_from_file` 全是 `True`。
+> 现在**六张**数据表（`CharacterJob` / `CharacterForm` / `Town` / `TimeBand` / `LevelExp` /
+> `TownNpc`）都是 4 行表头，`read_schema_from_file` 全是 `True`。
 > `__tables__` / `__beans__` / `__enums__` 是 Luban 的**元表**，自己有 `group` **列**，
 > 不适用这一行，别给它们加。
 >
@@ -181,10 +181,16 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 | `Town.xlsx` | `TbTown` | 城镇 + 三个时段的背景预制体（**世界空间 SpriteRenderer**） |
 | `TimeBand.xlsx` | `TbTimeBand` | 早 / 中 / 晚三段的边界（起始小时） |
 | `LevelExp.xlsx` | `TbLevelExp` | 升级所需经验 + 该等级体力上限。**数值是占位的** |
+| `TownNpc.xlsx` | `TbTownNpc` | 城镇 NPC：站在哪个城镇的哪个世界坐标。**纯客户端**（全 `c`），现在是空表 |
 
-⚠️ **加了表要跑 ConfigTools 的第 2、3 步**（AssetKeys / LubanManager），
-不然 `LubanManager.TbXxx` 那个属性生成不出来 —— 只跑第 1 步导出会编译报
-「does not contain a definition for 'TbXxx'」。这个坑 2026-08-25 加 LevelExp 时刚踩过。
+⚠️ **加了表要按顺序跑四步**：第 1 步导出 → **自动打包 Addressable**（打标）→
+第 2 步 AssetKeys → 第 3 步 LubanManager。少一步就编译不过，而且报错指向的地方很误导：
+
+- 只跑第 1 步 ⇒ `LubanManager.TbXxx` 没生成 ⇒ 「does not contain a definition for 'TbXxx'」
+  （2026-08-25 加 `LevelExp` 时踩过）；
+- **导出完没打标就生成 AssetKeys** ⇒ 新的 `tbxxx.json` 还没进 Addressables ⇒
+  `AssetKeys.TbxxxPath` 没有 ⇒ `LubanManager.Generated.cs` 编不过
+  （2026-08-26 加 `TownNpc` 时踩过）。AssetKeys 是从 **Addressables 条目**生成的，不是从文件系统。
 
 ---
 
@@ -523,15 +529,23 @@ CanvasScaler，背景的实际大小会随分辨率 / 宽高比变，而角色�
 
 ```
 Games/Backgrounds                      ← 场景节点，Tag = Backgrounds
-└── TownBackgroundController           ← 外层，**所有城镇共用一个预制体**
-    ├── Background                     ← 运行时按「城镇 + 时段」把背景塞进来
-    │   └── Town_50022                 ← SpriteRenderer（材质 VariantCard，Sorting Layer Ground）
-    └── StartPoint                     ← **出生点**：进城镇就站这儿
+└── TownBackgroundController           ← 外层，**所有城镇共用一个预制体**（只是个壳 + 挂载点）
+    └── Background                     ← 运行时按「城镇 + 时段」把背景塞进来
+        └── Town_50020                 ← SpriteRenderer（材质 VariantCard，Sorting Layer Ground）
+            ├── StartPoints            ← **出生点**
+            └── GroundCollider         ← **可行走边界**（EdgeCollider2D，物理层 Ground）
 ```
+
+**出生点和边界在内层、不在外层** —— 它们是**跟着地图美术走**的，一张图一套。
+（2026-08-25 一开始放在共用外层上，那样所有城镇同一个落点，2026-08-26 改成了现在这样。）
+⚠️ 代价是**一个城镇三个时段就有三份**，三份要保持一致：改了一张记得另外两张一起改，
+不然玩家跨时段会发现「白天能走的地方晚上走不了」。
 
 | 文件 | 职责 |
 |---|---|
-| `Game/Scripts/Town/TownBackgroundController.cs` | 外层：出生点 + `Bind()` / `Unbind()` 把背景塞进来 / 摘出去 |
+| `Game/Scripts/Town/TownBackgroundController.cs` | 外层：`Bind()` / `Unbind()` 塞背景 / 摘背景，出生点**转发**给内层 |
+| `Game/Scripts/Town/TownGroundController.cs` | **内层**：出生点 + 边界自检（少碰撞体、层放错都会报出来） |
+| `Game/Scripts/Town/TownGround.cs` | 边界的**扫掠查询**（纯几何，不开物理模拟） |
 | `Game/Scripts/Town/TownWorldRoots.cs` | 按 Tag 找两个世界空间根节点 |
 | `Game/Scripts/UGUI/MainCommonUI/MainCommonUI.cs` | 听 `TownManager` 的事件，决定该显示哪张、负责取用回收 |
 
@@ -540,7 +554,7 @@ Games/Backgrounds                      ← 场景节点，Tag = Backgrounds
 | 节点 | Tag | 挂什么 |
 |---|---|---|
 | `GameManager/Games/SkeletonCharacters` | `SkeletonCharacters` | 城镇角色（外层控制器 + 按形态的 Spine），走 PoolManager |
-| `GameManager/Games/Backgrounds` | `Backgrounds` | 背景外层控制器（里面按时段塞背景），出生点也在它身上 |
+| `GameManager/Games/Backgrounds` | `Backgrounds` | 背景外层控制器（里面按时段塞背景，出生点和边界在那张背景上） |
 
 两个节点连同 `Games` 这一层**都是原点 + 缩放 1**，所以挂上去的东西 local 坐标就是世界坐标。
 查找一律走 `TownWorldRoots.Find(tag)` —— **按 Tag 不按路径**（节点在层级里挪位置不该改代码），
@@ -574,14 +588,40 @@ TownManager.CurrentBandId ──┘         │
 3. 三列（`BgMorning` / `BgNoon` / `BgNight`）和三个时段**按 BandId 硬对应**，
    段数固定 3 段（服务端自检守住）。某列为空 ⇒ 那个时段没背景，不报错。
 
-**出生点**：进城镇的落点规则只有一条 —— **每次进城镇都站到 `StartPoint`**。
+**出生点**：进城镇的落点规则只有一条 —— **每次进城镇都站到那张图的 `StartPoints`**。
 服务端只记「在哪个城镇」、从来不存坐标（`CharacterTransform` 是连接级、断线就清），
 所以新角色进初始城镇、以后换城镇走的都是同一条路。用户 2026-08-25 明确定的
-**不记住上次站的位置**。没有外层实例时退回原点（老行为），**配漏了要退化，不能让人进不了城镇**。
+**不记住上次站的位置**。背景还没塞进来 / 那张图没挂地面组件时退回原点（老行为）：
+**配漏了要退化，不能让人进不了城镇**。
 
-> ⚠️ **`StartPoint` 在共用外层上 ⇒ 现在所有城镇是同一个落点。** 只有一个城镇时没问题，
-> 加第二个城镇之前要先定怎么按城镇分（外层做预制体变体 + 配置加一列，
-> 或者内层背景带一个可选 `StartPoint` 覆盖）。**别默认它已经是按城镇的。**
+##### 可行走边界（2026-08-26）
+
+美术在每张背景预制体里画一条 `EdgeCollider2D`（节点 `GroundCollider`），围出能走的地面
+（兰德索尔那条是 14 个点、首尾闭合、`edgeRadius 0.07`）。判定在
+[`TownGround`](Assets/Scripts/Game/Scripts/Town/TownGround.cs)：
+
+- **不开物理模拟、角色身上没有 `Rigidbody2D` / `Collider2D`**。移动照旧直接写
+  `transform.position`，只是写之前先 `Physics2D.CircleCast` 问一句「这一步会不会穿过边界」。
+  不用物理是因为那要改成 `MovePosition`、受 FixedUpdate 节奏影响，还得管远端玩家的刚体互推。
+- **碰撞体必须在物理层 `Ground`**（不是 Sorting Layer 那个 Ground，两回事）。
+  层放错的表现是「边界完全不起作用」，`TownGroundController` 在 `Awake` 里会报出来。
+- **只夹自己不夹别人**：远端玩家的坐标是服务端转发的权威值，夹回来只会让他在我屏幕上
+  和他自己看到的位置不一致。
+- 没配边界 / 工程里没有 `Ground` 层 ⇒ **退化成一律放行**，不能变成「一步都走不了」。
+
+三个实测踩过的坑（改这段代码前必读，都写在 `TownGround` 的注释里了）：
+
+| 坑 | 现象 | 正确做法 |
+|---|---|---|
+| **按轴分离滑不动斜坡** | 先试 X 再试 Y 那种写法，贴着微微上升的地面底边往右走，X 直接撞斜面，人在 x=3.23 卡死 | 用 **collide & slide**：撞了就走到贴墙为止，把剩下的位移**投影到表面切线**再走一次 |
+| **`hit.distance` 不是圆心能走的距离** | 对 `CircleCast` 它是「起点到接触点」的距离，比圆心位移多约一个半径；拿它当位移用等于每次贴墙都把人往墙里塞，塞进去之后（`queriesStartInColliders` 默认 true）所有方向都返回 0，人彻底卡死 | 用 **`hit.fraction * distance`** |
+| **「朝离开墙的方向就整步放行」是免检** | 起点只要接触就 fraction=0，条件太容易满足 ⇒ 角色直接穿过边界飞到 x=53 | 嵌进去时只**沿法线挪一丁点**（`SkinWidth`），这一帧位移一点都不放行 |
+
+角色那边只多了一个字段：`TownCharacterController.blockRadius`（默认 `0.05`，扫掠半径，
+0 就退化成射线）。判定点是**外层节点自己的位置**，也就是角色脚下。
+
+⚠️ 边界画得比 16:9 可视范围略宽（实测右墙在 x≈9.03，而 16:9 只看得到 ±8.89），
+所以人能走出画面一点点。等相机适配（固定视野盒）做完再让美术收一下就行。
 
 > ⚠️ **背景不认识网络层。** 它不订阅任何东西、不碰 `Conn`、不自己算时段 ——
 > 「该显示哪张」全由 `MainCommonUI` 从 `TownManager` 算好再喂给它。
@@ -609,6 +649,38 @@ TownManager.CurrentBandId ──┘         │
   那时宽屏多看到的是地图内容，黑边可以撤掉，相机组件之外的东西都不用改。
 
 HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没定**。
+
+#### 城镇 NPC（配置表 `TownNpc`）
+
+一行一个 NPC，站在某个城镇的**固定世界坐标**上。2026-08-26 加的，通路已经跑通，
+**表现在是空的**，等策划填。
+
+| 列 | 说明 |
+|---|---|
+| `NpcId` | 全局唯一 |
+| `TownId` | 站在哪个城镇，对应 `Town.TownId` |
+| `Name` | 头顶显示的名字（中文原文） |
+| `PosX` / `PosY` | **世界坐标**。画面中心是 0，地面大概在 y = -3 ~ -5 之间 |
+| `Facing` | `1` 朝右 / `-1` 朝左 |
+| `SkeletonTown` | 城镇 Spine 预制体的 Addressable 完整路径（预制体上要有 `TownSkeletonController`） |
+
+**NPC 复用玩家角色那套两层结构** —— 外层还是 `TownCharacterController`，
+所以名字、朝向、头顶跟骨骼全是白拿的；区别只在于 Spine 路径不是按 `(JobId, FormId)`
+查形态表，而是直接写在 NPC 表里，所以 `TownCharacterSpawner` 多了一个
+`Acquire(string skeletonKey)` 重载。
+
+四条约束：
+
+1. **纯客户端表现**：服务端没有 NPC 概念，不上报、不同步、不进 `TownPlayers`。
+   表的 `group` 全是 `c`，所以改完 **不用 `spacetime publish`**。
+2. `MainCommonUI.RefreshNpcs()` **幂等**，按 `CurrentTownId` 挡住 —— 它挂在几个
+   高频事件上，不挡的话每次都会把 NPC 拆了重摆。
+3. **NPC 不需要每帧 tick**：站着不动，摆完就不管了。别学远端玩家那套插值。
+4. `ClearNpcs()` 必须在 `spawner.Release()` **之前**调 —— 那一步会把对象池整个拆掉。
+
+⚠️ 坐标只能在 Excel 里填数字、**看不到背景**，得反复导出试位置（和出生点当初一样的问题）。
+NPC 多起来之后值得做个「NPC 摆位」窗口：场景里拖空节点 → 写回 Excel，
+和 `角色资源配置` 窗口一个套路。
 
 #### 右上角信息栏
 

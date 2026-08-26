@@ -12,7 +12,8 @@ using XFramework;
 ///      出生点在背景外层控制器的 <c>StartPoint</c> 上；
 ///   2. **右上角信息** —— 等级 / 经验 / 体力（角色级）+ 金币 / 钻石（账号级，全角色共享）；
 ///   3. **自己的角色** —— 按 (JobId, FormId) 取城镇控制预制体，摇杆驱动移动并上报坐标；
-///   4. **同城镇的其他玩家** —— 按服务端推的坐标插值跟随。
+///   4. **同城镇的其他玩家** —— 按服务端推的坐标插值跟随；
+///   5. **NPC** —— 按配置表 <c>TownNpc</c> 摆在固定坐标上（纯客户端，服务端不知道它们）。
 ///
 /// 数据全部来自三个门面（<see cref="TownManager"/> / <see cref="CharacterManager"/>），
 /// **本界面不碰 Conn、不自己算时段**。
@@ -65,6 +66,12 @@ public partial class MainCommonUI : UIBase
     private readonly Dictionary<ulong, TownCharacterController> otherCharacters =
         new Dictionary<ulong, TownCharacterController>();
 
+    /// <summary>已经摆出来的 NPC。它们站着不动，所以只要能收回去就行，不用按 id 索引。</summary>
+    private readonly List<TownCharacterController> npcs = new List<TownCharacterController>();
+
+    /// <summary>NPC 现在摆的是哪个城镇的，用来让 <see cref="RefreshNpcs"/> 幂等。0 = 还没摆。</summary>
+    private uint npcTownId;
+
     /// <summary>上一次上报的坐标和时间，用来节流。</summary>
     private Vector2 lastReportedPosition;
     private float lastReportTime;
@@ -92,6 +99,7 @@ public partial class MainCommonUI : UIBase
         RefreshInfo();
         RefreshSelfCharacter();
         RefreshOtherCharacters();
+        RefreshNpcs();
     }
 
     public override void Close()
@@ -185,6 +193,7 @@ public partial class MainCommonUI : UIBase
         RefreshInfo();
         RefreshSelfCharacter();
         RefreshOtherCharacters();
+        RefreshNpcs();
     }
 
     /// <summary>换城镇 / 换角色：背景、自己的形象、别人都要重来。</summary>
@@ -194,6 +203,7 @@ public partial class MainCommonUI : UIBase
         RefreshInfo();
         RefreshSelfCharacter();
         RefreshOtherCharacters();
+        RefreshNpcs();
     }
 
     // ------------------------------------------------------------------
@@ -444,7 +454,90 @@ public partial class MainCommonUI : UIBase
         }
 
         otherCharacters.Clear();
+
+        // ⚠️ 必须在 Release() 之前收 —— 那一步会把池子整个拆掉
+        ClearNpcs();
+
         spawner.Release();
+    }
+
+    // ------------------------------------------------------------------
+    // NPC（配置表 TownNpc，站在固定坐标上）
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// 按配置表把这个城镇的 NPC 摆出来。**幂等** —— 城镇没变就什么都不做
+    /// （它挂在几个会频繁触发的事件上，不挡一下会每次都拆了重摆）。
+    ///
+    /// NPC 是**纯客户端表现**：服务端没有 NPC 概念，不上报、不同步、不参与
+    /// <c>TownPlayers</c>。所以它们也不需要每帧 tick —— 站着不动，摆完就不管了。
+    /// </summary>
+    private void RefreshNpcs()
+    {
+        uint townId = TownManager.Instance.CurrentTownId;
+
+        if (townId == npcTownId)
+        {
+            return;
+        }
+
+        ClearNpcs();
+        npcTownId = townId;
+
+        if (townId == 0)
+        {
+            // 还没进城镇（订阅没生效 / 回选人界面了）
+            return;
+        }
+
+        var table = LubanManager.Instance.TbTownNpc;
+
+        if (table == null)
+        {
+            return;
+        }
+
+        int count = 0;
+
+        foreach (TownNpc row in table.DataList)
+        {
+            if (row.TownId != townId)
+            {
+                continue;
+            }
+
+            // 没配 SkeletonTown 也照样摆（外层还在，名字能显示）—— 和玩家角色一个待遇
+            TownCharacterController npc = spawner.Acquire(row.SkeletonTown);
+
+            if (npc == null)
+            {
+                continue;
+            }
+
+            npc.SetName(row.Name);
+            npc.Teleport(new Vector2(row.PosX, row.PosY));
+            npc.SetFacing(row.Facing >= 0 ? 1 : -1);
+
+            npcs.Add(npc);
+            count++;
+        }
+
+        if (count > 0)
+        {
+            Debug.Log($"[MainCommonUI] 城镇 {townId} 摆了 {count} 个 NPC");
+        }
+    }
+
+    /// <summary>把 NPC 全收回去。换城镇 / 离开城镇时调。</summary>
+    private void ClearNpcs()
+    {
+        foreach (TownCharacterController npc in npcs)
+        {
+            spawner.Recycle(npc);
+        }
+
+        npcs.Clear();
+        npcTownId = 0;
     }
 
     // ------------------------------------------------------------------

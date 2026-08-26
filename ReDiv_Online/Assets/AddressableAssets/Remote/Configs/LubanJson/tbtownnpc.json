@@ -1,0 +1,20 @@
+[
+  {
+    "NpcId": 1001,
+    "TownId": 1,
+    "Name": "凯露",
+    "PosX": 0,
+    "PosY": 1,
+    "Facing": 1,
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/1/0Common/Prefab/Skeleton/106011_NpcTown.prefab"
+  },
+  {
+    "NpcId": 1002,
+    "TownId": 1,
+    "Name": "优衣",
+    "PosX": 1,
+    "PosY": 2,
+    "Facing": 1,
+    "SkeletonTown": "Assets/AddressableAssets/Remote/Character/2/0Common/Prefab/Skeleton/100211_NpcTown.prefab"
+  }
+]

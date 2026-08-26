@@ -377,7 +377,7 @@ MonoBehaviour:
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 170abb8c7cabf9f49a1eb320db99250c
-    m_Address: Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50022.prefab
+    m_Address: Assets/AddressableAssets/Remote/Prefabs/Town/50020/Town_50022.prefab
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -767,7 +767,7 @@ MonoBehaviour:
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 34761623f2cfba7448c9660738194b4f
-    m_Address: Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50021.prefab
+    m_Address: Assets/AddressableAssets/Remote/Prefabs/Town/50020/Town_50021.prefab
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -1134,7 +1134,7 @@ MonoBehaviour:
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 460ba3adfc9afce42b56030f562f7687
-    m_Address: Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/Town_50020.prefab
+    m_Address: Assets/AddressableAssets/Remote/Prefabs/Town/50020/Town_50020.prefab
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -1676,7 +1676,7 @@ MonoBehaviour:
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 635829ec6df87574984873c71ed69bda
-    m_Address: Assets/AddressableAssets/Remote/Prefabs/UIBackground/Town/50020/bg_500020_mat.mat
+    m_Address: Assets/AddressableAssets/Remote/Prefabs/Town/50020/bg_500020_mat.mat
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -3252,6 +3252,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: c5a61f0354571de43b851ac0d9ed7a69
     m_Address: Assets/AddressableAssets/Remote/Texture2D/Common/common_questmenu_icon_extra_quest.png
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c62a71397aee6834496a562998e31d1f
+    m_Address: Assets/AddressableAssets/Remote/Configs/LubanJson/tbtownnpc.json
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

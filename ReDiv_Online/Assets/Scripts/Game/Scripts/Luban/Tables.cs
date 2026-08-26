@@ -33,6 +33,10 @@ public partial class Tables
     /// 等级表。升级所需经验 + 该等级的体力上限(每日重置)。经验条和体力条的分母都来自这里
     /// </summary>
     public TbLevelExp TbLevelExp {get; }
+    /// <summary>
+    /// 城镇NPC表。一行一个NPC，站在某个城镇的固定世界坐标上。纯客户端表现，服务端没有NPC概念。结构看 TownNpc.xlsx 表头（read_schema_from_file=True）
+    /// </summary>
+    public TbTownNpc TbTownNpc {get; }
 
 
       public Tables(System.Func<string, JArray> loader)
@@ -42,6 +46,7 @@ public partial class Tables
         TbTown = new TbTown(loader("tbtown"));
         TbTimeBand = new TbTimeBand(loader("tbtimeband"));
         TbLevelExp = new TbLevelExp(loader("tblevelexp"));
+        TbTownNpc = new TbTownNpc(loader("tbtownnpc"));
         ResolveRef();
     }
     
@@ -52,6 +57,7 @@ public partial class Tables
         TbTown.ResolveRef(this);
         TbTimeBand.ResolveRef(this);
         TbLevelExp.ResolveRef(this);
+        TbTownNpc.ResolveRef(this);
     }
 }
 

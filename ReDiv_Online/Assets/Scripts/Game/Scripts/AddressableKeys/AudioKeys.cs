@@ -10,7 +10,7 @@ namespace XFramework
     public static class AudioKeys
     {
         /// <summary>
-        /// Cursor_Click_01 (BGM)
+        /// Cursor_Click_01 (Music)
         /// </summary>
         public const string CursorClick01 = "Cursor_Click_01";
         /// <summary>
