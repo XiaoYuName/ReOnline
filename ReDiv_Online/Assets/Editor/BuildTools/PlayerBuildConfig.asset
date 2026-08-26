@@ -21,7 +21,7 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
-  Platform: 0
+  Platform: 1
   ProductName: ReDiv
   CompanyName: LuminoInc
   BundleIdentifier: com.LuminoInc.ReDiv
