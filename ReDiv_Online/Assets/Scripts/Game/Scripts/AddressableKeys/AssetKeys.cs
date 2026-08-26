@@ -199,8 +199,10 @@ namespace XFramework
         public const string RedivLoginPopupSpritesheetPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoadingUI/rediv-login-popup-spritesheet.png";
         public const string LoginUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/LoginUI/LoginUI.prefab";
         public const string MainCommonUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/MainCommonUI/MainCommonUI.prefab";
+        public const string MessageSlotPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/MainCommonUI/MessageSlot.prefab";
         public const string PopDialogueUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopDialogueUI/PopDialogueUI.prefab";
         public const string PopLoadingUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopLoadingUI/PopLoadingUI.prefab";
+        public const string PopMessageUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopMessageUI/PopMessageUI.prefab";
         public const string ReviseCharacterNameUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/ReviseCharacterNameUI/ReviseCharacterNameUI.prefab";
         public const string CharacterSlotUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/SelectCharacterUI/CharacterSlotUI.prefab";
         public const string SelectCharacterUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/SelectCharacterUI/SelectCharacterUI.prefab";

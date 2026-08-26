@@ -34,8 +34,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0, y: 0.013}
-  m_SizeDelta: {x: 12.072, y: 1.19}
+  m_AnchoredPosition: {x: 0.072, y: 0.0114}
+  m_SizeDelta: {x: 6.572, y: 1.0747}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &2242279158608830448
 MeshRenderer:
@@ -136,7 +136,7 @@ MonoBehaviour:
   m_fontSize: 5
   m_fontSizeBase: 36
   m_fontWeight: 400
-  m_enableAutoSizing: 1
+  m_enableAutoSizing: 0
   m_fontSizeMin: 0.01
   m_fontSizeMax: 5
   m_fontStyle: 0
@@ -450,7 +450,7 @@ Transform:
   m_GameObject: {fileID: 4218269332544782790}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.9778, y: 0.134, z: 0}
+  m_LocalPosition: {x: 1.507, y: 1.731, z: 0}
   m_LocalScale: {x: 0.28, y: 0.29, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -502,16 +502,16 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingLayerID: 1346935051
+  m_SortingLayer: 5
+  m_SortingOrder: 99
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 8aa4df192c4a33147b15c1b9ff3dde48, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.39607844}
+  m_Sprite: {fileID: 21300000, guid: bf53941680185e54a9a4d4e4e105b4b3, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 1
-  m_Size: {x: 4.874719, y: 1.145605}
+  m_Size: {x: 6.802252, y: 1.145605}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -575,6 +575,11 @@ MonoBehaviour:
   skeletonTran: {fileID: 7137471604638551595}
   nameText: {fileID: 5929295355946726591}
   nameFollower: {fileID: 8370810151409298025}
+  messageFrame: {fileID: 4277932182159273403}
+  messageText: {fileID: 5047266002958568204}
+  messageDuration: 5
+  messageMaxTextWidth: 6.57
+  messagePadding: {x: 1, y: 0.08}
   blockRadius: 0.05
 --- !u!1 &7770689971514206807
 GameObject:

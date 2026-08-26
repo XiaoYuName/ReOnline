@@ -62,12 +62,14 @@ Assets/Scripts/
     ├── AuthValidation.cs       服务端 AuthRules 的客户端镜像
     ├── CharacterValidation.cs  服务端 CharacterRules 的客户端镜像（角色名格式）
     ├── TownManager.cs          城镇门面：当前城镇 / 时段 / 同城镇玩家 / 坐标上报
+    ├── ChatManager.cs          聊天门面：消息列表 / 发言。订阅**跟着当前城镇换**
+    ├── ChatValidation.cs       服务端 ChatRules 的客户端镜像（正文清洗 + 长度）
     └── ModuleBindings/         生成物，不要手改
 ```
 
 `UGUI/` 下已接好的界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
 `SelectCharacterUI`（选人）、`CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字）、
-`MainCommonUI`（城镇主界面）。
+`MainCommonUI`（城镇主界面，含左下角**聊天框** + `MessageSlot/` 消息格子）。
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
 `AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
@@ -601,6 +603,12 @@ TownManager.CurrentBandId ──┘         │
 1. **比例烘在内层的 `localScale` 里**。贴图是 1024×1024 的方图（美术压扁存的），
    靠 `scale.x ≈ 1.7778` 拉成 16:9。**代码不去覆盖它** —— 想改画面大小就改那个预制体。
 2. **Sorting Layer `Ground`**（order -1），角色在 `Character` ⇒ 角色永远在背景前面。
+   ⚠️ 新做背景**一定要手动设这个** —— 新建 SpriteRenderer 的默认值是 `Default:0`，
+   而工程的层序是 `Default(0) < Ground(1) < UIGround < EffectDown < Environment <
+   Character(5) < EffectTop < …`。2026-08-26 就发现中午和晚上那两张一直是默认值
+   （`Town_50021` / `Town_50022`），已经统一成 `Ground:-1`。
+   漏配的表现很隐蔽：角色照样在前面（Character 本来就比 Default 高），
+   只有等你往 `Ground` 层放东西（比如遮挡物）才会突然发现顺序不对。
    以后要做遮挡物（房子、栏杆挡住角色）就在内层加子 `SpriteRenderer` 放 `EffectTop`。
 3. 三列（`BgMorning` / `BgNoon` / `BgNight`）和三个时段**按 BandId 硬对应**，
    段数固定 3 段（服务端自检守住）。某列为空 ⇒ 那个时段没背景，不报错。
@@ -698,6 +706,123 @@ HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没
 **坐标别手填** —— 用 `Tools > XFramework > 配置 > NPC 摆位` 窗口在场景里对着背景拖，
 拖完一键写回 Excel，见第 4 节「NPC 摆位窗口」。
 
+#### 聊天框（左下角，2026-08-26）
+
+发**附近消息**（只有同城镇的人看得到）。服务端契约见
+[../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「聊天系统」。
+
+```
+UIMask/Message
+├── Scroll View                 ScrollRect（只竖向）
+│   └── Viewport/Content        VerticalLayoutGroup + ContentSizeFitter ← 消息格子摆这里
+├── InputField (TMP)            单行（LineType = SingleLine），所以回车会触发 onSubmit
+└── SendButton                  「发送」
+```
+
+一条消息一个 `MessageSlot` 预制体（`AssetKeys.MessageSlotPath`），
+上面 `Name` + `Message` 两个 TMP，**定高一行、正文超出省略**。
+所以正文有长度上限（`ChatValidation.MaxChars` = **20 个字**，按字符数不按显示宽度，
+用户 2026-08-26 定的），否则长消息在这一行里会被直接截没。
+输入框的 `characterLimit` 也在 `Init` 里设成同一个数 —— 超了根本打不进去，
+比让人打完一大段再弹「太长了」友好。
+
+⚠️ **长度规则客户端和服务端故意不一样**（不是漂移）：客户端 20 个字是**策划规则**，
+服务端 `ChatRules.MaxDisplayWidth = 60`（中文 30 字）是**防滥用天花板**。
+客户端严于服务端 ⇒ 正常客户端不会被服务端拒。清洗规则（折空白、挡不可见字符）
+两边还是一字不差的镜像。
+
+⚠️ **`MessageSlot.prefab` 上没有 `UIAutoBindGenerator`**，两个字段是在
+`MessageSlot.Init()` 里用 `Get<T>("路径")` 手动取的 —— 那是既有做法（见第 5 节坑 4），
+不是漏了配。
+
+七条实现约束（改的时候别破坏）：
+
+1. **输入框和按钮在 `Init` 里接一次，不在 `Open` 里。** Open 每次进城镇都会调，
+   而 `onSubmit` 是直接 `AddListener` 的（`Bind` 内部会 RemoveAllListeners，
+   所以按钮无所谓）—— 重复挂会让一次回车发出去好几条。
+2. **回车用 `onSubmit` 不用 `onEndEdit`。** 后者失焦也会触发，点一下别处就把消息发出去了。
+3. **不做本地乐观显示。** 成功后服务端会把消息推回来（**自己发的那条也在里面**），
+   本地先塞一条会重复；被拒了还得再抠出来。
+4. **等回应期间就把输入框清空**，别等结果 —— 玩家看到字还在会以为没发出去而重复点。
+   发失败时再把原文填回去，这样重试不用重打。
+5. **复用已有格子，只补 / 收差额**，不是每次全拆重建：一条新消息就重新实例化 50 个
+   预制体会明显卡顿，而且正在滚动的话会被打断。
+6. **只有玩家本来就贴着底看，才自动滚到底。** 他滚上去翻历史时，新消息不该把他拽回去。
+   判断「贴着底」要**先处理「内容还没长到超过视口」这种情况** —— 那时
+   `verticalNormalizedPosition` 的值没意义（ScrollRect 会夹住它），拿它判断会得出
+   「玩家在翻历史」的错误结论，于是头几条消息就不自动滚了。
+7. **滚到底之前必须 `LayoutRebuilder.ForceRebuildLayoutImmediate(content)`。**
+   VerticalLayoutGroup + ContentSizeFitter 算高度排在下一次布局阶段，不重算的话
+   这里用的是**上一帧**的高度 ⇒ 刚加进来那条还没算进去 ⇒ 停在倒数第二条上。
+
+排序按 `(SentAt, MessageId)` 升序，最新的在最后。⚠️ **不能只按 MessageId 排** ——
+官方规则说自增 id 不保证连续也不保证单调，MessageId 只当平局裁判（同一事务插多条时
+时间戳完全相同）。**和服务端裁剪用的是同一把尺子**，两边口径不一致会出现
+「客户端认为还该显示的那条被服务端当成最旧删了」。
+
+`ChatManager` 的订阅**跟着当前城镇走**（附近消息的可见域就是城镇 id，而订阅 SQL 是
+静态字符串 ⇒ 换城镇必须重订），挂在 `TownManager.LocationChanged` 上，
+和 TownManager 自己那段「同城镇玩家」订阅同一个模式（**先订新的再退旧的**）。
+⚠️ 因此 `RefreshFromCache` **必须按当前域过滤**，不能把 `Iter()` 全收下 ——
+换城镇那一小段时间里两个城镇的消息会同时在缓存里。
+
+⚠️ **`ChatManager.Ready` 会反复触发**（每换一个城镇一次），不是只在开局响一下。
+
+⚠️ 右下角的 `openMessageUIButton` **故意没接** —— 它要开的是 `PopMessageUI`（世界消息），
+用户 2026-08-26 明确说这次先不做客户端逻辑。
+
+⚠️ 原来 AutoBind 里有个 `modeButton`（`UIMask/Message/ModeButton`，界面上的「附近」），
+**用户 2026-08-26 把那个节点删了**，悬空的登记项（`Target: {fileID: 0}`）和生成的字段
+都已经清掉。别再找它。
+
+#### 说话气泡（角色头上那个，2026-08-26）
+
+发出去的附近消息会**同时**在说话人头上冒一个气泡，5 秒后自己收掉。
+节点在 `TownCharacterController` 预制体上（见本节「城镇角色：两层结构」）：
+
+```
+TownCharacterController
+└── MessageFarme  [SpriteRenderer，drawMode = Sliced]   ← 气泡框，默认隐藏
+    └── Message   [TextMeshPro]                        ← 正文
+```
+
+**自己和别人走同一条路**：都是等服务端把消息推回来（`ChatManager.MessageArrived`）
+才显示。所以气泡里一定是**服务端真的收下了**的那句话 —— 被冷却挡掉、被判超长的
+不会冒泡，而且自己看到的时序和别人看到的一致。**不要**改成本地乐观显示。
+
+尺寸是**算出来的**：`GetPreferredValues(文本, 最大宽度, 0)` 问 TMP「这段话要多大」，
+超过最大宽度就在那个宽度上换行、改往高长，然后把九宫格框设成「文字 + 内边距」。
+实测数值（供调参参考）：一个汉字宽约 **0.50**、行高约 **0.71**（都是 MessageFarme
+的局部单位），最大宽度 6.57 一行放得下约 13 个汉字，所以 20 字上限最多两行。
+
+Inspector 上四个可调项（都在 `TownCharacterController` 的「对话气泡」组里）：
+`显示秒数`（5）、`文本最大宽度`（6.57）、`内边距`（**x=1.0** 左右各空一个字，y=0.08）。
+
+五条实现约束（改的时候别破坏）：
+
+1. **`drawMode` 必须是 `Sliced`（九宫格）。** 靠缩放 transform 拉大气泡会把圆角和
+   尾巴一起拉变形。而且框不能小于「四条边框加起来」（从 sprite 的 `border` 现算，
+   不写死），小于它 Unity 会把边框自己压扁。
+2. **钉住左边缘往右长，不是以中心为基准两边一起长。** 尾巴在气泡左侧指着角色 ——
+   两边一起长的话尾巴会随着话变长越跑越远，最后戳到角色身上。左边缘在第一次
+   `ShowMessage` 时从预制体量一次并**缓存**（量完之后 `localPosition` 就被代码改过了，
+   再量就是错的）。
+3. **`Message` 的 TMP 必须关掉 `enableAutoSizing`。** 那是「字缩进框里」，
+   和这里要的「框跟着字长」正好互相打；两个一起开会算不出稳定尺寸。
+4. **框的 Sorting Layer 要在 Spine 之上、气泡文字之下** —— Spine 是 `Character:0`、
+   文字是 `Character:100`，所以框是 `Character:99`。⚠️ 它原来在 `Default:0`（默认值），
+   那样会被背景和角色压住，游戏里只看得到一句飘在空中的字。
+5. **`Bind()` 和 `Unbind()` 都要 `HideMessage()`。** 对象池 Despawn 会
+   `SetActive(false)`，那会直接杀掉隐藏用的协程 —— 不收的话下次从池里取出来
+   还挂着上一个人的话。
+
+⚠️ **已知不足：气泡只会往右长，所以贴着屏幕右边的角色说长话会出画。**
+要修就得在靠右时翻到左侧显示（尾巴也要镜像），这次没做。
+
+⚠️ **气泡竖直方向比美术原来摆的紧**：预制体里框高 1.15、而一行文字实测只有 0.71，
+所以按「文字 + 内边距 y=0.08」算出来是 0.79。想回到美术原来的比例把内边距 y 调到
+约 0.44 就行（一个 Inspector 数值，没改是因为用户只说了左右）。
+
 #### 右上角信息栏
 
 | AutoBind 字段 | 显示什么 | 数据来源 |
@@ -720,8 +845,10 @@ HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没
 TownCharacterController          ← 所有角色共用一个预制体。位置都作用在这层
 ├── SkeletonTown                 ← 运行时按形态把 Spine 塞进来
 │   └── TownSkeletonController   ← 按 (JobId, FormId) 取，形态不同预制体不同
-└── NameAnchor  [BoneFollower]   ← 跟随头部骨骼
-    └── Name    [TextMeshPro]    ← localPosition.y 就是头顶偏移
+├── NameAnchor  [BoneFollower]   ← 跟随头部骨骼
+│   └── Name    [TextMeshPro]    ← localPosition.y 就是头顶偏移
+└── MessageFarme [SpriteRenderer 九宫格]  ← 说话气泡，尺寸跟着文字变，默认隐藏
+    └── Message  [TextMeshPro]            ← 见本节「说话气泡」
 ```
 
 分两层的原因：城镇角色不只有 Spine，还要挂名字、以后还有血条 / 称号 / 气泡。

@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5966182034712123446}
   - component: {fileID: 4743140903195049503}
+  - component: {fileID: 8779997310397318252}
   m_Layer: 5
   m_Name: MessageSlot
   m_TagString: Untagged
@@ -46,6 +47,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2031883963887940099}
   m_CullTransparentMesh: 1
+--- !u!114 &8779997310397318252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2031883963887940099}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea38905fdff29f94d81c99b7a62084b7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MessageSlot
+  uiPageData:
+    PageID: 
+    PagePath: 
+    UIParent: 0
+    IsTween: 0
+    IsMouseRightHide: 0
+    Description: 
+  TweenerRoot: {fileID: 0}
 --- !u!1 &6473997194915771913
 GameObject:
   m_ObjectHideFlags: 0

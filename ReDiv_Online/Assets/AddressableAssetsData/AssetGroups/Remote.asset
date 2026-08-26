@@ -2269,6 +2269,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 82ed30770f240204a892aa9dd1486cc4
+    m_Address: Assets/AddressableAssets/Remote/Character/1/0Common/Prefab/Skeleton/106011_NpcTown.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 82ee45ab0d01d9b428aa2ac6f193ffae
     m_Address: Assets/AddressableAssets/Remote/Texture2D/Town/50002/tx_foil_cloud.png
     m_ReadOnly: 0
@@ -3230,6 +3235,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c1a09b316e9018f47b105f96240bc910
+    m_Address: Assets/AddressableAssets/Remote/Character/2/0Common/Prefab/Skeleton/100211_NpcTown.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: c1a21066dd457204f967f219dce022f8
     m_Address: Assets/AddressableAssets/Remote/Texture2D/Common/common_shop_bg_date_red.png
     m_ReadOnly: 0
@@ -3363,6 +3373,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: cbb52ba469d646547b19cad7f55f54b5
     m_Address: Assets/AddressableAssets/Remote/Prefabs/UGUI/CommonUI/Spine/illust_special12_Atlas.asset
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cbcc898f5ffa06e4394956e1ea43f89b
+    m_Address: Assets/AddressableAssets/Remote/Prefabs/UGUI/MainCommonUI/MessageSlot.prefab
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -3693,6 +3708,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: e1ca949d5859b1a41bfae53a1121668d
     m_Address: Assets/AddressableAssets/Remote/Texture2D/Common/common_menu_icon_support.png
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e2a6cd937929a0544a3f5179dfec3501
+    m_Address: Assets/AddressableAssets/Remote/Prefabs/UGUI/PopMessageUI/PopMessageUI.prefab
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

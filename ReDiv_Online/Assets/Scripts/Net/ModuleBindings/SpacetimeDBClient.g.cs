@@ -30,6 +30,7 @@ namespace ReDiv.Net.Bindings
         {
             AddTable(CharacterSelection = new(conn));
             AddTable(CharacterTransform = new(conn));
+            AddTable(ChatMessage = new(conn));
             AddTable(MyAccountProfile = new(conn));
             AddTable(MyCharacter = new(conn));
             AddTable(MyWallet = new(conn));
@@ -534,6 +535,7 @@ namespace ReDiv.Net.Bindings
         {
             new QueryBuilder().From.CharacterSelection().ToSql(),
             new QueryBuilder().From.CharacterTransform().ToSql(),
+            new QueryBuilder().From.ChatMessage().ToSql(),
             new QueryBuilder().From.MyAccountProfile().ToSql(),
             new QueryBuilder().From.MyCharacter().ToSql(),
             new QueryBuilder().From.MyWallet().ToSql(),
@@ -548,6 +550,7 @@ namespace ReDiv.Net.Bindings
     {
         public global::SpacetimeDB.Table<CharacterSelection, CharacterSelectionCols, CharacterSelectionIxCols> CharacterSelection() => new("character_selection", new CharacterSelectionCols("character_selection"), new CharacterSelectionIxCols("character_selection"));
         public global::SpacetimeDB.Table<CharacterTransform, CharacterTransformCols, CharacterTransformIxCols> CharacterTransform() => new("character_transform", new CharacterTransformCols("character_transform"), new CharacterTransformIxCols("character_transform"));
+        public global::SpacetimeDB.Table<ChatMessage, ChatMessageCols, ChatMessageIxCols> ChatMessage() => new("chat_message", new ChatMessageCols("chat_message"), new ChatMessageIxCols("chat_message"));
         public global::SpacetimeDB.Table<MyAccountProfileRow, MyAccountProfileCols, MyAccountProfileIxCols> MyAccountProfile() => new("my_account_profile", new MyAccountProfileCols("my_account_profile"), new MyAccountProfileIxCols("my_account_profile"));
         public global::SpacetimeDB.Table<MyCharacterRow, MyCharacterCols, MyCharacterIxCols> MyCharacter() => new("my_character", new MyCharacterCols("my_character"), new MyCharacterIxCols("my_character"));
         public global::SpacetimeDB.Table<MyWalletRow, MyWalletCols, MyWalletIxCols> MyWallet() => new("my_wallet", new MyWalletCols("my_wallet"), new MyWalletIxCols("my_wallet"));
@@ -649,6 +652,7 @@ namespace ReDiv.Net.Bindings
                 Reducer.RefreshWorldTime args => Reducers.InvokeRefreshWorldTime(eventContext, args),
                 Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
                 Reducer.SelectCharacter args => Reducers.InvokeSelectCharacter(eventContext, args),
+                Reducer.SendNearbyMessage args => Reducers.InvokeSendNearbyMessage(eventContext, args),
                 Reducer.TownConfigSelfTest args => Reducers.InvokeTownConfigSelfTest(eventContext, args),
                 Reducer.UpdateTransform args => Reducers.InvokeUpdateTransform(eventContext, args),
                 Reducer.WorldTimeSelfTest args => Reducers.InvokeWorldTimeSelfTest(eventContext, args),

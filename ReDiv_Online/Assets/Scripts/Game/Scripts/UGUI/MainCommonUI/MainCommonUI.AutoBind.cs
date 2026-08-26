@@ -14,7 +14,6 @@ public partial class MainCommonUI
     private TMPro.TextMeshProUGUI gemValue;
     private UnityEngine.UI.ScrollRect scrollView;
     private TMPro.TMP_InputField inputFieldTMP;
-    private UnityEngine.UI.Button modeButton;
     private UnityEngine.UI.Button sendButton;
     private UnityEngine.UI.Button openMessageUIButton;
 
@@ -29,7 +28,6 @@ public partial class MainCommonUI
         gemValue = Get<TMPro.TextMeshProUGUI>("UIMask/Top/GemCurrencySlot/GemValue");
         scrollView = Get<UnityEngine.UI.ScrollRect>("UIMask/Message/Scroll View");
         inputFieldTMP = Get<TMPro.TMP_InputField>("UIMask/Message/InputField (TMP)");
-        modeButton = Get<UnityEngine.UI.Button>("UIMask/Message/ModeButton");
         sendButton = Get<UnityEngine.UI.Button>("UIMask/Message/SendButton");
         openMessageUIButton = Get<UnityEngine.UI.Button>("UIMask/RightDownMemus/OpenMessageUIButton");
 

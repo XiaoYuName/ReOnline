@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using ReDiv.Net;
 using ReDiv.Net.Bindings;
 using UnityEngine;
@@ -7,16 +8,17 @@ using XFramework;
 /// <summary>
 /// 城镇主界面 —— 选人界面点「进入游戏」之后进的就是这里。
 ///
-/// 四件事：
+/// 六件事：
 ///   1. **背景 + 出生点** —— 背景是**世界空间**的，按「当前城镇 + 当前时段」换；
 ///      出生点在背景外层控制器的 <c>StartPoint</c> 上；
 ///   2. **右上角信息** —— 等级 / 经验 / 体力（角色级）+ 金币 / 钻石（账号级，全角色共享）；
 ///   3. **自己的角色** —— 按 (JobId, FormId) 取城镇控制预制体，摇杆驱动移动并上报坐标；
 ///   4. **同城镇的其他玩家** —— 按服务端推的坐标插值跟随；
-///   5. **NPC** —— 按配置表 <c>TownNpc</c> 摆在固定坐标上（纯客户端，服务端不知道它们）。
+///   5. **NPC** —— 按配置表 <c>TownNpc</c> 摆在固定坐标上（纯客户端，服务端不知道它们）；
+///   6. **聊天** —— 左下角的聊天框：显示可见的消息，输入框 + 发送按钮发**附近消息**。
 ///
-/// 数据全部来自三个门面（<see cref="TownManager"/> / <see cref="CharacterManager"/>），
-/// **本界面不碰 Conn、不自己算时段**。
+/// 数据全部来自三个门面（<see cref="TownManager"/> / <see cref="CharacterManager"/> /
+/// <see cref="ChatManager"/>），**本界面不碰 Conn、不自己算时段**。
 ///
 /// 城镇角色是**世界空间**的，挂在场景的 <c>SkeletonCharacters</c> 节点下
 /// （<see cref="TownCharacterSpawner"/> 负责取用和回收，走工程内置的 PoolManager），
@@ -79,6 +81,15 @@ public partial class MainCommonUI : UIBase
 
     private bool hooked;
 
+    /// <summary>聊天框里已经摆出来的格子，和可见消息一一对应（第 0 个是最旧的那条）。</summary>
+    private readonly List<MessageSlot> messageSlots = new List<MessageSlot>();
+
+    /// <summary>
+    /// 消息格子预制体，**只加载一次**（见 <see cref="MessageSlotPrefab"/> 为什么要缓存）。
+    /// 界面关闭时置回 null —— <c>Release()</c> 会把 AA 引用还掉，留着就是个悬空引用。
+    /// </summary>
+    private GameObject messageSlotPrefab;
+
     // ------------------------------------------------------------------
     // 生命周期
     // ------------------------------------------------------------------
@@ -86,6 +97,8 @@ public partial class MainCommonUI : UIBase
     public override void Init()
     {
         InitAutoBind();
+
+        InitChat();
     }
 
     public override void Open()
@@ -100,6 +113,7 @@ public partial class MainCommonUI : UIBase
         RefreshSelfCharacter();
         RefreshOtherCharacters();
         RefreshNpcs();
+        RefreshMessages();
     }
 
     public override void Close()
@@ -107,6 +121,7 @@ public partial class MainCommonUI : UIBase
         UnhookEvents();
 
         ClearCharacters();
+        ClearMessageSlots();
         ReleaseBackground();
 
         base.Close();
@@ -116,6 +131,7 @@ public partial class MainCommonUI : UIBase
     {
         UnhookEvents();
         ClearCharacters();
+        ClearMessageSlots();
         ReleaseBackground();
 
         base.OnDestroy();
@@ -159,6 +175,13 @@ public partial class MainCommonUI : UIBase
         characters.CharactersChanged += HandleCharacterDataChanged;
         characters.WalletChanged += RefreshInfo;
         characters.Ready += HandleCharacterDataChanged;
+
+        // 聊天订阅是**跟着城镇换**的，所以 Ready 会反复触发（每换一个城镇一次），
+        // 不是只在开局响一下 —— RefreshMessages 得能被反复调用
+        var chat = ChatManager.Instance;
+        chat.MessagesChanged += RefreshMessages;
+        chat.Ready += RefreshMessages;
+        chat.MessageArrived += HandleChatMessageArrived;
     }
 
     private void UnhookEvents()
@@ -179,6 +202,11 @@ public partial class MainCommonUI : UIBase
         characters.CharactersChanged -= HandleCharacterDataChanged;
         characters.WalletChanged -= RefreshInfo;
         characters.Ready -= HandleCharacterDataChanged;
+
+        var chat = ChatManager.Instance;
+        chat.MessagesChanged -= RefreshMessages;
+        chat.Ready -= RefreshMessages;
+        chat.MessageArrived -= HandleChatMessageArrived;
     }
 
     private void HandleCharacterDataChanged()
@@ -538,6 +566,328 @@ public partial class MainCommonUI : UIBase
 
         npcs.Clear();
         npcTownId = 0;
+    }
+
+    // ------------------------------------------------------------------
+    // 聊天（左下角的聊天框）
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// 聊天框最多摆多少条格子。和服务端每个域的保留窗口对齐
+    /// （<c>Module.ChatHistoryPerScope</c>，现在是 50）——
+    /// 服务端只会推这么多，摆更多也没内容，摆更少就白丢了能看的历史。
+    /// </summary>
+    private const int MaxMessageSlots = 50;
+
+    /// <summary>
+    /// 滚动条离底多近就算「玩家正在看最新消息」。
+    /// <c>verticalNormalizedPosition</c> 是 0=底 / 1=顶，所以这是个很小的数。
+    /// </summary>
+    private const float StickToBottomThreshold = 0.05f;
+
+    /// <summary>
+    /// 接输入框和发送按钮。**在 Init 里做一次**，不在 Open 里 ——
+    /// Open 每次进城镇都会调，重复 AddListener 会让一次回车发出去好几条。
+    /// （<c>Bind</c> 内部会 RemoveAllListeners 所以按钮那边无所谓，
+    /// 但 <c>onSubmit</c> 是直接 AddListener 的，会累加。）
+    /// </summary>
+    private void InitChat()
+    {
+        if (sendButton != null)
+        {
+            Bind(sendButton, SendNearbyMessage, AudioKeys.CursorClick01);
+        }
+
+        if (inputFieldTMP != null)
+        {
+            // 直接把输入框卡在同一个上限上，超了根本打不进去 ——
+            // 比让人打完一大段再弹「太长了」友好。ChatValidation 那道校验还是要有：
+            // 粘贴 / 清洗（折空白）之后长度可能又变了
+            inputFieldTMP.characterLimit = ReDiv.Net.ChatValidation.MaxChars;
+
+            // 输入框是单行的（预制体里 LineType = SingleLine），所以回车会触发 onSubmit。
+            // 用 onSubmit 而不是 onEndEdit：后者失焦也会触发，点一下别处就把消息发出去了
+            inputFieldTMP.onSubmit.AddListener(HandleInputSubmit);
+        }
+
+        // ⚠️ openMessageUIButton（右下角那个）**故意没接** —— 它要开的是
+        // PopMessageUI（世界消息），用户 2026-08-26 明确说这次先不做客户端逻辑。
+    }
+
+    private void HandleInputSubmit(string _) => SendNearbyMessage();
+
+    /// <summary>
+    /// 刚有人说了句话 —— 除了进聊天框，还要在那个人**头上冒个气泡**。
+    ///
+    /// **自己和别人走同一条路**：都是等服务端把消息推回来才显示。所以气泡里
+    /// 显示的一定是服务端真的收下了的那句话（被冷却挡掉 / 超长拒了的不会冒泡），
+    /// 而且自己看到的时序和别人看到的一致。
+    ///
+    /// 找不到人是正常的：说话的人可能刚走出这个城镇、或者他的形态还没配城镇预制体。
+    /// 那就只进聊天框、不冒泡，**不报错**。
+    /// </summary>
+    private void HandleChatMessageArrived(ChatMessage row)
+    {
+        FindTownCharacter(row.SenderCharacterId)?.ShowMessage(row.Content);
+    }
+
+    /// <summary>按角色 id 找场上的那个城镇角色。自己也在内。找不到返回 null。</summary>
+    private TownCharacterController FindTownCharacter(ulong characterId)
+    {
+        if (characterId == 0)
+        {
+            return null;
+        }
+
+        if (characterId == TownManager.Instance.CurrentCharacterId)
+        {
+            return selfCharacter;
+        }
+
+        return otherCharacters.TryGetValue(characterId, out TownCharacterController found) ? found : null;
+    }
+
+    /// <summary>
+    /// 把输入框里的内容作为**附近消息**发出去。
+    ///
+    /// 三件必须这么做的事：
+    ///   1. **不做本地乐观显示** —— 成功后服务端会把消息推回来（自己发的那条也在里面），
+    ///      本地先塞一条会重复；被拒了还得再抠出来。
+    ///   2. **等回应期间就把输入框清空**，别等结果 —— 玩家看到字还在会以为没发出去
+    ///      而重复点。发失败时再把原文填回去（下面那句 SetText），这样重试不用重打。
+    ///   3. 失败一律弹窗，用服务端抛的中文原文（「说话太快了，稍等一下再发」这种）。
+    /// </summary>
+    private void SendNearbyMessage()
+    {
+        if (inputFieldTMP == null)
+        {
+            return;
+        }
+
+        string draft = inputFieldTMP.text;
+
+        if (string.IsNullOrWhiteSpace(draft))
+        {
+            // 空输入不值得弹窗打断（回车连按很常见），静默忽略
+            return;
+        }
+
+        inputFieldTMP.text = string.Empty;
+
+        SendNearbyMessageAsync(draft).Forget();
+    }
+
+    private async UniTaskVoid SendNearbyMessageAsync(string draft)
+    {
+        ChatResult result = await ChatManager.Instance.SendNearbyAsync(draft);
+
+        if (result.Ok)
+        {
+            return;
+        }
+
+        // 界面可能在等回应的这段时间里被关掉了（回选人界面），那就别再动它
+        if (!isOpen)
+        {
+            return;
+        }
+
+        // 把原文填回去，玩家改一改就能重发，不用重打
+        if (inputFieldTMP != null && string.IsNullOrEmpty(inputFieldTMP.text))
+        {
+            inputFieldTMP.text = draft;
+        }
+
+        UIUtility.ShowWindow(result.Message, "发送失败");
+    }
+
+    /// <summary>
+    /// 按当前可见的消息重画聊天框。挂在 <c>MessagesChanged</c> / <c>Ready</c> 上，
+    /// 所以会被反复调用 —— **必须能重复调**。
+    ///
+    /// **复用已有格子，只补 / 收差额**，不是每次全拆重建：一条新消息就重新
+    /// 实例化 50 个预制体会明显卡顿，而且正在滚动的话会被打断。
+    /// </summary>
+    private void RefreshMessages()
+    {
+        RectTransform content = MessageContent();
+
+        if (content == null)
+        {
+            return;
+        }
+
+        var all = ChatManager.Instance.Messages;
+
+        // 只显示最后 MaxMessageSlots 条（列表是升序，最新的在最后）
+        int start = Mathf.Max(0, all.Count - MaxMessageSlots);
+        int visible = all.Count - start;
+
+        // 重画前先记住玩家是不是正贴着底看最新消息 —— 他要是滚上去翻历史，
+        // 新消息不该把他拽回底部
+        bool stickToBottom = IsScrolledToBottom();
+
+        while (messageSlots.Count > visible)
+        {
+            int last = messageSlots.Count - 1;
+            MessageSlot slot = messageSlots[last];
+            messageSlots.RemoveAt(last);
+
+            if (slot != null)
+            {
+                // 先 SetActive(false) 再 Destroy —— Destroy 延迟到帧末，
+                // 不关掉的话这一帧里旧格子还占着布局位置
+                slot.gameObject.SetActive(false);
+                Destroy(slot.gameObject);
+            }
+        }
+
+        while (messageSlots.Count < visible)
+        {
+            MessageSlot slot = CreateMessageSlot(content);
+
+            if (slot == null)
+            {
+                // 预制体加载不出来，报错已经打过了，别在这循环里刷屏
+                return;
+            }
+
+            messageSlots.Add(slot);
+        }
+
+        for (int i = 0; i < visible; i++)
+        {
+            ChatMessage row = all[start + i];
+            messageSlots[i].SetMessage(row.SenderName, row.Content);
+        }
+
+        if (stickToBottom)
+        {
+            ScrollToBottom();
+        }
+    }
+
+    /// <summary>
+    /// 取消息格子预制体，**加载一次就缓存住**。
+    ///
+    /// 为什么不每次都调 <c>LoadAsset</c>：那个方法会把 key 记进 <c>AssetReleaser</c>
+    /// 托管列表，而 <c>Track</c> **不去重** —— 一条消息一次调用，一屏 50 条就往列表里
+    /// 堆 50 条同样的 key。引用计数上是配平的（Release 会一一还掉），
+    /// 但纯属白折腾，而且列表会随着「格子拆了又建」一直长。
+    /// </summary>
+    private GameObject MessageSlotPrefab()
+    {
+        if (messageSlotPrefab == null)
+        {
+            messageSlotPrefab = LoadAsset<GameObject>(AssetKeys.MessageSlotPath);
+        }
+
+        return messageSlotPrefab;
+    }
+
+    private MessageSlot CreateMessageSlot(RectTransform content)
+    {
+        GameObject prefab = MessageSlotPrefab();
+
+        if (prefab == null)
+        {
+            Debug.LogError($"[MainCommonUI] 消息格子预制体加载不出来：{AssetKeys.MessageSlotPath}", this);
+            return null;
+        }
+
+        var go = Instantiate(prefab, content, false);
+        var slot = go.GetComponent<MessageSlot>();
+
+        if (slot == null)
+        {
+            Debug.LogError("[MainCommonUI] MessageSlot 预制体上没有 MessageSlot 组件", this);
+            Destroy(go);
+            return null;
+        }
+
+        slot.Init();
+
+        return slot;
+    }
+
+    /// <summary>
+    /// 把聊天格子全清掉。离开城镇（本界面关闭 / 销毁）时调。
+    ///
+    /// ⚠️ 顺带把缓存的预制体引用置回 null：紧接着 <c>base.Close()</c> 会调
+    /// <c>Release()</c> 把 AA 引用还掉，留着这个引用下次开界面就是个悬空对象。
+    /// </summary>
+    private void ClearMessageSlots()
+    {
+        foreach (MessageSlot slot in messageSlots)
+        {
+            if (slot != null)
+            {
+                Destroy(slot.gameObject);
+            }
+        }
+
+        messageSlots.Clear();
+        messageSlotPrefab = null;
+    }
+
+    /// <summary>
+    /// 聊天格子的父节点 —— ScrollRect 的 <c>content</c>（上面有
+    /// VerticalLayoutGroup + ContentSizeFitter，所以摆进去自动从上往下排）。
+    /// **不要按路径去 Find** —— content 是 ScrollRect 自己的字段，
+    /// 美术把节点改名 / 挪位置都不该让代码坏掉。
+    /// </summary>
+    private RectTransform MessageContent() => scrollView != null ? scrollView.content : null;
+
+    /// <summary>
+    /// 玩家是不是正贴着底看最新消息。
+    ///
+    /// 内容还没长到超过视口时也算「在底部」—— 那种情况下
+    /// <c>verticalNormalizedPosition</c> 的值是没意义的（ScrollRect 会把它夹住），
+    /// 拿它判断会得出「玩家在翻历史」的错误结论，于是头几条消息就不自动滚了。
+    /// </summary>
+    private bool IsScrolledToBottom()
+    {
+        if (scrollView == null)
+        {
+            return false;
+        }
+
+        RectTransform content = scrollView.content;
+        RectTransform viewport = scrollView.viewport != null
+            ? scrollView.viewport
+            : scrollView.transform as RectTransform;
+
+        if (content == null || viewport == null)
+        {
+            return true;
+        }
+
+        if (content.rect.height <= viewport.rect.height)
+        {
+            return true;
+        }
+
+        return scrollView.verticalNormalizedPosition <= StickToBottomThreshold;
+    }
+
+    /// <summary>
+    /// 滚到底（最新那条）。
+    ///
+    /// ⚠️ **必须先强制重算一次布局**：VerticalLayoutGroup + ContentSizeFitter 算高度
+    /// 是排在下一次布局阶段的，不重算的话这里用的是**上一帧**的高度 ⇒
+    /// 刚加进来的那条还没被算进去 ⇒ 滚动停在倒数第二条上。
+    /// </summary>
+    private void ScrollToBottom()
+    {
+        if (scrollView == null || scrollView.content == null)
+        {
+            return;
+        }
+
+        UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(scrollView.content);
+
+        // 0 = 底部
+        scrollView.verticalNormalizedPosition = 0f;
     }
 
     // ------------------------------------------------------------------
