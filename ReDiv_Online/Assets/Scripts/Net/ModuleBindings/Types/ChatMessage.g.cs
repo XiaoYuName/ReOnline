@@ -28,6 +28,10 @@ namespace ReDiv.Net.Bindings
         public string Content;
         [DataMember(Name = "sent_at")]
         public SpacetimeDB.Timestamp SentAt;
+        [DataMember(Name = "sender_job_id")]
+        public uint SenderJobId;
+        [DataMember(Name = "sender_form_id")]
+        public uint SenderFormId;
 
         public ChatMessage(
             ulong MessageId,
@@ -36,7 +40,9 @@ namespace ReDiv.Net.Bindings
             ulong SenderCharacterId,
             string SenderName,
             string Content,
-            SpacetimeDB.Timestamp SentAt
+            SpacetimeDB.Timestamp SentAt,
+            uint SenderJobId,
+            uint SenderFormId
         )
         {
             this.MessageId = MessageId;
@@ -46,6 +52,8 @@ namespace ReDiv.Net.Bindings
             this.SenderName = SenderName;
             this.Content = Content;
             this.SentAt = SentAt;
+            this.SenderJobId = SenderJobId;
+            this.SenderFormId = SenderFormId;
         }
 
         public ChatMessage()

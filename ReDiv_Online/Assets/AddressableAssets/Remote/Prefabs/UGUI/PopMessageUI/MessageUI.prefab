@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 2833462103141194766}
   - component: {fileID: 4838040185905822785}
   - component: {fileID: 6814400362447370451}
+  - component: {fileID: 8704653072038767772}
   m_Layer: 5
   m_Name: MessageUI
   m_TagString: Untagged
@@ -85,6 +86,26 @@ MonoBehaviour:
     FieldName: name
     Path: Name
     AutoInit: 1
+--- !u!114 &8704653072038767772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 353459219693245578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b818b08189e615941ad637527c8febf3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MessageUI
+  uiPageData:
+    PageID: 
+    PagePath: 
+    UIParent: 0
+    IsTween: 0
+    IsMouseRightHide: 0
+    Description: 
+  TweenerRoot: {fileID: 0}
 --- !u!1 &556188540226530723
 GameObject:
   m_ObjectHideFlags: 0

@@ -651,6 +651,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2a3887c155a5f874eac3b2faf71c7a38
+    m_Address: Assets/AddressableAssets/Remote/Prefabs/UGUI/PopMessageUI/MessageUI.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 2acd5dc3b2e0208479f24078f9d2313d
     m_Address: Assets/AddressableAssets/Remote/Character/2/201/Skeleton/100231_SkeletonData.asset
     m_ReadOnly: 0

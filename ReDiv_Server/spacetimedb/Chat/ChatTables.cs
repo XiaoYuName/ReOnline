@@ -113,5 +113,25 @@ public static partial class Module
         /// 客户端按 <c>(SentAt, MessageId)</c> 升序排就是发言顺序。
         /// </summary>
         public Timestamp SentAt;
+
+        /// <summary>
+        /// 发送者的角色 / 职业，**发送那一刻的快照**。客户端拿
+        /// <c>(SenderJobId, SenderFormId)</c> 去配置表 <c>CharacterForm</c> 取
+        /// <c>IconKey</c> 当聊天列表里的头像。
+        ///
+        /// **为什么也要冗余**：和 <see cref="SenderName"/> 同一个理由，而且世界频道更硬 ——
+        /// 说话的人可能在**另一个城镇**，本地根本没订阅到他的 <c>CharacterSelection</c>，
+        /// 想 join 也 join 不到。
+        ///
+        /// ⚠️ 这两列是 2026-08-26 追加的，所以只能加在 **struct 末尾** 并带
+        /// <c>[Default(0)]</c>（服务端 README「环境地雷」：插到中间会被判成列重排，
+        /// publish 直接拒）。
+        /// </summary>
+        [Default(0)]
+        public uint SenderJobId;
+
+        /// <summary>发送者当时的形态。觉醒之后头像会变，所以存形态不只存角色。</summary>
+        [Default(0)]
+        public uint SenderFormId;
     }
 }

@@ -69,7 +69,8 @@ Assets/Scripts/
 
 `UGUI/` 下已接好的界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
 `SelectCharacterUI`（选人）、`CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字）、
-`MainCommonUI`（城镇主界面，含左下角**聊天框** + `MessageSlot/` 消息格子）。
+`MainCommonUI`（城镇主界面，含左下角**聊天框** + `MessageSlot/` 消息格子）、
+`PopMessageUI`（聊天弹窗：附近 / 世界两个页签 + `MessageUI/` 消息行）。
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
 `AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
@@ -763,13 +764,16 @@ UIMask/Message
 `ChatManager` 的订阅**跟着当前城镇走**（附近消息的可见域就是城镇 id，而订阅 SQL 是
 静态字符串 ⇒ 换城镇必须重订），挂在 `TownManager.LocationChanged` 上，
 和 TownManager 自己那段「同城镇玩家」订阅同一个模式（**先订新的再退旧的**）。
+世界频道那句 `WHERE town_id = 0` **和附近放在同一段订阅里**：换城镇时它会跟着白重订一次，
+换来的是「只有一处管订阅生命周期」。
 ⚠️ 因此 `RefreshFromCache` **必须按当前域过滤**，不能把 `Iter()` 全收下 ——
 换城镇那一小段时间里两个城镇的消息会同时在缓存里。
+⚠️ `IsVisible` 里那个 `subscribedTownId != 0` 的前提**不能省**：离开城镇后 townId 归 0，
+「附近」那个条件会退化成 `row.TownId == 0`，正好和世界域撞上 ⇒ 明明退订了还显示着世界消息。
 
 ⚠️ **`ChatManager.Ready` 会反复触发**（每换一个城镇一次），不是只在开局响一下。
 
-⚠️ 右下角的 `openMessageUIButton` **故意没接** —— 它要开的是 `PopMessageUI`（世界消息），
-用户 2026-08-26 明确说这次先不做客户端逻辑。
+右下角的 `openMessageUIButton`（「世界聊天」）→ 打开 `PopMessageUI`，见下面「聊天弹窗」。
 
 ⚠️ 原来 AutoBind 里有个 `modeButton`（`UIMask/Message/ModeButton`，界面上的「附近」），
 **用户 2026-08-26 把那个节点删了**，悬空的登记项（`Target: {fileID: 0}`）和生成的字段
@@ -822,6 +826,70 @@ Inspector 上四个可调项（都在 `TownCharacterController` 的「对话气�
 ⚠️ **气泡竖直方向比美术原来摆的紧**：预制体里框高 1.15、而一行文字实测只有 0.71，
 所以按「文字 + 内边距 y=0.08」算出来是 0.79。想回到美术原来的比例把内边距 y 调到
 约 0.44 就行（一个 Inspector 数值，没改是因为用户只说了左右）。
+
+**世界消息也会冒泡** —— 只要说话的人正好在你这个城镇。他在别的城镇时
+`FindTownCharacter` 找不到人，就只进聊天框不冒泡（**这不是错误**，别加报错）。
+
+#### 聊天弹窗（`PopMessageUI`，2026-08-26）
+
+城镇主界面右下角「世界聊天」按钮打开。两个页签（**附近** / **世界**）共用一个列表 +
+一个输入框 + 一个发送按钮；页签只决定两件事：**列表显示哪个频道**、**发送走哪个频道**。
+
+```
+PopMessageUI
+└── UIMask
+    ├── CloseButton                      ← 铺满整屏的透明按钮，压在 Background **底下**
+    └── Background
+        ├── Left/MemuButtons
+        │   ├── WordChatButton  ← 文字是「附近」（⚠️ 名字和文字是反的）
+        │   │   ├── Selected               选中高亮图
+        │   │   └── Text                   选中时染 SelectedColor，否则 NormalColor
+        │   └── BearbyButton   ← 文字是「世界」（⚠️ 同上）
+        └── Panel
+            ├── Scroll View/Viewport/Content   ← MessageUI 行摆这里
+            ├── InputField (TMP)
+            └── SendButton
+```
+
+⚠️⚠️ **两个页签节点的名字和它们的文字是反的**：`WordChatButton`（听起来是"世界"）
+上面写的是「附近」，`BearbyButton`（听起来是"附近"）上面写的是「世界」。
+所以频道是**按按钮上的文字判定的，不是按节点名** —— 按节点名接一定接反，
+而且表现是「两个页签点起来行为对调」，很难往回追。
+`BuildTabs()` 里还有个自检：两个页签没覆盖到两个频道就报错（美术改了文字就会触发）。
+这和形态卡那两个箭头是同一类坑（见本节坑 6）。
+
+两处**代码补上去**的组件（美术搭的时候没有，别以为是配漏了）：
+
+| 补的 | 为什么 |
+|---|---|
+| 两个页签节点上的 `Button`（`transition = None`） | 预制体里只有 `Image`。transition 设 None 是因为选中态已经由 `Selected` 那张图表达，再来一层 ColorTint 会和它打架 |
+| `Content` 上的 `ContentSizeFitter`（Unconstrained / PreferredSize） | 只有 VerticalLayoutGroup 的话 content 不会随内容长高 ⇒ **ScrollRect 根本滚不动** |
+
+行预制体是 `MessageUI.prefab`（`AssetKeys.MessageUIPath`），头像 + 名字 + 气泡框正文。
+和城镇主界面底部那个 `MessageSlot`（定高一行的滚动日志）**是两套，不要互相替代**。
+⚠️ `MessageUI` 的 AutoBind 里有个字段叫 `name`，**遮住了 `Component.name`** ——
+在那个类里写 `name` 拿到的是 TMP，要物体名字得写 `gameObject.name`。
+
+**头像**按 `(SenderJobId, SenderFormId)` 查配置表 `CharacterForm` 的 `IconKey`。
+这两个字段是服务端在发送那一刻快照进消息行的 —— **不能去 join 在线玩家**：
+世界频道里说话的人可能在另一个城镇，本地根本没订阅到他。取不到就把头像**隐藏**
+（留一张空 Image 会显示成白方块，比没有更难看）。头像有 `Dictionary` 缓存，
+一个 key 只 `LoadAsset` 一次（`AssetReleaser.Track` 不去重）。
+
+四条实现约束（和城镇主界面那个聊天框同源，别破坏）：
+
+1. 输入框和按钮**在 `Init` 里接一次**，不在 `Open` 里（`onSubmit` 是直接 AddListener 的，
+   每次开界面挂一遍会让一次回车发出去好几条）。
+2. **不做本地乐观显示**，等服务端推回来。
+3. **复用已有的行，只补 / 收差额**，不是每次全拆重建。
+4. 滚到底之前必须 `LayoutRebuilder.ForceRebuildLayoutImmediate(content)`。
+
+**默认停在「世界」页** —— 入口按钮上写的就是「世界聊天」，打开却停在附近页很别扭；
+附近消息在城镇主界面底部本来就一直看得到。要改就动 `currentChannel` 的初值。
+
+**城镇主界面底部那个日志是两个频道混在一起的**，世界消息前面加了 `[世界]` 前缀
+（那一行的格子只有「名字 + 正文」两段文字，没有第三个地方放频道标记）。
+藏起来就不叫世界频道了 —— 「所有人在任何地方都能看到」是用户定的。
 
 #### 右上角信息栏
 

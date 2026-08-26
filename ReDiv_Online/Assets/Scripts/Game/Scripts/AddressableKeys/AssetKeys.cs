@@ -202,6 +202,7 @@ namespace XFramework
         public const string MessageSlotPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/MainCommonUI/MessageSlot.prefab";
         public const string PopDialogueUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopDialogueUI/PopDialogueUI.prefab";
         public const string PopLoadingUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopLoadingUI/PopLoadingUI.prefab";
+        public const string MessageUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopMessageUI/MessageUI.prefab";
         public const string PopMessageUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/PopMessageUI/PopMessageUI.prefab";
         public const string ReviseCharacterNameUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/ReviseCharacterNameUI/ReviseCharacterNameUI.prefab";
         public const string CharacterSlotUIPath = "Assets/AddressableAssets/Remote/Prefabs/UGUI/SelectCharacterUI/CharacterSlotUI.prefab";

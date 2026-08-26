@@ -610,9 +610,15 @@ public partial class MainCommonUI : UIBase
             inputFieldTMP.onSubmit.AddListener(HandleInputSubmit);
         }
 
-        // ⚠️ openMessageUIButton（右下角那个）**故意没接** —— 它要开的是
-        // PopMessageUI（世界消息），用户 2026-08-26 明确说这次先不做客户端逻辑。
+        // 右下角「世界聊天」→ 打开聊天界面（附近 / 世界两个页签都在那里）。
+        // 只开不关：PopMessageUI 自己有 CloseButton（铺满整屏的透明按钮，点空白处关）
+        if (openMessageUIButton != null)
+        {
+            Bind(openMessageUIButton, OpenChatWindow, AudioKeys.CursorClick01);
+        }
     }
+
+    private static void OpenChatWindow() => UISystem.Instance.OpenUI(UIKeys.PopMessageUI);
 
     private void HandleInputSubmit(string _) => SendNearbyMessage();
 
@@ -758,7 +764,17 @@ public partial class MainCommonUI : UIBase
         for (int i = 0; i < visible; i++)
         {
             ChatMessage row = all[start + i];
-            messageSlots[i].SetMessage(row.SenderName, row.Content);
+
+            // 底部这个框是**两个频道混在一起**的滚动日志（世界消息「所有人在任何地方
+            // 都能看到」，藏起来就不叫世界频道了）。加个前缀区分 —— 这一行的格子只有
+            // 「名字 + 正文」两段文字，没有第三个地方放频道标记。
+            // 想改成只显示附近，把这里换成 `if (row.Channel != ChatManager.ChannelNearby) continue;`
+            // 那一类过滤即可（顺带 visible 的算法也要跟着改）
+            string sender = row.Channel == ChatManager.ChannelWorld
+                ? $"[世界]{row.SenderName}"
+                : row.SenderName;
+
+            messageSlots[i].SetMessage(sender, row.Content);
         }
 
         if (stickToBottom)

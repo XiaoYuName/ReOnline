@@ -67,6 +67,8 @@ namespace ReDiv.Net.Bindings
         public global::SpacetimeDB.Col<ChatMessage, string> SenderName { get; }
         public global::SpacetimeDB.Col<ChatMessage, string> Content { get; }
         public global::SpacetimeDB.Col<ChatMessage, SpacetimeDB.Timestamp> SentAt { get; }
+        public global::SpacetimeDB.Col<ChatMessage, uint> SenderJobId { get; }
+        public global::SpacetimeDB.Col<ChatMessage, uint> SenderFormId { get; }
 
         public ChatMessageCols(string tableName)
         {
@@ -77,6 +79,8 @@ namespace ReDiv.Net.Bindings
             SenderName = new global::SpacetimeDB.Col<ChatMessage, string>(tableName, "sender_name");
             Content = new global::SpacetimeDB.Col<ChatMessage, string>(tableName, "content");
             SentAt = new global::SpacetimeDB.Col<ChatMessage, SpacetimeDB.Timestamp>(tableName, "sent_at");
+            SenderJobId = new global::SpacetimeDB.Col<ChatMessage, uint>(tableName, "sender_job_id");
+            SenderFormId = new global::SpacetimeDB.Col<ChatMessage, uint>(tableName, "sender_form_id");
         }
     }
 

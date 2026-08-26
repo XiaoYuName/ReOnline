@@ -5,10 +5,13 @@ using SpacetimeDB;
 /// <summary>
 /// 聊天消息的 Reducer。
 ///
-/// 现在只有**附近消息**一个入口（用户 2026-08-26 的顺序：先做附近，测通了再做世界）。
-/// 世界频道的表结构、裁剪、冷却全是共用的 —— 加 <c>SendWorldMessage</c> 时
-/// 只要照 <see cref="SendNearbyMessage"/> 写一遍、把域换成
-/// <see cref="ChatWorldScopeTownId"/> 就行，别再另起一套。
+/// 两个入口 <see cref="SendNearbyMessage"/> / <see cref="SendWorldMessage"/>，
+/// **区别只有一个：写进哪个域**（附近 = 自己所在城镇，世界 = <see cref="ChatWorldScopeTownId"/>）。
+/// 鉴权、正文清洗、冷却、滚动裁剪全部共用 <see cref="InsertChatMessage"/> ——
+/// 以后加队伍 / 公会频道也照这个形状加一个薄壳子，别再另起一套。
+///
+/// ⚠️ **冷却是跨频道共享的**（按发送者算，不分频道）：不然「附近发一条、世界发一条」
+/// 就能把 1 秒的限流翻倍，等于没限。
 /// </summary>
 public static partial class Module
 {
@@ -27,18 +30,68 @@ public static partial class Module
     [SpacetimeDB.Reducer]
     public static void SendNearbyMessage(ReducerContext ctx, string content)
     {
+        var selection = RequireChatSender(ctx);
+
+        // 域 = 自己所在城镇 ⇒ 只有同城镇的人订阅得到
+        InsertChatMessage(ctx, selection, ChatChannelNearby, selection.TownId, content);
+    }
+
+    /// <summary>
+    /// 发一条**世界消息**：所有人在任何地方都收得到。
+    ///
+    /// 和 <see cref="SendNearbyMessage"/> 唯一的区别是域填
+    /// <see cref="ChatWorldScopeTownId"/>（0，一个不存在的城镇 id）——
+    /// 于是客户端订阅它的 SQL 和附近是同一个形状，只是数字不同。
+    ///
+    /// 鉴权照旧要「本连接已经选了角」：世界频道虽然和城镇无关，但发言人得有名字有头像，
+    /// 那些都在选角行上。顺带也就挡住了「还在选人界面就往全服喊话」。
+    /// </summary>
+    [SpacetimeDB.Reducer]
+    public static void SendWorldMessage(ReducerContext ctx, string content)
+    {
+        var selection = RequireChatSender(ctx);
+
+        InsertChatMessage(ctx, selection, ChatChannelWorld, ChatWorldScopeTownId, content);
+    }
+
+    // ------------------------------------------------------------------
+    // 内部
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// 取「谁在说话」。选角行同时完成三件事：鉴权（有它就说明登录过且选了角）、
+    /// 给出附近消息的可见域（TownId）、给出显示用的角色名和形象（名字 / 职业 / 形态）。
+    ///
+    /// ⚠️ 没有选角行时**抛异常而不是静默返回**（和 <c>UpdateTransform</c> 相反）：
+    /// 坐标上报是「尽力而为」的状态同步，丢一个包无所谓；
+    /// 发消息是玩家的一次明确操作，失败了必须让他看到「怎么没发出去」。
+    /// </summary>
+    private static CharacterSelection RequireChatSender(ReducerContext ctx)
+    {
         if (ctx.ConnectionId is not { } connectionId)
         {
             throw ChatRules.Reject("这个操作只能由客户端连接发起");
         }
 
-        // 选角行同时完成三件事：鉴权（有它就说明登录过且选了角）、
-        // 拿到可见域（TownId）、拿到显示用的角色名
         if (ctx.Db.CharacterSelection.ConnectionId.Find(connectionId) is not { } selection)
         {
             throw ChatRules.Reject("请先进入城镇再发言");
         }
 
+        return selection;
+    }
+
+    /// <summary>
+    /// 两个频道共用的写入路径：清洗 → 查冷却 → 插入 → 裁剪。
+    ///
+    /// **发送者的名字 / 职业 / 形态全部取自选角行，不收客户端参数** ——
+    /// 那一行是 <c>SelectCharacter</c> 写的，客户端伪造不了。让客户端传的话，
+    /// 改过的客户端就能冒充别人说话。同理 <paramref name="townId"/> 也是调用方
+    /// 从选角行算出来的，不是参数传进来的。
+    /// </summary>
+    private static void InsertChatMessage(
+        ReducerContext ctx, CharacterSelection selection, uint channel, uint townId, string content)
+    {
         // ⚠️ 先清洗、后查冷却。反过来的话，一条本来就不合法的消息
         // （空的 / 超长的）也会把冷却算上，玩家改完再发还得再等一秒
         string text = ChatRules.NormalizeContent(content);
@@ -47,20 +100,18 @@ public static partial class Module
 
         ctx.Db.ChatMessage.Insert(new ChatMessage
         {
-            Channel = ChatChannelNearby,
-            TownId = selection.TownId,
+            Channel = channel,
+            TownId = townId,
             SenderCharacterId = selection.CharacterId,
             SenderName = selection.CharacterName,
             Content = text,
             SentAt = ctx.Timestamp,
+            SenderJobId = selection.JobId,
+            SenderFormId = selection.FormId,
         });
 
-        TrimChatScope(ctx, selection.TownId);
+        TrimChatScope(ctx, townId);
     }
-
-    // ------------------------------------------------------------------
-    // 内部
-    // ------------------------------------------------------------------
 
     /// <summary>
     /// 冷却检查：同一个角色两条消息之间至少隔 <see cref="ChatCooldownMicros"/>。

@@ -653,6 +653,7 @@ namespace ReDiv.Net.Bindings
                 Reducer.Register args => Reducers.InvokeRegister(eventContext, args),
                 Reducer.SelectCharacter args => Reducers.InvokeSelectCharacter(eventContext, args),
                 Reducer.SendNearbyMessage args => Reducers.InvokeSendNearbyMessage(eventContext, args),
+                Reducer.SendWorldMessage args => Reducers.InvokeSendWorldMessage(eventContext, args),
                 Reducer.TownConfigSelfTest args => Reducers.InvokeTownConfigSelfTest(eventContext, args),
                 Reducer.UpdateTransform args => Reducers.InvokeUpdateTransform(eventContext, args),
                 Reducer.WorldTimeSelfTest args => Reducers.InvokeWorldTimeSelfTest(eventContext, args),

@@ -86,10 +86,6 @@ namespace ReDiv.Net
         /// <summary>
         /// 世界消息占用的「域 id」（服务端 <c>Module.ChatWorldScopeTownId</c>）。
         /// 城镇 id 是正数，所以 0 永远不会和某个真城镇撞上。
-        ///
-        /// ⚠️ 世界频道的订阅**还没接**（用户 2026-08-26：先做附近，测通了再做世界）。
-        /// 接的时候在 <see cref="SyncTownSubscription"/> 里多订一句
-        /// <c>WHERE town_id = 0</c>、并在 <see cref="IsVisible"/> 里放行这个域即可。
         /// </summary>
         public const uint WorldScopeTownId = 0;
 
@@ -258,9 +254,13 @@ namespace ReDiv.Net
                 .OnError((_, ex) => Debug.LogError($"[Chat] 聊天订阅失败：{ex.Message}"))
                 .Subscribe(new[]
                 {
-                    // 附近消息：域就是城镇 id。世界消息以后在这里多加一句
-                    // "SELECT * FROM chat_message WHERE town_id = 0"
+                    // 附近消息：域就是城镇 id
                     $"SELECT * FROM chat_message WHERE town_id = {townId}",
+                    // 世界消息：域固定是 0。**和附近放在同一段订阅里**是有意的 ——
+                    // 换城镇时它会跟着重订一次（世界历史重新下发一遍），换来的是
+                    // 「只有一处管订阅生命周期」。重下发不会误触发气泡：那批行是
+                    // SubscribeApplied 而不是 Reducer，见 HandleMessageInsert
+                    $"SELECT * FROM chat_message WHERE town_id = {WorldScopeTownId}",
                 });
 
             // 先订新的、再退旧的
@@ -410,10 +410,14 @@ namespace ReDiv.Net
         }
 
         /// <summary>
-        /// 这条消息该不该显示。现在只有附近（当前城镇）这一个域；
-        /// 世界频道接上之后这里再放行 <see cref="WorldScopeTownId"/>。
+        /// 这条消息该不该显示：**自己所在城镇的**（附近）或者**世界的**。
+        ///
+        /// ⚠️ 必须有 <c>subscribedTownId != 0</c> 这个前提。不然离开城镇（townId 归 0）
+        /// 之后「附近」那个条件会退化成 <c>row.TownId == 0</c> —— 和世界域撞上，
+        /// 于是明明退订了却还显示着世界消息。
         /// </summary>
-        private bool IsVisible(ChatMessage row) => row.TownId == subscribedTownId && subscribedTownId != 0;
+        private bool IsVisible(ChatMessage row) =>
+            subscribedTownId != 0 && (row.TownId == subscribedTownId || row.TownId == WorldScopeTownId);
 
         private void ClearMessages()
         {
@@ -460,7 +464,25 @@ namespace ReDiv.Net
         /// ⚠️ **不要在本地先塞一条乐观显示的消息**：那条和推回来的那条会重复，
         /// 而且被服务端拒掉时还得再去把它抠出来。
         /// </summary>
-        public async UniTask<ChatResult> SendNearbyAsync(string content)
+        public UniTask<ChatResult> SendNearbyAsync(string content) =>
+            SendAsync(content, ChannelNearby);
+
+        /// <summary>
+        /// 发一条**世界消息**：所有人在任何地方都收得到。
+        /// 其余和 <see cref="SendNearbyAsync"/> 完全一样（包括那条「不要本地乐观显示」）。
+        ///
+        /// ⚠️ **冷却是和附近共享的**（服务端按发送者算，不分频道）——
+        /// 刚在附近说完话马上发世界会被挡，这是有意的，否则两个频道轮着发就能翻倍刷屏。
+        /// </summary>
+        public UniTask<ChatResult> SendWorldAsync(string content) =>
+            SendAsync(content, ChannelWorld);
+
+        /// <summary>
+        /// 两个频道共用的发送路径。频道只决定「调哪个 Reducer」——
+        /// **发到哪个域是服务端从选角行算的**，客户端连城镇 id 都不传
+        /// （传了的话改过的客户端就能往任意城镇喊话）。
+        /// </summary>
+        private async UniTask<ChatResult> SendAsync(string content, uint channel)
         {
             string text = ChatValidation.Normalize(content, out string invalid);
 
@@ -480,7 +502,14 @@ namespace ReDiv.Net
 
             try
             {
-                conn.Reducers.SendNearbyMessage(text);
+                if (channel == ChannelWorld)
+                {
+                    conn.Reducers.SendWorldMessage(text);
+                }
+                else
+                {
+                    conn.Reducers.SendNearbyMessage(text);
+                }
             }
             catch (Exception ex)
             {
@@ -531,7 +560,10 @@ namespace ReDiv.Net
             }
             reducersHooked = true;
 
+            // 两个频道**共用同一个等待槽**（界面在 IsBusy 时禁用发送按钮，
+            // 所以同时最多一条在飞），所以两个回调兑给同一个槽
             conn.Reducers.OnSendNearbyMessage += HandleSendResult;
+            conn.Reducers.OnSendWorldMessage += HandleSendResult;
         }
 
         private void UnhookReducers()
@@ -544,6 +576,7 @@ namespace ReDiv.Net
             reducersHooked = false;
 
             conn.Reducers.OnSendNearbyMessage -= HandleSendResult;
+            conn.Reducers.OnSendWorldMessage -= HandleSendResult;
         }
 
         /// <summary>

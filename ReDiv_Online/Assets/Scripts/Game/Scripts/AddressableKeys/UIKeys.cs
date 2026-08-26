@@ -37,5 +37,9 @@ namespace XFramework
         /// 城镇主界面 (MainCommonUI)
         /// </summary>
         public const string MainCommonUI = "MainCommonUI";
+        /// <summary>
+        /// 聊天UI (PopMessageUI)
+        /// </summary>
+        public const string PopMessageUI = "PopMessageUI";
     }
 }
