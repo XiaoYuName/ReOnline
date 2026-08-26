@@ -21,6 +21,7 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
+  Platform: 0
   ProductName: ReDiv
   CompanyName: LuminoInc
   BundleIdentifier: com.LuminoInc.ReDiv
@@ -45,6 +46,23 @@ MonoBehaviour:
   DefaultResolution: {x: 1920, y: 1080}
   CleanBuildCache: 1
   SaveAssetsBeforeBuild: 1
+  PackageFormat: 0
+  ExportGradleProject: 0
+  Architectures: 2
+  BuildApkPerCpuArchitecture: 0
+  SplitApplicationBinary: 0
+  MinSdkVersion: 25
+  TargetSdkVersion: 0
+  Orientation: 3
+  ForceInternetPermission: 1
+  TextureFormat: 3
+  OptimizedFramePacing: 1
+  MinifyRelease: 0
+  SymbolLevel: 0
+  UseCustomKeystore: 0
+  KeystorePath: 
+  KeyaliasName: 
+  InstallAfterBuild: 0
   MarkAddressables: 1
   AddressableMarkConfig: {fileID: 11400000, guid: 85ea6719a82818b45b714ad15e928af2, type: 2}
   BuildAddressableContent: 1
@@ -52,6 +70,7 @@ MonoBehaviour:
   AddressableProfileName: 
   RemoteLoadUrl: 
   OutputRoot: Build
+  PlatformSubFolder: 1
   FileNameFormat: '{product}_{channel}_v{version}.{code}_{date}'
   ExecutableName: 
   GenerateVersionFile: 1

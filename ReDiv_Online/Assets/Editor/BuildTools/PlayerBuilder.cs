@@ -15,7 +15,12 @@ using Debug = UnityEngine.Debug;
 namespace XFramework
 {
     /// <summary>
-    /// Windows 一键出包流程：校验 → 应用 ProjectSettings → Addressable 前置 → BuildPipeline → 收尾。
+    /// 一键出包流程：校验 → 切平台 → 应用 ProjectSettings → Addressable 前置 → BuildPipeline → 收尾。
+    /// 支持 Windows64 与 Android，平台相关的差异都收在 <see cref="PlayerBuildConfig"/> 与本文件的
+    /// ApplyWindowsSettings / ApplyAndroidSettings 两处。
+    ///
+    /// ⚠️ 切平台必须排在 Addressable 构建之前 —— Addressable 的 bundle 是按平台打的，
+    /// 顺序反了会把上一个平台的资源打进这个包里。
     /// </summary>
     public static class PlayerBuilder
     {
@@ -42,6 +47,8 @@ namespace XFramework
                 return report;
             }
 
+            string progressTitle = $"{config.PlatformDisplayName} 一键出包";
+
             try
             {
                 if (config.SaveAssetsBeforeBuild && !SaveDirtyAssets())
@@ -50,21 +57,27 @@ namespace XFramework
                     return report;
                 }
 
-                EditorUtility.DisplayProgressBar("Windows 一键出包", "应用 ProjectSettings...", 0.1f);
-                ApplyPlayerSettings(config);
-
-                if (config.MarkAddressables && !MarkAddressables(config, report))
+                // 切平台放在最前面：后面的 PlayerSettings 写入和 Addressable 构建都跟着活动平台走。
+                if (!EnsureActivePlatform(config, report, progressTitle))
                 {
                     return report;
                 }
 
-                if (config.BuildAddressableContent && !BuildAddressableContent(config, report))
+                EditorUtility.DisplayProgressBar(progressTitle, "应用 ProjectSettings...", 0.15f);
+                ApplyPlayerSettings(config, report);
+
+                if (config.MarkAddressables && !MarkAddressables(config, report, progressTitle))
                 {
                     return report;
                 }
 
-                EditorUtility.DisplayProgressBar("Windows 一键出包", "调用 BuildPipeline...", 0.5f);
-                return BuildPlayer(config, report);
+                if (config.BuildAddressableContent && !BuildAddressableContent(config, report, progressTitle))
+                {
+                    return report;
+                }
+
+                EditorUtility.DisplayProgressBar(progressTitle, "调用 BuildPipeline...", 0.5f);
+                return BuildPlayer(config, report, progressTitle);
             }
             catch (Exception exception)
             {
@@ -92,27 +105,163 @@ namespace XFramework
         }
 
         /// <summary>
+        /// 把编辑器切到目标平台。已经在目标平台时什么都不做。
+        /// 切换会按新平台重新导入资源，第一次可能要几分钟 —— 这是 Unity 的行为，不是卡死。
+        /// </summary>
+        private static bool EnsureActivePlatform(PlayerBuildConfig config, PlayerBuildReport report, string progressTitle)
+        {
+            if (EditorUserBuildSettings.activeBuildTarget == config.BuildTarget)
+            {
+                return true;
+            }
+
+            EditorUtility.DisplayProgressBar(
+                progressTitle,
+                $"切换编辑器平台到 {config.BuildTarget}（要按新平台重新导入资源，可能很慢）...",
+                0.05f);
+
+            bool switched = EditorUserBuildSettings.SwitchActiveBuildTarget(config.BuildTargetGroup, config.BuildTarget);
+            if (!switched || EditorUserBuildSettings.activeBuildTarget != config.BuildTarget)
+            {
+                report.Fail($"切换编辑器平台到 {config.BuildTarget} 失败，当前仍是 {EditorUserBuildSettings.activeBuildTarget}。");
+                return false;
+            }
+
+            report.Steps.Add($"已把编辑器平台切换到 {config.BuildTarget}。");
+            return true;
+        }
+
+        /// <summary>
         /// 把配置写进 ProjectSettings。宏定义不走这里，改用 extraScriptingDefines，避免触发域重载打断出包。
         /// </summary>
-        private static void ApplyPlayerSettings(PlayerBuildConfig config)
+        private static void ApplyPlayerSettings(PlayerBuildConfig config, PlayerBuildReport report)
         {
             PlayerSettings.productName = config.ProductName;
             PlayerSettings.companyName = config.CompanyName;
-            PlayerSettings.bundleVersion = config.Version;
+
+            // 版本号以本配置为准：一次写全 ProjectSettings 和所有 Build Profile 快照。
+            report.Steps.AddRange(PlayerBuildVersionSync.Apply(config));
+
             PlayerSettings.SetApplicationIdentifier(config.NamedBuildTarget, config.BundleIdentifier);
             PlayerSettings.SetScriptingBackend(config.NamedBuildTarget, config.ScriptingImplementation);
             PlayerSettings.SetIl2CppCompilerConfiguration(config.NamedBuildTarget, config.Il2CppConfiguration);
             PlayerSettings.SetManagedStrippingLevel(config.NamedBuildTarget, config.StrippingLevel);
-            PlayerSettings.fullScreenMode = config.FullScreenMode;
-            PlayerSettings.defaultScreenWidth = config.DefaultResolution.x;
-            PlayerSettings.defaultScreenHeight = config.DefaultResolution.y;
+
+            if (config.IsAndroid)
+            {
+                ApplyAndroidSettings(config, report);
+            }
+            else
+            {
+                ApplyWindowsSettings(config);
+            }
 
             AssetDatabase.SaveAssets();
         }
 
-        private static bool MarkAddressables(PlayerBuildConfig config, PlayerBuildReport report)
+        private static void ApplyWindowsSettings(PlayerBuildConfig config)
         {
-            EditorUtility.DisplayProgressBar("Windows 一键出包", "Addressable 打标...", 0.2f);
+            PlayerSettings.fullScreenMode = config.FullScreenMode;
+            PlayerSettings.defaultScreenWidth = config.DefaultResolution.x;
+            PlayerSettings.defaultScreenHeight = config.DefaultResolution.y;
+        }
+
+        /// <summary>
+        /// 符号表开关在 6000.4 已经从 <c>EditorUserBuildSettings.androidCreateSymbols</c>（已废弃）
+        /// 挪到了 <c>UnityEditor.Android.UserBuildSettings.DebugSymbols.level</c>。
+        /// 新 API 在平台扩展程序集 UnityEditor.Android.Extensions 里 —— 直接引用的话，
+        /// 没装 Android 模块的机器整个 Assembly-CSharp-Editor 都编不过，所以走反射按名字设值。
+        /// 反射失败只警告，不让出包挂掉。
+        /// </summary>
+        private static string ApplyAndroidDebugSymbols(AndroidSymbolLevel level)
+        {
+            try
+            {
+                Type settingsType = Type.GetType("UnityEditor.Android.UserBuildSettings, UnityEditor.Android.Extensions");
+                Type symbolsType = settingsType?.GetNestedType(
+                    "DebugSymbols",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                System.Reflection.PropertyInfo levelProperty = symbolsType?.GetProperty(
+                    "level",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+
+                if (levelProperty == null)
+                {
+                    return "没找到 Android 符号表设置的 API，这一项已跳过。";
+                }
+
+                levelProperty.SetValue(null, Enum.Parse(levelProperty.PropertyType, level.ToString()));
+                return string.Empty;
+            }
+            catch (Exception exception)
+            {
+                return $"设置 Android 符号表等级失败，已跳过：{exception.Message}";
+            }
+        }
+
+        private static void ApplyAndroidSettings(PlayerBuildConfig config, PlayerBuildReport report)
+        {
+            PlayerSettings.Android.targetArchitectures = config.Architectures;
+            PlayerSettings.Android.minSdkVersion = config.MinSdkVersion;
+            PlayerSettings.Android.targetSdkVersion = config.TargetSdkVersion;
+            PlayerSettings.Android.forceInternetPermission = config.ForceInternetPermission;
+            PlayerSettings.Android.optimizedFramePacing = config.OptimizedFramePacing;
+            PlayerSettings.Android.minifyRelease = config.MinifyRelease;
+            PlayerSettings.Android.textureCompressionFormats = new[] { (TextureCompressionFormat)config.TextureFormat };
+            PlayerSettings.defaultInterfaceOrientation = config.Orientation;
+
+            bool appBundle = config.PackageFormat == AndroidPackageFormat.AppBundle;
+            EditorUserBuildSettings.buildAppBundle = appBundle;
+            EditorUserBuildSettings.exportAsGoogleAndroidProject = config.ExportGradleProject;
+            EditorUserBuildSettings.androidBuildType = config.DevelopmentBuild
+                ? AndroidBuildType.Development
+                : AndroidBuildType.Release;
+
+            // 这两个开关是互斥语义：拆分二进制只有 aab 才有意义，分架构出包只有 apk 才有意义。
+            PlayerSettings.Android.splitApplicationBinary = appBundle && config.SplitApplicationBinary;
+            PlayerSettings.Android.buildApkPerCpuArchitecture = !appBundle && config.BuildApkPerCpuArchitecture;
+
+            string symbolsWarning = ApplyAndroidDebugSymbols(config.SymbolLevel);
+            if (!string.IsNullOrEmpty(symbolsWarning))
+            {
+                report.Steps.Add(symbolsWarning);
+            }
+
+            ApplyAndroidKeystore(config);
+        }
+
+        private static void ApplyAndroidKeystore(PlayerBuildConfig config)
+        {
+            PlayerSettings.Android.useCustomKeystore = config.UseCustomKeystore;
+
+            if (!config.UseCustomKeystore)
+            {
+                // 不清掉的话上一次填的 keystore 还挂在 ProjectSettings 上，会被当成"自定义签名没生效"来查。
+                // 本来就是空的时候别写 —— Unity 会把空串序列化成 '{inproject}: '，白白弄脏 ProjectSettings 的 diff。
+                if (!string.IsNullOrEmpty(PlayerSettings.Android.keystoreName))
+                {
+                    PlayerSettings.Android.keystoreName = string.Empty;
+                }
+
+                if (!string.IsNullOrEmpty(PlayerSettings.Android.keyaliasName))
+                {
+                    PlayerSettings.Android.keyaliasName = string.Empty;
+                }
+
+                PlayerSettings.Android.keystorePass = string.Empty;
+                PlayerSettings.Android.keyaliasPass = string.Empty;
+                return;
+            }
+
+            PlayerSettings.Android.keystoreName = PlayerBuildConfig.GetAbsolutePath(config.KeystorePath);
+            PlayerSettings.Android.keyaliasName = config.KeyaliasName;
+            PlayerSettings.Android.keystorePass = config.KeystorePassword;
+            PlayerSettings.Android.keyaliasPass = config.KeyaliasPassword;
+        }
+
+        private static bool MarkAddressables(PlayerBuildConfig config, PlayerBuildReport report, string progressTitle)
+        {
+            EditorUtility.DisplayProgressBar(progressTitle, "Addressable 打标...", 0.25f);
 
             BuildConfiguration markConfig = config.AddressableMarkConfig != null
                 ? config.AddressableMarkConfig
@@ -136,9 +285,9 @@ namespace XFramework
             return true;
         }
 
-        private static bool BuildAddressableContent(PlayerBuildConfig config, PlayerBuildReport report)
+        private static bool BuildAddressableContent(PlayerBuildConfig config, PlayerBuildReport report, string progressTitle)
         {
-            EditorUtility.DisplayProgressBar("Windows 一键出包", "构建 Addressable 资源...", 0.3f);
+            EditorUtility.DisplayProgressBar(progressTitle, "构建 Addressable 资源...", 0.35f);
 
             AddressableAssetSettings settings = AddressableAssetSettingsDefaultObject.Settings;
             if (settings == null)
@@ -194,7 +343,7 @@ namespace XFramework
             return true;
         }
 
-        private static PlayerBuildReport BuildPlayer(PlayerBuildConfig config, PlayerBuildReport report)
+        private static PlayerBuildReport BuildPlayer(PlayerBuildConfig config, PlayerBuildReport report, string progressTitle)
         {
             string outputPath = config.GetOutputPath();
             string outputDirectory = PlayerBuildConfig.GetAbsolutePath(config.GetOutputDirectory());
@@ -209,10 +358,16 @@ namespace XFramework
                 locationPathName = outputPath,
                 target = config.BuildTarget,
                 targetGroup = config.BuildTargetGroup,
-                subtarget = (int)StandaloneBuildSubtarget.Player,
                 options = config.GetBuildOptions(),
                 extraScriptingDefines = config.GetDefineSymbols().ToArray()
             };
+
+            // subtarget 只有 Standalone 用得上（Player / Server）。Android 留 0，
+            // 纹理压缩走 PlayerSettings.Android.textureCompressionFormats。
+            if (config.IsWindows)
+            {
+                options.subtarget = (int)StandaloneBuildSubtarget.Player;
+            }
 
             BuildReport buildReport = BuildPipeline.BuildPlayer(options);
             BuildSummary summary = buildReport.summary;
@@ -227,12 +382,13 @@ namespace XFramework
                 return report;
             }
 
-            EditorUtility.DisplayProgressBar("Windows 一键出包", "收尾处理...", 0.95f);
+            EditorUtility.DisplayProgressBar(progressTitle, "收尾处理...", 0.95f);
             AfterBuild(config, report);
 
             report.Success = true;
             report.Message =
-                $"出包成功：{outputPath}\n版本 {config.Version}({config.VersionCode})  渠道 {config.Channel}\n" +
+                $"出包成功（{config.PlatformDisplayName}）：{outputPath}\n" +
+                $"版本 {config.Version}({config.VersionCode})  渠道 {config.Channel}\n" +
                 $"体积 {summary.totalSize / 1024f / 1024f:F1} MB  耗时 {summary.totalTime.TotalMinutes:F1} 分钟";
             Debug.Log(report.Message);
             return report;
@@ -242,7 +398,7 @@ namespace XFramework
         {
             string outputDirectory = PlayerBuildConfig.GetAbsolutePath(config.GetOutputDirectory());
 
-            if (config.DeleteDebugFolders)
+            if (config.IsWindows && config.DeleteDebugFolders)
             {
                 report.Steps.Add($"已清理 {DeleteDebugFolders(outputDirectory)} 个调试目录。");
             }
@@ -266,9 +422,14 @@ namespace XFramework
                 EditorUtility.RevealInFinder(PlayerBuildConfig.GetAbsolutePath(report.OutputPath));
             }
 
-            if (config.RunAfterBuild)
+            if (config.IsWindows && config.RunAfterBuild)
             {
                 RunPlayer(PlayerBuildConfig.GetAbsolutePath(report.OutputPath));
+            }
+
+            if (config.CanInstallToDevice)
+            {
+                report.Steps.Add(InstallToDevice(PlayerBuildConfig.GetAbsolutePath(report.OutputPath)));
             }
         }
 
@@ -304,10 +465,13 @@ namespace XFramework
             PlayerBuildVersionInfo versionInfo = new PlayerBuildVersionInfo
             {
                 productName = config.ProductName,
+                platform = config.PlatformFolderName,
                 version = config.Version,
                 versionCode = config.VersionCode,
                 channel = config.Channel.ToString(),
                 bundleIdentifier = config.BundleIdentifier,
+                scriptingBackend = config.ScriptingBackend.ToString(),
+                androidArchitectures = config.IsAndroid ? config.Architectures.ToString() : string.Empty,
                 buildTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 unityVersion = Application.unityVersion,
                 remoteLoadUrl = config.RemoteLoadUrl
@@ -338,16 +502,93 @@ namespace XFramework
             }
         }
 
+        /// <summary>
+        /// adb install -r 装到已连接的设备。装不上只报告、不让整个出包算失败 —— 包已经出好了。
+        /// </summary>
+        private static string InstallToDevice(string apkPath)
+        {
+            string adbPath = FindAdb();
+            if (string.IsNullOrEmpty(adbPath))
+            {
+                return "没找到 adb，跳过安装（Preferences > External Tools 里配 Android SDK，或自己 adb install）。";
+            }
+
+            if (!File.Exists(apkPath))
+            {
+                return $"apk 不存在，跳过安装：{apkPath}";
+            }
+
+            try
+            {
+                using Process process = new Process
+                {
+                    StartInfo = new ProcessStartInfo(adbPath, $"install -r \"{apkPath}\"")
+                    {
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true,
+                        StandardOutputEncoding = System.Text.Encoding.UTF8,
+                        StandardErrorEncoding = System.Text.Encoding.UTF8
+                    }
+                };
+
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                string tail = (output + error).Replace("\r", " ").Replace("\n", " ").Trim();
+                return process.ExitCode == 0
+                    ? "已安装到设备。"
+                    : $"安装失败(adb 退出码 {process.ExitCode})：{tail}";
+            }
+            catch (Exception exception)
+            {
+                return $"安装失败：{exception.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 先看 Preferences 里配的 SDK，没配就用编辑器自带的那份。
+        /// </summary>
+        private static string FindAdb()
+        {
+            List<string> roots = new List<string>();
+
+            string preferenceRoot = EditorPrefs.GetString("AndroidSdkRoot", string.Empty);
+            if (!string.IsNullOrWhiteSpace(preferenceRoot))
+            {
+                roots.Add(preferenceRoot);
+            }
+
+            roots.Add(Path.Combine(EditorApplication.applicationContentsPath, "PlaybackEngines/AndroidPlayer/SDK"));
+
+            foreach (string root in roots)
+            {
+                string adbPath = Path.Combine(root, "platform-tools", Application.platform == RuntimePlatform.WindowsEditor ? "adb.exe" : "adb");
+                if (File.Exists(adbPath))
+                {
+                    return adbPath;
+                }
+            }
+
+            return string.Empty;
+        }
+
         #endregion
 
         [Serializable]
         private class PlayerBuildVersionInfo
         {
             public string productName;
+            public string platform;
             public string version;
             public int versionCode;
             public string channel;
             public string bundleIdentifier;
+            public string scriptingBackend;
+            public string androidArchitectures;
             public string buildTime;
             public string unityVersion;
             public string remoteLoadUrl;

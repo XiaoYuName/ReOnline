@@ -854,15 +854,15 @@ Reducer 语义」。那种情况下报出来的错五花八门（订阅失败、
 spacetime call rediv check_version '"0.0.1"'
 ```
 
-⚠️ **改版本号要改四处**，少一处就会在某个环节对不上（客户端那三处见
-[../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 9 节）：
+⚠️ **改版本号要改两处**（2026-08-26 之前是四处，客户端那三处现在由出包工具自动同步了，
+细节见 [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 9 节）：
 
 1. 服务端 `Module.ServerVersion` —— 改完必须 `spacetime publish`
-2. 客户端 `ProjectSettings.asset` 的 `bundleVersion`（编辑器开着就走
-   `PlayerSettings.bundleVersion` API，别手改 YAML）
-3. 客户端 `Assets/Settings/Build Profiles/PC.asset` 里那份 PlayerSettings 覆盖快照
-4. 客户端 `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 的 `Version`
-   —— 出包时它会写回 PlayerSettings，是**出包时的真正权威**
+2. 客户端 `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 的 `Version`
+   —— 也就是一键出包窗口上那个「版本号」输入框。**客户端的唯一真相源**，
+   出包时会自动写到 `ProjectSettings.asset` 的 `bundleVersion` 和所有 Build Profile 快照
+
+⚠️ 别再手改客户端的 `ProjectSettings.asset` 或 profile 快照 —— 下次出包会被配置盖回去。
 
 界面右下角显示的版本号读的是 `Application.version`（不再写死在 prefab 里），
 所以玩家看到的和校验用的一定是同一个值。

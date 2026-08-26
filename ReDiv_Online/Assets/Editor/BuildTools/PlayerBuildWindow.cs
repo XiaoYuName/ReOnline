@@ -9,23 +9,24 @@ using UnityEngine;
 namespace XFramework
 {
     /// <summary>
-    /// Windows 一键出包窗口：编辑配置 + 一键打包。
+    /// 一键出包窗口：编辑配置 + 一键打包。平台在配置的「基础信息」页里选（Windows64 / Android）。
     /// </summary>
     public class PlayerBuildWindow : OdinEditorWindow
     {
         private const string LastResultKey = "XFramework.PlayerBuildWindow.LastResult";
+        private const string WindowTitle = "一键出包";
 
-        [TitleGroup("Windows 一键出包", "配置 → 校验 → 打包，输出 StandaloneWindows64", TitleAlignments.Left)]
-        [BoxGroup("Windows 一键出包/操作", ShowLabel = false)]
-        [HorizontalGroup("Windows 一键出包/操作/Buttons")]
-        [Button("一键打包", ButtonSizes.Gigantic)]
+        [TitleGroup(WindowTitle, "配置 → 校验 → 打包，支持 StandaloneWindows64 与 Android", TitleAlignments.Left)]
+        [BoxGroup(WindowTitle + "/操作", ShowLabel = false)]
+        [HorizontalGroup(WindowTitle + "/操作/Buttons")]
+        [Button("@\"一键打包（\" + PlatformName + \"）\"", ButtonSizes.Gigantic)]
         [GUIColor(0.35f, 0.85f, 0.45f)]
         [PropertyOrder(-20)]
         private void BuildPlayer()
         {
             if (config == null)
             {
-                EditorUtility.DisplayDialog("一键出包", "出包配置为空。", "关闭");
+                EditorUtility.DisplayDialog(WindowTitle, "出包配置为空。", "关闭");
                 return;
             }
 
@@ -36,14 +37,21 @@ namespace XFramework
                 return;
             }
 
+            string platformSwitchNote = EditorUserBuildSettings.activeBuildTarget == config.BuildTarget
+                ? string.Empty
+                : $"\n\n⚠️ 编辑器当前平台是 {EditorUserBuildSettings.activeBuildTarget}，" +
+                  $"会先切到 {config.BuildTarget}。切平台要按新平台重新导入全部资源，第一次可能要几分钟。";
+
             string confirmMessage =
+                $"平台：{config.PlatformDisplayName}\n" +
                 $"产品：{config.ProductName}\n" +
                 $"版本：{config.Version} ({config.VersionCode})\n" +
                 $"渠道：{config.Channel}\n" +
                 $"包名：{config.BundleIdentifier}\n" +
                 $"场景：{config.GetScenePaths().Length} 个\n" +
                 $"宏定义：{FormatDefineSymbols()}\n" +
-                $"输出：{config.GetOutputPath()}";
+                $"输出：{config.GetOutputPath()}" +
+                platformSwitchNote;
 
             if (!EditorUtility.DisplayDialog("确认开始出包？", confirmMessage, "开始打包", "取消"))
             {
@@ -64,8 +72,8 @@ namespace XFramework
                 report.Success ? "确定" : "关闭");
         }
 
-        [HorizontalGroup("Windows 一键出包/操作/Buttons", 0.22f)]
-        [VerticalGroup("Windows 一键出包/操作/Buttons/Side")]
+        [HorizontalGroup(WindowTitle + "/操作/Buttons", 0.22f)]
+        [VerticalGroup(WindowTitle + "/操作/Buttons/Side")]
         [Button("校验配置", ButtonSizes.Medium)]
         [GUIColor(0.45f, 0.7f, 1f)]
         [PropertyOrder(-19)]
@@ -81,12 +89,42 @@ namespace XFramework
             EditorUtility.DisplayDialog(
                 "校验配置",
                 errors.Count == 0
-                    ? $"配置可用。\n输出：{config.GetOutputPath()}"
+                    ? $"配置可用。\n平台：{config.PlatformDisplayName}\n输出：{config.GetOutputPath()}"
                     : string.Join("\n", errors.Select(error => "· " + error)),
                 "确定");
         }
 
-        [VerticalGroup("Windows 一键出包/操作/Buttons/Side")]
+        [VerticalGroup(WindowTitle + "/操作/Buttons/Side")]
+        [Button("@\"切到 \" + PlatformName + \" 平台\"", ButtonSizes.Medium)]
+        [GUIColor(0.95f, 0.75f, 0.35f)]
+        [EnableIf(nameof(NeedsPlatformSwitch))]
+        [PropertyTooltip("单独把编辑器切到目标平台。出包时也会自动切，这个按钮是为了先把重新导入的时间花掉。")]
+        [PropertyOrder(-18.5f)]
+        private void SwitchPlatform()
+        {
+            if (config == null || !NeedsPlatformSwitch)
+            {
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog(
+                    "切换平台",
+                    $"把编辑器从 {EditorUserBuildSettings.activeBuildTarget} 切到 {config.BuildTarget}？\n" +
+                    "要按新平台重新导入全部资源，第一次可能要几分钟。",
+                    "切换",
+                    "取消"))
+            {
+                return;
+            }
+
+            bool switched = EditorUserBuildSettings.SwitchActiveBuildTarget(config.BuildTargetGroup, config.BuildTarget);
+            EditorUtility.DisplayDialog(
+                "切换平台",
+                switched ? $"已切到 {EditorUserBuildSettings.activeBuildTarget}。" : "切换失败，详见 Console。",
+                "确定");
+        }
+
+        [VerticalGroup(WindowTitle + "/操作/Buttons/Side")]
         [Button("打开输出目录", ButtonSizes.Medium)]
         [PropertyOrder(-18)]
         private void OpenOutputFolder()
@@ -105,7 +143,7 @@ namespace XFramework
             EditorUtility.RevealInFinder(directory);
         }
 
-        [VerticalGroup("Windows 一键出包/操作/Buttons/Side")]
+        [VerticalGroup(WindowTitle + "/操作/Buttons/Side")]
         [Button("生成配置表", ButtonSizes.Medium)]
         [PropertyTooltip("打开 Luban 配置生成工具。生成配置表会重新生成 .cs 并触发域重载，所以不放进出包流程，需要时先在这里生成完再打包。")]
         [PropertyOrder(-17)]
@@ -114,7 +152,7 @@ namespace XFramework
             GetWindow<ConfigTools>().Show();
         }
 
-        [VerticalGroup("Windows 一键出包/操作/Buttons/Side")]
+        [VerticalGroup(WindowTitle + "/操作/Buttons/Side")]
         [Button("定位配置资产", ButtonSizes.Medium)]
         [PropertyOrder(-16)]
         private void PingConfig()
@@ -128,28 +166,37 @@ namespace XFramework
             Selection.activeObject = config;
         }
 
-        [BoxGroup("Windows 一键出包/概览")]
+        [BoxGroup(WindowTitle + "/概览")]
+        [ShowInInspector]
+        [ReadOnly]
+        [LabelText("目标平台")]
+        [PropertyOrder(-11)]
+        private string PlatformSummary => config == null
+            ? string.Empty
+            : $"{config.PlatformDisplayName}（编辑器当前：{EditorUserBuildSettings.activeBuildTarget}）";
+
+        [BoxGroup(WindowTitle + "/概览")]
         [ShowInInspector]
         [ReadOnly]
         [LabelText("输出路径")]
         [PropertyOrder(-10)]
         private string OutputPath => config == null ? string.Empty : config.GetOutputPath();
 
-        [BoxGroup("Windows 一键出包/概览")]
+        [BoxGroup(WindowTitle + "/概览")]
         [ShowInInspector]
         [ReadOnly]
         [LabelText("场景数量")]
         [PropertyOrder(-9)]
         private int SceneCount => config == null ? 0 : config.GetScenePaths().Length;
 
-        [BoxGroup("Windows 一键出包/概览")]
+        [BoxGroup(WindowTitle + "/概览")]
         [ShowInInspector]
         [ReadOnly]
         [LabelText("宏定义")]
         [PropertyOrder(-8)]
         private string DefineSymbols => FormatDefineSymbols();
 
-        [BoxGroup("Windows 一键出包/概览")]
+        [BoxGroup(WindowTitle + "/概览")]
         [ShowInInspector]
         [ReadOnly]
         [LabelText("上次结果")]
@@ -157,7 +204,7 @@ namespace XFramework
         [SerializeField]
         private string lastResult;
 
-        [BoxGroup("Windows 一键出包/配置", ShowLabel = false)]
+        [BoxGroup(WindowTitle + "/配置", ShowLabel = false)]
         [InlineEditor(InlineEditorObjectFieldModes.Hidden, Expanded = true)]
         [HideLabel]
         [Required]
@@ -165,11 +212,16 @@ namespace XFramework
         [SerializeField]
         private PlayerBuildConfig config;
 
-        [MenuItem("Tools/XFramework/打包/Windows 一键出包", false, 101)]
+        /// <summary>按钮文字里用的平台名（Odin 表达式要访问，所以是内部属性）。</summary>
+        private string PlatformName => config == null ? "?" : config.PlatformDisplayName;
+
+        private bool NeedsPlatformSwitch => config != null && EditorUserBuildSettings.activeBuildTarget != config.BuildTarget;
+
+        [MenuItem("Tools/XFramework/打包/一键出包", false, 101)]
         private static void Open()
         {
             PlayerBuildWindow window = GetWindow<PlayerBuildWindow>();
-            window.titleContent = new GUIContent("Windows 一键出包");
+            window.titleContent = new GUIContent(WindowTitle);
             window.minSize = new Vector2(760, 720);
             window.Show();
         }
@@ -177,7 +229,7 @@ namespace XFramework
         protected override void OnEnable()
         {
             base.OnEnable();
-            titleContent = new GUIContent("Windows 一键出包");
+            titleContent = new GUIContent(WindowTitle);
             minSize = new Vector2(760, 720);
             lastResult = EditorPrefs.GetString(LastResultKey, "无");
             LoadConfig();

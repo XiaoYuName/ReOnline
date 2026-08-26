@@ -205,9 +205,49 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 | 菜单项 | 实现 |
 |---|---|
 | Addressable 一键打包 | `Assets/Editor/AddressableTools/AddressableBuildOdinWindow.cs` |
-| Windows 一键出包 | `Assets/Editor/BuildTools/PlayerBuildWindow.cs` |
+| 一键出包 | `Assets/Editor/BuildTools/PlayerBuildWindow.cs`（Windows64 / Android，见下面「一键出包窗口」）|
 | 自动打包 Addressable | `Assets/Editor/AddressableTools/AddressableBuild.cs` |
 | 清空 Addressable 标签内容 | 同上 |
+
+⚠️ 那个菜单项 2026-08-26 之前叫「Windows 一键出包」，加了安卓之后改成了「一键出包」，平台在窗口里选。
+
+### 一键出包窗口（Windows64 / Android，2026-08-26 加的安卓）
+
+`Assets/Editor/BuildTools/` 四个文件：
+
+| 文件 | 职责 |
+|---|---|
+| `PlayerBuildConfig.cs` | 配置（`SerializedScriptableObject`）+ 校验。平台相关的派生值（BuildTarget / 扩展名 / 输出路径）都在这 |
+| `PlayerBuilder.cs` | 流程：校验 → **切平台** → 写 ProjectSettings → Addressable 前置 → BuildPipeline → 收尾 |
+| `PlayerBuildVersionSync.cs` | 版本号从配置写到 ProjectSettings 和所有 Build Profile 快照，见第 9 节 |
+| `PlayerBuildWindow.cs` | Odin 窗口 |
+
+流程里有**顺序约束**：**切平台必须排在 Addressable 构建之前** —— Addressable 的 bundle 是按平台打的，
+顺序反了会把上一个平台的资源打进这个包里，而且不报错，只表现成真机上加载不出资源。
+
+`ScriptingBackend` / `Il2CppConfiguration` / 裁剪等级 / 包名这些是**按平台分别写**的
+（`PlayerSettings.SetXxx(NamedBuildTarget)`），所以两个平台各留各的值，切平台不用重配。
+
+#### Android 那一页的实现约束
+
+| 项 | 说明 |
+|---|---|
+| **符号表等级** | 走**反射**设 `UnityEditor.Android.UserBuildSettings.DebugSymbols.level`。旧的 `EditorUserBuildSettings.androidCreateSymbols` 在 6000.4 已废弃（编译会报废弃警告）；新 API 在平台扩展程序集 `UnityEditor.Android.Extensions` 里，**直接引用的话没装 Android 模块的机器整个 `Assembly-CSharp-Editor` 都编不过**，所以只能反射。枚举名要和 `Unity.Android.Types.DebugSymbolLevel`（`None` / `SymbolTable` / `Full`）一字不差，反射是按名字 `Enum.Parse` 的 |
+| **纹理压缩** | 写 `PlayerSettings.Android.textureCompressionFormats`（数组，取第一个），不是那个已经变成 legacy 的 `EditorUserBuildSettings.androidBuildSubtarget` |
+| **`BuildPlayerOptions.subtarget`** | 只有 Standalone 用得上（Player / Server）。Android 必须留 0，别把 `StandaloneBuildSubtarget` 传过去 |
+| **Keystore 口令** | 存在**本机 EditorPrefs**（键里带 `Application.dataPath` 防串工程），**不写进配置资产** —— 那个资产是进 git 的。换机器要重填，校验会提示 |
+| **不用自定义签名时要主动清空** | `keystoreName` / `keyaliasName` 留在 ProjectSettings 上会被当成「自定义签名没生效」来查，所以 `useCustomKeystore=false` 时把四个字段一起清掉 |
+| **ARM64 必须 IL2CPP** | Mono 出不了 64 位包。校验里挡住了，不然要到 gradle 那一步才报 |
+| **联网权限** | `forceInternetPermission` 校验里**强制要求为真** —— 本项目是联网游戏，关掉的话包里没有 INTERNET 权限，真机连不上服务器，而且现象是「卡在连接中」，很难往回追 |
+| **`aab` / `apk` 的互斥项** | 拆分二进制(Play Asset Delivery)只有 aab 有意义、分架构出包只有 apk 有意义，写 PlayerSettings 时按格式过滤了一遍，别只靠界面隐藏 |
+| **装到设备** | `adb install -r`。adb 先看 Preferences 里配的 SDK，没配就用编辑器自带的 `<EditorData>/PlaybackEngines/AndroidPlayer/SDK`。**装失败不算出包失败** —— 包已经出好了 |
+
+⚠️ **真机/局域网测试记得改 `RemoteLoadUrl` 和 `SpacetimeConnection` 的地址** ——
+留 `127.0.0.1` 的话手机连的是它自己。局域网地址是 `http://192.168.10.226:2383`。
+
+⚠️ **输出目录默认按平台分了一层**（`Build/Windows64/…`、`Build/Android/…`）。
+这是配置里「按平台分子目录」那个开关，关掉之后两个平台的产物会挤在同一层 ——
+文件名模板里没有 `{platform}` 的话会撞在一起。
 
 `Tools > XFramework > UI > 生成 UIKeys` 从 **`UIPageConfiguration` 资产**生成
 `Assets/Scripts/Game/Scripts/AddressableKeys/UIKeys.cs`，**是生成物**。
@@ -1172,29 +1212,51 @@ Febucci Text Animator、DamageNumbersPro、PathologicalGames
   build profile 的覆盖用 `SerializedObject(profile.playerSettings)` 改完再调
   `SerializePlayerSettings()`（两者都是 internal，用反射）。
 - `PlayerBuildConfig` 里那个「从 ProjectSettings 读取当前设置」按钮会**连带覆盖
-  `Version`**（拿全局 `bundleVersion`），只想改名字时别按它。
+  `Version`**（拿全局 `bundleVersion`），只想改名字时别按它 —— 版本号的方向现在是
+  **配置 → ProjectSettings**（见第 9 节），按这个按钮等于把方向倒过来。
 
 ---
 
-## 9. 版本号（客户端三处 + 服务端一处必须一致）
+## 9. 版本号（客户端只改一处 + 服务端一处）
 
 客户端连上服务器后会立刻调 `CheckVersion(Application.version)` 对一次版本号，
 不一致就弹窗提示并禁止登录（详见 [../ReDiv_Server/README.md](../ReDiv_Server/README.md) 的「版本号」一节）。
-所以版本号改一处不够，客户端这**三处**要一起改：
 
-| 位置 | 作用 |
+### 客户端只在一个地方改（2026-08-26 起）
+
+**唯一真相源是 `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 的 `Version`**，
+也就是一键出包窗口「基础信息」页上那个「版本号」输入框。
+它由 `PlayerBuildVersionSync` 往下写，客户端其余几处都是它的投影：
+
+| 位置 | 谁写的 |
 |---|---|
-| `ProjectSettings/ProjectSettings.asset` 的 `bundleVersion` | `Application.version` 读的就是它，**校验用的是这个值** |
-| `Assets/Settings/Build Profiles/PC.asset` | 这个 profile 自带一份 PlayerSettings 覆盖快照 |
-| `Assets/Editor/BuildTools/PlayerBuildConfig.asset` 的 `Version` | 出包时会写回 PlayerSettings，是**出包时的真正权威** |
+| `ProjectSettings/ProjectSettings.asset` 的 `bundleVersion` | 出包时自动同步。`Application.version` 读的就是它，**校验用的是这个值** |
+| `ProjectSettings` 的 `AndroidBundleVersionCode` | 出包时自动同步成配置里的**内部版本号**（Android 上架要求它逐次变大） |
+| `Assets/Settings/Build Profiles/*.asset` 里那份 PlayerSettings 快照 | 出包时自动同步 |
 
-加上服务端 `ReDiv_Server/spacetimedb/Version.cs` 的 `Module.ServerVersion`（改完要 publish），
-一共四处。2026-08-22 之前这四处是 `1.0` / `0.1` / `0.1` / 无，界面上还写死显示 `0.0.1`，
-四个值互不相同 —— 现在统一成 `0.0.1`。
+同步时机有两个：**每次出包**（`PlayerBuilder.ApplyPlayerSettings` 里），
+以及窗口上那个「把版本号写回 ProjectSettings 与 Build Profiles」按钮（想立刻生效时手动按）。
+窗口「版本号一致性」那一行是只读检查，不一致会把差在哪列出来。
 
-编辑器开着时**不要手改** `ProjectSettings.asset` 和 profile 的 YAML 快照（会被编辑器内存值盖回），
-走 API：`PlayerSettings.bundleVersion`；profile 的覆盖用
-`SerializedObject(profile.playerSettings)` 改完再调 `SerializePlayerSettings()`（都是 internal，用反射）。
+⚠️ **别再手改 ProjectSettings 或 profile 快照** —— 下次出包会被配置盖回去，
+中间那段时间两边不一致，很容易误判成「改了没生效」。
+
+> 为什么要管 Build Profile 快照：`Assets/Settings/Build Profiles/PC.asset` 里存着一份
+> **完整的 PlayerSettings YAML 快照**，profile 被激活时它会盖掉全局值。
+> 只改 ProjectSettings 的话，哪天有人切到 profile 出包就会带着一个旧版本号发出去 ——
+> 而版本校验是**字符串全等**，表现成「新包连不上服务器」。
+> （本工程现在没有激活任何 build profile，走的是经典平台设置，但快照还在，所以照样同步。）
+
+实现上那三个成员（`BuildProfile.playerSettings` / `SerializePlayerSettings` /
+`HasSerializedPlayerSettings`）都是 **internal，只能反射**（`BuildProfile` 类型本身是 public）。
+反射拿不到时只警告、不让出包失败。
+
+### 服务端那一处要手改
+
+`ReDiv_Server/spacetimedb/Version.cs` 的 `Module.ServerVersion`，**改完要 `spacetime publish`**。
+工具管不到服务端，所以升版本号的动作是：窗口里改 → 改 `Version.cs` → publish。
+2026-08-22 之前四处互不相同（`1.0` / `0.1` / `0.1` / 无，界面上还写死显示 `0.0.1`），
+现在统一成 `0.0.1`。
 
 界面右下角的版本号由 `CommonUI.RefreshVersion()` 从 `Application.version` 刷，
 **不要再往 prefab 里写死**，否则又会和校验值对不上。

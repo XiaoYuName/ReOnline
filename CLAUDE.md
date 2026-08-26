@@ -262,8 +262,14 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
   不要"顺手同步回上游版本"，详见该目录下的 `UPSTREAM.md`
 - CLI / 数据库 / Unity SDK 三者版本必须同为 2.8.2
 - **客户端与服务端的游戏版本号必须一致**（服务端 `Module.ServerVersion` ↔ 客户端
-  `Application.version`），不一致客户端会弹窗并禁止登录。改版本号要动四处，
-  见 [ReDiv_Server/README.md](ReDiv_Server/README.md) 的「版本号」一节
+  `Application.version`），不一致客户端会弹窗并禁止登录。**客户端只改一处**：
+  一键出包窗口里那个「版本号」（`PlayerBuildConfig.asset`），出包时它会自动写到
+  ProjectSettings 和所有 Build Profile 快照；**服务端 `Version.cs` 要手改并 publish**。
+  别再手改 ProjectSettings 或 profile 快照，下次出包会被盖回去。
+  见 [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 9 节
+- **出包走 `Tools > XFramework > 打包 > 一键出包`**（2026-08-26 之前叫「Windows 一键出包」），
+  平台在窗口里选 Windows64 / Android。流程里**切平台必须排在 Addressable 构建之前** ——
+  bundle 是按平台打的，顺序反了会把上一个平台的资源打进包里，还不报错
 - 补间动画用 **DOTween Pro**（`Assets/Plugins/Demigiant/`），**不是** PrimeTween
 - **项目纯中文，不要再引入多语言**。2026-08-23 整套移除了 Unity Localization /
   gpt-localization / LanguageManager / locale 与 String Table 资产。界面文字和配置表里
