@@ -10,7 +10,8 @@ Unity 客户端。服务端在 `../ReDiv_Server`（SpacetimeDB 模块）。
 | 项目 | 值 |
 |---|---|
 | Unity | 6000.4.8f1 |
-| 渲染管线 | URP 17.4.0 |
+| 渲染管线 | URP 17.4.0。默认 renderer 是 **`CubismURPRenderer`**（Live2D 那个），不是 `Renderer2D` —— 见第 7 节 |
+| 2D 遮挡排序 | 全局 `Transparency Sort Mode = Custom Axis (0,1,0)`（站得靠下的盖住靠上的），见第 5 节 |
 | 唯一场景 | `Assets/Scenes/Root/Root.unity` |
 | 框架命名空间 | `XFramework`（沿用自旧的自用框架，工程改名前叫 AFramework / RAFramework / XFramework） |
 | 资源加载 | Addressables 2.9.1 |
@@ -213,13 +214,14 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 
 ### 一键出包窗口（Windows64 / Android，2026-08-26 加的安卓）
 
-`Assets/Editor/BuildTools/` 四个文件：
+`Assets/Editor/BuildTools/` 五个文件：
 
 | 文件 | 职责 |
 |---|---|
 | `PlayerBuildConfig.cs` | 配置（`SerializedScriptableObject`）+ 校验。平台相关的派生值（BuildTarget / 扩展名 / 输出路径）都在这 |
 | `PlayerBuilder.cs` | 流程：校验 → **切平台** → 写 ProjectSettings → Addressable 前置 → BuildPipeline → 收尾 |
-| `PlayerBuildVersionSync.cs` | 版本号从配置写到 ProjectSettings 和所有 Build Profile 快照，见第 9 节 |
+| `PlayerBuildVersionSync.cs` | 版本号从配置写到 ProjectSettings 和**所有** Build Profile 快照，见第 9 节 |
+| `AndroidToolchainCheck.cs` | Android 外部工具链（SDK / NDK / JDK / Gradle）的**飞行前检查**，见下 |
 | `PlayerBuildWindow.cs` | Odin 窗口 |
 
 流程里有**顺序约束**：**切平台必须排在 Addressable 构建之前** —— Addressable 的 bundle 是按平台打的，
@@ -241,6 +243,30 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 | **联网权限** | `forceInternetPermission` 校验里**强制要求为真** —— 本项目是联网游戏，关掉的话包里没有 INTERNET 权限，真机连不上服务器，而且现象是「卡在连接中」，很难往回追 |
 | **`aab` / `apk` 的互斥项** | 拆分二进制(Play Asset Delivery)只有 aab 有意义、分架构出包只有 apk 有意义，写 PlayerSettings 时按格式过滤了一遍，别只靠界面隐藏 |
 | **装到设备** | `adb install -r`。adb 先看 Preferences 里配的 SDK，没配就用编辑器自带的 `<EditorData>/PlaybackEngines/AndroidPlayer/SDK`。**装失败不算出包失败** —— 包已经出好了 |
+
+#### Android 工具链飞行前检查（`AndroidToolchainCheck`）
+
+`PlayerBuildConfig.Validate()` 里调一次，在**任何东西开始构建之前**就把
+SDK / NDK / JDK / Gradle 路径不对的情况报出来。
+
+**为什么要有这一步**：路径不对的话，要等到 `BuildPipeline.BuildPlayer` 才抛
+`Android NDK not found` —— **而那时 Addressable 已经白构建了一遍**，几分钟就没了。
+
+三条实现约束：
+
+1. **判定不自己写**，直接反射调 Unity 自己的 `AndroidRoot.Validate(path)`，
+   口径和 `Preferences > External Tools` 里画红字用的完全一样。
+2. **只能走反射**：那些类型在平台扩展程序集 `UnityEditor.Android.Extensions` 里，
+   直接引用会让**没装 Android 模块的机器整个 `Assembly-CSharp-Editor` 编不过**
+   （和 Android 那一页的符号表等级同一个理由）。
+3. **反射失败一律当作没问题**（fail open）。这只是一层提前预警，
+   不能因为 Unity 换了内部类名就把出包卡死。
+
+⚠️ 实测踩过（2026-08-26）：**Unity 自带的 NDK 解压时多套了一层**
+`NDK/android-ndk-r27c/`（SDK 和 OpenJDK 都是平铺的，只有它不是），
+于是 `NDK/source.properties` 找不到、被判成 invalid。
+
+NDK 只有 IL2CPP 才用得上，所以 Mono 时不拿它挡路（`FindProblems(includeNdk)`）。
 
 ⚠️ **真机/局域网测试记得改 `RemoteLoadUrl` 和 `SpacetimeConnection` 的地址** ——
 留 `127.0.0.1` 的话手机连的是它自己。局域网地址是 `http://192.168.10.226:2383`。
@@ -1233,7 +1259,23 @@ Recorder、MemoryProfiler、Luban、UIEffect、UnmaskForUGUI、UniTask、Spine 4
 **私有 registry**：`http://192.168.10.226:4873`（Verdaccio），scope `com.lumino` / `com.kyrylokuzyk`
 
 **Assets/Plugins**：DOTween Pro（Demigiant）、Odin Inspector（Sirenix）、
-Febucci Text Animator、DamageNumbersPro、PathologicalGames
+Febucci Text Animator、DamageNumbersPro、PathologicalGames（对象池）、IngameDebugConsole
+
+**`Assets/` 下另外几个第三方目录**（不在 Plugins 里，容易漏看）：
+
+| 目录 | 是什么 | 用在哪 |
+|---|---|---|
+| `Live2D/Cubism/` | Live2D Cubism SDK | **模型一个都还没用上**，但它的 `CubismURPRenderer` 是 URP 的**默认 renderer**，见下 |
+| `AVProVideo/` | 视频播放 | `CommonUI`（标题界面那段视频）、加载界面的 `LoadIngVideo.mkv` |
+| `TLNEXUS/Editor/TraceWeave/` | 一个编辑器 dll | 只有 dll，没有源码 |
+| `Shader/ReDiv/` | **自己写的** VariantCard shader 与还原工具 | 见第 10 节 |
+
+⚠️ **URP 的默认 renderer 是 Live2D 的那个**（`UniversalRP.asset` 的
+`m_DefaultRendererIndex: 0` → `CubismURPRenderer`，一个带 `CubismRenderPassFeature`
+的 UniversalRendererData）；列表里第 1 个才是 `Renderer2D`。
+明明现在一个 Cubism 模型都没用上却让它当默认，是因为 Cubism 的遮罩要靠那个 renderer feature，
+换掉的话以后接 Live2D 会挂。**这件事有个直接后果** —— Y 轴遮挡排序不能在 renderer 资产里设，
+见第 5 节「角色互相遮挡按 Y 排」。
 
 ---
 
@@ -1251,8 +1293,9 @@ Febucci Text Animator、DamageNumbersPro、PathologicalGames
 这四处必须同时保持一致，改一处不够：
 
 1. `ProjectSettings/ProjectSettings.asset` —— 全局值
-2. `Assets/Settings/Build Profiles/PC.asset` —— 这个 profile **自带一份 PlayerSettings
-   覆盖**（YAML 文本快照），注意同级的 `Windows64.asset` 没有覆盖
+2. `Assets/Settings/Build Profiles/PC.asset` —— **只有这一个** profile 自带一份
+   PlayerSettings 覆盖（YAML 文本快照，900 多行）。同级还有 `Windows64.asset` 和
+   `IQOO.asset`（Android），那两个的 `m_PlayerSettingsYaml` 是空壳、没有覆盖
 3. `Assets/Editor/BuildTools/PlayerBuildConfig.asset` —— 出包时
    `PlayerBuilder.cs` 会把它里的值写回 PlayerSettings，所以它是出包的真正权威
 4. `Assets/Editor/BuildTools/PlayerBuildConfig.cs` —— 字段初始化器里的默认值（只影响新建的 asset）
@@ -1303,6 +1346,9 @@ Febucci Text Animator、DamageNumbersPro、PathologicalGames
 > 只改 ProjectSettings 的话，哪天有人切到 profile 出包就会带着一个旧版本号发出去 ——
 > 而版本校验是**字符串全等**，表现成「新包连不上服务器」。
 > （本工程现在没有激活任何 build profile，走的是经典平台设置，但快照还在，所以照样同步。）
+>
+> 同步是**扫整个 `Build Profiles/` 目录**的，不是写死某几个名字 ——
+> 所以现在这三个（`PC` / `Windows64` / `IQOO`）和以后新加的都自动覆盖到，不用改代码。
 
 实现上那三个成员（`BuildProfile.playerSettings` / `SerializePlayerSettings` /
 `HasSerializedPlayerSettings`）都是 **internal，只能反射**（`BuildProfile` 类型本身是 public）。
