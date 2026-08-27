@@ -37,6 +37,10 @@ public partial class Tables
     /// 城镇NPC表。一行一个NPC，站在某个城镇的固定世界坐标上。纯客户端表现，服务端没有NPC概念。结构看 TownNpc.xlsx 表头（read_schema_from_file=True）
     /// </summary>
     public TbTownNpc TbTownNpc {get; }
+    /// <summary>
+    /// 城镇触发器表。一行一个矩形触发区，玩家走进去就生效：Kind=1 传送到别的城镇（走服务端 ChangeTown），Kind=2 打开副本界面。纯客户端表现，服务端不认识触发器（能不能去哪个城镇由服务端自己校验）。结构看 TownTrigger.xlsx 表头（read_schema_from_file=True）
+    /// </summary>
+    public TbTownTrigger TbTownTrigger {get; }
 
 
       public Tables(System.Func<string, JArray> loader)
@@ -47,6 +51,7 @@ public partial class Tables
         TbTimeBand = new TbTimeBand(loader("tbtimeband"));
         TbLevelExp = new TbLevelExp(loader("tblevelexp"));
         TbTownNpc = new TbTownNpc(loader("tbtownnpc"));
+        TbTownTrigger = new TbTownTrigger(loader("tbtowntrigger"));
         ResolveRef();
     }
     
@@ -58,6 +63,7 @@ public partial class Tables
         TbTimeBand.ResolveRef(this);
         TbLevelExp.ResolveRef(this);
         TbTownNpc.ResolveRef(this);
+        TbTownTrigger.ResolveRef(this);
     }
 }
 

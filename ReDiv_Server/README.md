@@ -3,7 +3,7 @@
 ReDiv 服务端。C# 编写的 **SpacetimeDB 模块**，编译成 WebAssembly 跑在数据库进程内 ——
 **没有独立的游戏服务器进程**。
 
-**当前状态：账号系统 + 角色系统 + 城镇（含移动同步、玩家状态）与世界时间 + 聊天（附近 + 世界两个频道）。**
+**当前状态：账号系统 + 角色系统 + 城镇（含移动同步、玩家状态、**城镇间传送**）与世界时间 + 聊天（附近 + 世界两个频道）。**
 注册 / 登录 / 会话，多角色的创建 / 删除 / 选择，形态与觉醒（基础 → 一觉 → 二觉，按星级现算），
 「角色在哪个城镇」「现在是早/中/晚哪个时段」，以及**同城镇可见的附近消息**和
 **全服可见的世界消息**都能用了。
@@ -81,7 +81,7 @@ ReDiv_Server/
     │   ├── TownPlayerTables.cs   CharacterTransform（公开，坐标）/ AccountWallet（私有，金币钻石）
     │   ├── TownPlayerReducers.cs UpdateTransform（坐标上报）+ 体力每日重置 + 钱包
     │   ├── TownRules.cs          时段计算 + 初始城镇（纯函数，只读配置）
-    │   ├── TownReducers.cs       PlaceCharacter（进城镇）+ 配置自检
+    │   ├── TownReducers.cs       PlaceCharacter（进游戏落位）+ ChangeTown（玩家自己换城镇）+ 配置自检
     │   └── WorldTimeReducers.cs  定时重算时段 + GM 锁定（RefreshWorldTime）+ 自检
     ├── Security/           口令哈希（自己写的，原因见「写代码前必须知道的」）
     │   ├── Sha256.cs
@@ -509,8 +509,43 @@ GM 需要长期预览某个时段时，修改私有 `WorldTimeControl`，再调�
 的角色不占玩法态数据。配置里那个城镇被删了会退回初始城镇而不是抛错：
 让玩家能进游戏比精确保留位置重要。
 
-**没有「玩家自己在城镇之间走」的 Reducer** —— 那要先定清楚城镇怎么解锁、能不能随便去，
-玩法没定型之前不开这个口子。
+### 换城镇（传送）
+
+位置有**两个写入口**，别在别处再写第三个：`PlaceCharacter`（进游戏时落位，不是 Reducer）
+和 `ChangeTown`（玩家自己换城镇，2026-08-27 加的）。
+
+| 客户端绑定 | CLI | 行为 |
+|---|---|---|
+| `ChangeTown(townId)` | `change_town` | 传送到另一个城镇 |
+
+校验顺序：活会话 → **本连接有选角行** → 目标城镇在配置里 → 已经在那儿就幂等返回。
+然后**三张表一起动，漏一张就出 bug**：
+
+| 表 | 怎么动 | 漏了会怎样 |
+|---|---|---|
+| `CharacterLocation` | 改 `TownId` + `EnteredAt` | 权威位置没变，下次进游戏又回旧城镇 |
+| `CharacterSelection` | 改 `TownId` + `EnteredAt` | 客户端根本不知道自己换了城镇（它看的是这张表） |
+| `CharacterTransform` | **删掉本连接那一行** | 旧城镇留一个不动的「幽灵」；新城镇的人先看到我在**旧城镇坐标**上的那一帧 |
+
+坐标行删掉之后客户端进新城镇时会立刻上报一次，自然就补回来了。
+
+**服务端不存坐标，也不知道落点在哪。** 客户端那边的传送阵是**成对**的：
+从 A 过去会站在对端 B 的「出口点」旁边（配置表 `TownTrigger`，纯客户端）；
+不是传送过来的（进游戏 / 换角色）才落到那张背景的 `StartPoints`。
+两条都是客户端算的，服务端只管「他现在在哪个城镇」。
+
+⚠️ **现在「所有城镇都能去」**（用户 2026-08-27 定的：只有一个真城镇，做复杂的解锁规则
+也验不出来）。要按等级 / 进度收紧就改 `ChangeTown` 里**那一处标了 TODO 的地方** ——
+别把条件散到客户端或别的 Reducer。客户端的触发器（配置表 `TownTrigger`，纯客户端）
+只是「什么时候发起这次请求」，**改过的客户端可以对任意城镇调这个 Reducer**。
+
+⚠️ 失败**抛异常**（和聊天一样、和 `UpdateTransform` 相反）：传送是玩家的一次明确操作，
+失败了必须让他看到原因。
+
+⚠️ 没有传送冷却，也没有转场读条 —— 踩到就瞬间换。要加最小间隔就比对 `EnteredAt`。
+
+客户端那半边（矩形触发区怎么判、为什么不开物理、落位为什么要单独一个字段）见
+[../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.md) 第 5 节「城镇触发器」。
 
 **出生点和可行走边界都是纯客户端的事，服务端一个字段都没加。** 服务端只记「在哪个城镇」、
 从来不存坐标（`CharacterTransform` 是连接级、断线就清），所以落点规则就一条：
@@ -532,6 +567,10 @@ GM 需要长期预览某个时段时，修改私有 `WorldTimeControl`，再调�
 | | `Name` | `c` | 时段名（中文原文） |
 
 服务端**看不到那三列背景**（`group="c"`），所以自检查不了路径对不对 —— 那半边只能靠客户端跑起来。
+
+⚠️ 还有一张 `TownTrigger`（城镇触发器：传送点 / 副本入口）是**整表 `group="c"`** ——
+服务端根本没有这张表，改完**不用 `spacetime publish`**。
+「能不能去那个城镇」由 `ChangeTown` 自己校验，不读触发器表（理由见「换城镇（传送）」）。
 
 ### 自检
 
@@ -557,6 +596,11 @@ spacetime sql rediv "SELECT * FROM world_time"
 ```bash
 spacetime sql rediv "SELECT character_id, town_id, entered_at FROM character_location"
 ```
+
+⚠️ **`spacetime call rediv change_town '2'` 一定会失败** —— 每条 CLI 命令都是一条新连接，
+既没有选角行、通常也没有会话。实测回的是**「请先登录」**（`RequireAccountId` 排在前面；
+如果那条连接刚好靠 `IdentityBinding` 免密恢复出了会话，就会往后走一步回「请先进入城镇」）。
+这不是 bug，正好是那两条鉴权路径的验证；要测传送成功只能用活着的客户端。
 
 长期锁定到夜晚（本地数据库 owner 操作）：
 
@@ -1020,17 +1064,18 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 
 ### 现在的配置内容（会随开发变，以表里为准）
 
-`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下**六张**数据表
+`../ReDiv_Online/ExcelTool/LubanTools/DataTables/Datas/` 下**七张**数据表
 （外加 `__tables__` / `__beans__` / `__enums__` 三张元表）：
 
 | 表 | 内容 | 两端 |
 |---|---|---|
 | `CharacterJob.xlsx` | `1` 凯露 / `2` 优衣，都是 `MaxStar=6`、`StartLevel=1`、`StartStar=1` | c,s |
 | `CharacterForm.xlsx` | 每个角色 4 行：基础线 3 个（1★/3★/6★）+ 爆发线 1 个（6★）。资源列全是 `c` | c,s |
-| `Town.xlsx` | `TownId=1` 兰德索尔（`IsStartTown=True`）。三列背景 + 三个时段硬对应 | c,s |
+| `Town.xlsx` | `TownId=1` 兰德索尔（`IsStartTown=True`）+ `TownId=2` **测试镇**（2026-08-27 为了验传送加的**临时行**，背景复用兰德索尔那三张）。三列背景 + 三个时段硬对应 | c,s |
 | `TimeBand.xlsx` | 固定 3 行：早 5 点起 / 白天 11 点起 / 夜晚 18 点起 | c,s |
 | `LevelExp.xlsx` | 1~60 级的 `ExpToNext` + `MaxStamina`。**数值是占位的** | c,s |
 | `TownNpc.xlsx` | 城镇 NPC 站在哪个城镇的哪个世界坐标。**服务端看不到**（整表 `group=c`） | c |
+| `TownTrigger.xlsx` | 城镇触发器（矩形判定区）：走进去传送 / 开副本界面。**传送是成对的**（`TargetId` 指对端传送点），落点是对端的「出口点」。**服务端看不到**（整表 `group=c`） | c |
 
 美术资源都填好了（在 `Assets/AddressableAssets/Remote/Character/<JobId>/` 下，
 `0Common` 给基础形态、另两个子目录给觉醒线和爆发线）。
@@ -1131,13 +1176,15 @@ Unity 侧的详细文档在 [../ReDiv_Online/CLAUDE.md](../ReDiv_Online/CLAUDE.m
 | `SpacetimeConnection.cs` | 只管连接生命周期 + `ServerLinkState`，**不建立任何订阅** |
 | `AuthManager.cs` | 账号：`session` / `session_closed` 的订阅、登录态、Register/Login/Logout |
 | `CharacterManager.cs` | 角色：`my_character` / `my_account_profile` 的订阅、角色列表、查重/建/删 |
-| `TownManager.cs` | 城镇与世界时间：`world_time` / `character_selection` / `character_transform` 的订阅、同城镇玩家、坐标上报 |
+| `TownManager.cs` | 城镇与世界时间：`world_time` / `character_selection` / `character_transform` 的订阅、同城镇玩家、坐标上报、**换城镇（`ChangeTownAsync`）** |
 | `ChatManager.cs` | 聊天：`chat_message` 的订阅（附近**跟着当前城镇换** + 世界固定域 0）、消息列表、两个频道的发言 |
 
 已接好的界面：`CommonUI`（标题）、`LoginUI`、`SelectCharacterUI`（选人 / 删角）、
 `CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字 / 查重 / 创建）、
-`MainCommonUI`（城镇主界面：按城镇 + 时段显示背景、摇杆移动、右上角信息、**聊天框 + 说话气泡**）、
-`PopMessageUI`（聊天弹窗：**附近 / 世界两个页签**，世界消息就是从这里发的）。
+`MainCommonUI`（城镇主界面：按城镇 + 时段显示背景、摇杆移动、右上角信息、**聊天框 + 说话气泡**、
+**踩触发器传送 / 开副本**）、
+`PopMessageUI`（聊天弹窗：**附近 / 世界两个页签**，世界消息就是从这里发的）、
+`PopDungeonUI`（副本界面，**只做到「能打开」**，里面一行逻辑都没接）。
 
 **四条契约，改的时候别破坏：**
 
@@ -1204,6 +1251,10 @@ spacetime server ping rediv-local
   现在只有觉醒能推星级，测试时用 SQL 直接改
 - **爆发宝石**：爆发形态的配置已就绪，但「装备宝石切形态」是战斗内行为，
   装备 / 背包 / 战斗表一张都还没有
+- **城镇解锁规则**：传送（`ChangeTown`）通了，但现在所有城镇都能去，
+  收紧的口子留在那个 Reducer 里的一处 TODO
+- **副本**：客户端能从触发器打开副本界面了，但**副本本身一张表都还没有**
+  （关卡 / 难度 / 星级 / 掉落 / 进副本的 Reducer）—— 玩法没定型，**要动手前先问**
 - 「觉醒任务」：现在 `AwakenCharacter` 只校验等级。任务系统做好后在
   `CharacterForms.cs` 那一处 TODO 加条件，表结构不用动
 - 战斗由谁裁定：服务端全权模拟 / 服务端发种子+校验结果

@@ -76,6 +76,48 @@ public partial class MainCommonUI : UIBase
     /// <summary>NPC 现在摆的是哪个城镇的，用来让 <see cref="RefreshNpcs"/> 幂等。0 = 还没摆。</summary>
     private uint npcTownId;
 
+    /// <summary>
+    /// <see cref="selfCharacter"/> 现在落位在哪个城镇。0 = 还没落位。
+    ///
+    /// **换城镇时靠它把人挪到新城镇的出生点** —— 形态没变时
+    /// <see cref="RefreshSelfCharacter"/> 会提前返回（那是为了别把角色拉回原点），
+    /// 而传送恰恰是「形态不变但必须重新落位」的情况。漏了这个字段的表现是
+    /// 「传送过去之后站在旧城镇的坐标上」，可能直接在可行走边界外面。
+    /// </summary>
+    private uint selfTownId;
+
+    /// <summary>
+    /// 当前城镇的触发器（配置表 <c>TbTownTrigger</c>）。换城镇时整批换。
+    /// </summary>
+    private readonly List<TownTriggerController> triggers = new List<TownTriggerController>();
+
+    /// <summary>触发器现在摆的是哪个城镇的，用来让 <see cref="RefreshTriggers"/> 幂等。</summary>
+    private uint triggerTownId;
+
+    /// <summary>
+    /// 传送成功之后要落在**哪个传送点**旁边（0 = 没有，落回城镇出生点）。
+    ///
+    /// 传送阵是**成对**的：从 A 过去要出现在对端 B 的旁边，而不是新城镇的出生点。
+    /// 但「换城镇」这件事是绕服务端走一圈才回来的（`ChangeTown` → `character_selection`
+    /// 推回来 → `LocationChanged` → 重新落位），中间隔着一次往返，所以得先把
+    /// 「我是从哪个传送点过去的」记下来，等落位那一步再兑掉。
+    ///
+    /// ⚠️ **必须在调 `ChangeTownAsync` 之前就记**，不能等它 await 返回 ——
+    /// 表更新（于是 LocationChanged）通常比 Reducer 的状态回调**先**到，
+    /// 等返回再记就已经落位完了，人会站在出生点上。
+    /// </summary>
+    private int pendingArriveTriggerId;
+
+    /// <summary>
+    /// 玩家**当前站在**哪个触发器里（0 = 不在任何触发器里）。
+    ///
+    /// ⚠️ 这个字段是整套触发逻辑的关键：只在它**从别的值变成某个触发器**的那一帧才触发一次。
+    /// 不记状态的话站在门口会每帧发一次传送请求。
+    /// 进城镇 / 传送落地时它由 <see cref="RefreshTriggers"/> 按当前位置**初始化**（不触发），
+    /// 所以出生点正好压在触发器上也不会立刻被弹走。
+    /// </summary>
+    private int currentTriggerId;
+
     /// <summary>上一次上报的坐标和时间，用来节流。</summary>
     private Vector2 lastReportedPosition;
     private float lastReportTime;
@@ -115,6 +157,7 @@ public partial class MainCommonUI : UIBase
         RefreshSelfCharacter();
         RefreshOtherCharacters();
         RefreshNpcs();
+        RefreshTriggers();
         RefreshMessages();
     }
 
@@ -123,6 +166,7 @@ public partial class MainCommonUI : UIBase
         UnhookEvents();
 
         ClearCharacters();
+        ClearTriggers();
         ClearMessageSlots();
         ReleaseBackground();
 
@@ -133,6 +177,7 @@ public partial class MainCommonUI : UIBase
     {
         UnhookEvents();
         ClearCharacters();
+        ClearTriggers();
         ClearMessageSlots();
         ReleaseBackground();
 
@@ -148,6 +193,7 @@ public partial class MainCommonUI : UIBase
         }
 
         TickSelfMovement();
+        TickTriggers();
         TickOtherCharacters();
     }
 
@@ -224,6 +270,7 @@ public partial class MainCommonUI : UIBase
         RefreshSelfCharacter();
         RefreshOtherCharacters();
         RefreshNpcs();
+        RefreshTriggers();
     }
 
     /// <summary>换城镇 / 换角色：背景、自己的形象、别人都要重来。</summary>
@@ -234,6 +281,9 @@ public partial class MainCommonUI : UIBase
         RefreshSelfCharacter();
         RefreshOtherCharacters();
         RefreshNpcs();
+        // ⚠️ 触发器必须排在**自己落位之后**：它会按自己当前的位置初始化
+        // currentTriggerId（见那个字段的注释），顺序反了会拿旧坐标去判
+        RefreshTriggers();
     }
 
     // ------------------------------------------------------------------
@@ -320,9 +370,11 @@ public partial class MainCommonUI : UIBase
             return;
         }
 
-        // 形态没变就什么都不做，别把角色拉回原点
+        // 形态没变就不重建形象，别把角色拉回原点。
+        // ⚠️ 但**换城镇是形态不变、位置必须重来**的情况（传送），所以这里还要问一次落位
         if (selfCharacter != null && selfJobId == found.JobId && selfFormId == found.FormId)
         {
+            PlaceSelfAtSpawnIfTownChanged();
             return;
         }
 
@@ -340,17 +392,92 @@ public partial class MainCommonUI : UIBase
 
         selfCharacter.SetName(found.Name);
 
-        // 进城镇的落点：**出生点**，来自城镇区域预制体（配置表 Town 的 AreaPrefab 列）。
-        // 服务端只记「在哪个城镇」、从来不存坐标，所以每次进城镇都是从出生点开始走
-        Vector2 spawn = CurrentSpawnPosition();
+        PlaceSelfAtSpawn(town.CurrentTownId);
+    }
+
+    /// <summary>
+    /// 换城镇了就把自己挪到新城镇的出生点。没换（或者还没落位过）就什么都不做。
+    ///
+    /// 传送走的就是这条路：服务端改完 <c>character_selection.TownId</c> 推回来 ⇒
+    /// LocationChanged ⇒ RefreshSelfCharacter ⇒ 形态没变、城镇变了 ⇒ 重新落位。
+    /// </summary>
+    private void PlaceSelfAtSpawnIfTownChanged()
+    {
+        uint townId = TownManager.Instance.CurrentTownId;
+
+        if (townId == 0 || townId == selfTownId)
+        {
+            return;
+        }
+
+        PlaceSelfAtSpawn(townId);
+    }
+
+    /// <summary>
+    /// 把自己落到当前城镇该站的位置上，并立刻上报一次。
+    ///
+    /// 落点有两种，**传送优先**：
+    ///   1. 从传送阵过来 → 站在**对端那个传送点的出口点**上（见 <see cref="pendingArriveTriggerId"/>）；
+    ///   2. 其它情况（进游戏、换角色、配置漏了）→ 那张背景的 `StartPoints`
+    ///      （用户 2026-08-25 定的「不记住上次站的位置」）。
+    ///
+    /// 服务端从来不存坐标，所以这两条都是客户端自己算的。
+    ///
+    /// ⚠️ 必须在 <see cref="RefreshBackground"/> **之后**调：出生点在那张背景上，
+    /// 背景还没换的话拿到的是上一个城镇的落点。
+    /// </summary>
+    private void PlaceSelfAtSpawn(uint townId)
+    {
+        if (selfCharacter == null)
+        {
+            return;
+        }
+
+        selfTownId = townId;
+
+        Vector2 spawn = TakeArrivePosition(townId) ?? CurrentSpawnPosition();
 
         selfCharacter.Teleport(spawn);
         lastReportedPosition = spawn;
         lastReportTime = 0f;
         lastReportedMoving = false;
 
-        // 立刻上报一次，别人才能马上看见我
-        town.ReportTransform(spawn.x, spawn.y, selfCharacter.Facing, false);
+        // 立刻上报一次，别人才能马上看见我。
+        // ⚠️ 传送时服务端把坐标行**删掉**了（见 ChangeTown），所以这一次上报不是可选的：
+        // 不发的话新城镇的人要等我走第一步才看得见我
+        TownManager.Instance.ReportTransform(spawn.x, spawn.y, selfCharacter.Facing, false);
+    }
+
+    /// <summary>
+    /// 兑掉 <see cref="pendingArriveTriggerId"/>：返回对端传送点的出口坐标，没有就返回 null
+    /// （调用方退回城镇出生点）。**不管成不成都会清掉**，免得一个过期的值一直挂着。
+    ///
+    /// 会核对「那个传送点确实在我要落位的这个城镇里」—— 传送失败、中途换角色、
+    /// 或者服务端把我放到了别的城镇时，这个值就是过期的，那就老老实实走出生点。
+    /// </summary>
+    private Vector2? TakeArrivePosition(uint townId)
+    {
+        int triggerId = pendingArriveTriggerId;
+        pendingArriveTriggerId = 0;
+
+        if (triggerId == 0)
+        {
+            return null;
+        }
+
+        TownTrigger arrive = TownTriggers.Find(triggerId);
+
+        if (arrive == null || arrive.TownId != townId)
+        {
+            return null;
+        }
+
+        Vector2 position = TownTriggers.ArrivePosition(arrive);
+
+        Debug.Log($"[MainCommonUI] 从传送阵到达城镇 {townId}，落在 #{arrive.TriggerId}" +
+                  $"（{arrive.Name}）的出口点 {position}");
+
+        return position;
     }
 
     /// <summary>每帧按摇杆走，并按节流上报坐标。</summary>
@@ -471,6 +598,7 @@ public partial class MainCommonUI : UIBase
 
         selfJobId = 0;
         selfFormId = 0;
+        selfTownId = 0;
     }
 
     /// <summary>回收所有城镇角色并拆池子。离开城镇时调。</summary>
@@ -568,6 +696,264 @@ public partial class MainCommonUI : UIBase
 
         npcs.Clear();
         npcTownId = 0;
+    }
+
+    // ------------------------------------------------------------------
+    // 触发器（传送点 / 副本入口）
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// 按当前城镇摆一批触发器。**幂等**（按 <see cref="triggerTownId"/> 挡住）——
+    /// 它挂在几个高频事件上，不挡的话每次都会把触发器拆了重摆。
+    ///
+    /// ⚠️ 顺序上必须排在「自己落位」之后：末尾那一步要按**自己当前的位置**初始化
+    /// <see cref="currentTriggerId"/>，拿旧坐标去判就白初始化了。
+    /// </summary>
+    private void RefreshTriggers()
+    {
+        uint townId = TownManager.Instance.CurrentTownId;
+
+        if (townId == triggerTownId)
+        {
+            return;
+        }
+
+        ClearTriggers();
+        triggerTownId = townId;
+
+        if (townId == 0)
+        {
+            // 还没进城镇（订阅没生效 / 回选人界面了）
+            return;
+        }
+
+        GameObject root = TownWorldRoots.Find(TownWorldRoots.BackgroundsTag);
+
+        if (root == null)
+        {
+            // TownWorldRoots 内部已经报过错
+            return;
+        }
+
+        foreach (TownTrigger row in TownTriggers.InTown(townId))
+        {
+            TownTriggerController trigger = CreateTrigger(root.transform, row);
+
+            if (trigger != null)
+            {
+                triggers.Add(trigger);
+            }
+        }
+
+        // 站在触发器上进城镇（出生点正好压在门口，或者刚从这里传送过来）
+        // **不该立刻触发** —— 先把「现在站在哪」记下来，等玩家走出去再走进来才算一次
+        SyncCurrentTrigger();
+
+        if (triggers.Count > 0)
+        {
+            Debug.Log($"[MainCommonUI] 城镇 {townId} 摆了 {triggers.Count} 个触发器" +
+                      $"，当前站在 #{currentTriggerId}（0=没站在任何一个上）");
+        }
+    }
+
+    /// <summary>
+    /// 建一个触发器节点。**没有预制体** —— 它自己没有美术，只是判定区 + 地面标记的挂载点
+    /// （见 <see cref="TownTriggerController"/> 的注释）。
+    /// </summary>
+    private TownTriggerController CreateTrigger(Transform parent, TownTrigger row)
+    {
+        var holder = new GameObject($"Trigger_{row.TriggerId}");
+        holder.transform.SetParent(parent, false);
+
+        TownTriggerController trigger = holder.AddComponent<TownTriggerController>();
+        trigger.Bind(row);
+
+        // 地面标记是可选的：没配就只有一个看不见的判定区（现在两个触发器都没配图）
+        if (!string.IsNullOrEmpty(row.IconPrefab))
+        {
+            GameObject icon = AssetsManager.Instance.Instantiate(row.IconPrefab);
+
+            if (icon == null)
+            {
+                Debug.LogError($"[MainCommonUI] 触发器 {row.TriggerId} 的标记预制体加载不出来：{row.IconPrefab}");
+            }
+            else
+            {
+                icon.transform.SetParent(holder.transform, false);
+                icon.transform.localPosition = Vector3.zero;
+            }
+        }
+
+        return trigger;
+    }
+
+    /// <summary>
+    /// 把触发器全收掉。换城镇 / 离开城镇时调。
+    ///
+    /// 标记是子节点，所以**先把标记还给 AssetsManager 再销毁本体** ——
+    /// 反过来的话子节点跟着本体一起没了，AA 的引用就漏了。
+    /// </summary>
+    private void ClearTriggers()
+    {
+        foreach (TownTriggerController trigger in triggers)
+        {
+            if (trigger == null)
+            {
+                continue;
+            }
+
+            // 只有配了 IconPrefab 的才有子节点
+            for (int i = trigger.transform.childCount - 1; i >= 0; i--)
+            {
+                GameObject icon = trigger.transform.GetChild(i).gameObject;
+                icon.SetActive(false);
+                AssetsManager.Instance.ReleaseGameObject(icon);
+            }
+
+            Destroy(trigger.gameObject);
+        }
+
+        triggers.Clear();
+        triggerTownId = 0;
+        currentTriggerId = 0;
+    }
+
+    /// <summary>
+    /// 每帧看自己站在哪个触发器里，**只在踩进去的那一帧**触发一次。
+    ///
+    /// 判定点是角色外层节点的位置，也就是**脚下**（和可行走边界用的是同一点）。
+    /// </summary>
+    private void TickTriggers()
+    {
+        if (selfCharacter == null || triggers.Count == 0)
+        {
+            return;
+        }
+
+        // 正在传送的往返途中不判：那会儿位置还在旧城镇，判出来的东西没意义
+        if (TownManager.Instance.IsChangingTown)
+        {
+            return;
+        }
+
+        TownTrigger hit = FindTriggerAtSelf();
+        int hitId = hit?.TriggerId ?? 0;
+
+        if (hitId == currentTriggerId)
+        {
+            // 还站在同一个里面（或者还是哪个都不在）——「进入」只算一次
+            return;
+        }
+
+        currentTriggerId = hitId;
+
+        if (hit == null)
+        {
+            // 只是走出去了
+            return;
+        }
+
+        Fire(hit);
+    }
+
+    /// <summary>
+    /// 按自己**当前的位置**记下站在哪个触发器里，**不触发**。
+    /// 进城镇 / 传送落地时用（见 <see cref="currentTriggerId"/> 的注释）。
+    /// </summary>
+    private void SyncCurrentTrigger()
+    {
+        currentTriggerId = FindTriggerAtSelf()?.TriggerId ?? 0;
+    }
+
+    private TownTrigger FindTriggerAtSelf()
+    {
+        if (selfCharacter == null)
+        {
+            return null;
+        }
+
+        Vector2 position = selfCharacter.transform.position;
+
+        // triggers 里的 Row 就是配置行，判定走 TownTriggers 的纯几何
+        for (int i = 0; i < triggers.Count; i++)
+        {
+            TownTrigger row = triggers[i]?.Row;
+
+            if (row != null && TownTriggers.Contains(row, position))
+            {
+                return row;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 踩到触发器了。
+    ///
+    /// 两种类型（用户 2026-08-27 定的手感）：
+    ///   Kind=1 传送 → **自动**，踩到就走，不弹确认框
+    ///   Kind=2 副本 → 打开副本界面，让玩家自己选
+    /// </summary>
+    private void Fire(TownTrigger row)
+    {
+        switch (row.Kind)
+        {
+            case TownTriggers.KindChangeTown:
+                TeleportAsync(row).Forget();
+                break;
+
+            case TownTriggers.KindDungeon:
+                Debug.Log($"[MainCommonUI] 踩到副本入口 #{row.TriggerId}（{row.Name}），打开副本界面");
+                UISystem.Instance.OpenUI(UIKeys.PopDungeonUI);
+                break;
+
+            default:
+                // 走不到：InTown 已经把 Kind 不认识的行滤掉了
+                Debug.LogError($"[MainCommonUI] 触发器 {row.TriggerId} 的 Kind={row.Kind} 不认识");
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 传送到对端传送点所在的城镇。**传送阵是成对的**：目标城镇和落点都来自对端那一行。
+    ///
+    /// **成功之后这里什么都不用做**：服务端改完选角行推回来 ⇒ LocationChanged ⇒
+    /// 背景、自己（落到**对端传送点的出口点**）、别人、NPC、触发器、聊天订阅域全都自己重来。
+    ///
+    /// 失败就弹一句服务端的原文。⚠️ 失败之后**不会自动重试** —— 玩家还站在触发器里，
+    /// <see cref="currentTriggerId"/> 已经记成它了，所以得走出去再走进来。
+    /// 这是有意的：失败原因通常是「去不了」（以后加解锁规则时更是如此），
+    /// 原地重试只会每帧刷一个弹窗。
+    /// </summary>
+    private async UniTask TeleportAsync(TownTrigger row)
+    {
+        TownTrigger pair = TownTriggers.PairOf(row);
+
+        if (pair == null)
+        {
+            // 走不到：InTown 的校验已经把连不上对端的行滤掉了
+            Debug.LogError($"[MainCommonUI] 传送点 #{row.TriggerId}（{row.Name}）找不到对端 {row.TargetId}");
+            return;
+        }
+
+        uint targetTownId = (uint)pair.TownId;
+
+        Debug.Log($"[MainCommonUI] 踩到传送点 #{row.TriggerId}（{row.Name}）→ 城镇 {targetTownId} 的 " +
+                  $"#{pair.TriggerId}（{pair.Name}）");
+
+        // ⚠️ **必须在 await 之前记**：表更新（于是 LocationChanged → 重新落位）通常比
+        // Reducer 的状态回调先到，等下面 await 返回再记就已经落到出生点上了
+        pendingArriveTriggerId = pair.TriggerId;
+
+        TownResult result = await TownManager.Instance.ChangeTownAsync(targetTownId);
+
+        if (!result.Ok)
+        {
+            // 没走成，那个待落位的值就是垃圾了，别留着影响下一次进城镇
+            pendingArriveTriggerId = 0;
+            UIUtility.ShowWindow(result.Message, "传送失败");
+        }
     }
 
     // ------------------------------------------------------------------

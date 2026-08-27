@@ -70,3 +70,9 @@ MonoBehaviour:
     IsTween: 0
     IsMouseRightHide: 1
     Description: "\u804A\u5929UI"
+  - PageID: PopDungeonUI
+    PagePath: Prefabs/UGUI/PopDungeonUI/PopDungeonUI.prefab
+    UIParent: 0
+    IsTween: 0
+    IsMouseRightHide: 1
+    Description: "\u526F\u672C\u754C\u9762"

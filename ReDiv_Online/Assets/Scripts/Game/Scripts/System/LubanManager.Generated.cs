@@ -90,6 +90,20 @@ namespace XFramework
             }
         }
 
+        private TbTownTrigger _tbTownTrigger;
+
+        public TbTownTrigger TbTownTrigger
+        {
+            get
+            {
+                return LoadTable(
+                    ref _tbTownTrigger,
+                    AssetKeys.TbtowntriggerPath,
+                    json => new TbTownTrigger(json)
+                );
+            }
+        }
+
         partial void ClearGeneratedCache()
         {
             _tbCharacterForm = null;
@@ -104,6 +118,8 @@ namespace XFramework
             AssetsManager.Instance.FreeAsset(AssetKeys.TbtownPath);
             _tbTownNpc = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TbtownnpcPath);
+            _tbTownTrigger = null;
+            AssetsManager.Instance.FreeAsset(AssetKeys.TbtowntriggerPath);
         }
     }
 }

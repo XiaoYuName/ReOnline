@@ -41,5 +41,9 @@ namespace XFramework
         /// 聊天UI (PopMessageUI)
         /// </summary>
         public const string PopMessageUI = "PopMessageUI";
+        /// <summary>
+        /// 副本界面 (PopDungeonUI)
+        /// </summary>
+        public const string PopDungeonUI = "PopDungeonUI";
     }
 }

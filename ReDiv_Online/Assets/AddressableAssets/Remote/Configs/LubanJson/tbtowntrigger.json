@@ -1,0 +1,44 @@
+[
+  {
+    "TriggerId": 1,
+    "TownId": 1,
+    "Kind": 1,
+    "TargetId": 3,
+    "PosX": -8.85,
+    "PosY": -4.03,
+    "Width": 1.5,
+    "Height": 1.5,
+    "Name": "前往测试镇",
+    "IconPrefab": "",
+    "ArriveOffsetX": 1.2,
+    "ArriveOffsetY": 0
+  },
+  {
+    "TriggerId": 2,
+    "TownId": 1,
+    "Kind": 2,
+    "TargetId": 0,
+    "PosX": 8.45,
+    "PosY": -4.23,
+    "Width": 1.5,
+    "Height": 1.5,
+    "Name": "副本入口",
+    "IconPrefab": "",
+    "ArriveOffsetX": 0,
+    "ArriveOffsetY": 0
+  },
+  {
+    "TriggerId": 3,
+    "TownId": 2,
+    "Kind": 1,
+    "TargetId": 1,
+    "PosX": 7.5,
+    "PosY": -3.3,
+    "Width": 1.5,
+    "Height": 1.5,
+    "Name": "返回兰德索尔",
+    "IconPrefab": "",
+    "ArriveOffsetX": -1.2,
+    "ArriveOffsetY": 0
+  }
+]

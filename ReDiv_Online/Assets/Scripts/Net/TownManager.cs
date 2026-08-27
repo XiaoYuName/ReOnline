@@ -45,6 +45,29 @@ namespace ReDiv.Net
     }
 
     /// <summary>
+    /// 一次换城镇请求的结果。失败时 <see cref="Message"/> 是可以直接显示给玩家的中文文案
+    /// （服务端 <c>TownRules.Reject</c> 抛的那句原文）。
+    ///
+    /// 和 <see cref="CharacterResult"/> / <see cref="ChatResult"/> 形状一样但**故意分开** ——
+    /// 各门面各自演进，理由见 <see cref="ChatResult"/> 上的注释。
+    /// </summary>
+    public readonly struct TownResult
+    {
+        public readonly bool Ok;
+        public readonly string Message;
+
+        private TownResult(bool ok, string message)
+        {
+            Ok = ok;
+            Message = message;
+        }
+
+        public static TownResult Success() => new TownResult(true, string.Empty);
+
+        public static TownResult Fail(string message) => new TownResult(false, message);
+    }
+
+    /// <summary>
     /// 城镇 + 世界时间的门面，和 <see cref="AuthManager"/> / <see cref="CharacterManager"/>
     /// 一个套路：**界面只读它、只听事件，不碰 <c>Conn</c>**。
     ///
@@ -218,6 +241,7 @@ namespace ReDiv.Net
             subscribed = true;
 
             HookTables();
+            HookReducers();
 
             // identity 在订阅 SQL 里是十六进制字面量，**要带 0x 前缀**
             //（Identity.ToString() 给的是不带前缀的大写 hex，这个坑账号那边踩过）
@@ -244,6 +268,10 @@ namespace ReDiv.Net
             subscribed = false;
 
             UnhookTables();
+            UnhookReducers();
+
+            // 断线时把等待中的传送请求兑成失败，别让界面干等到超时
+            changeTownPending.Complete(TownResult.Fail("和服务器的连接断开了"));
 
             try
             {
@@ -348,6 +376,150 @@ namespace ReDiv.Net
             {
                 // 断线的瞬间可能抛。移动上报不值得为它弹窗，记一条就够
                 Debug.LogWarning($"[Town] 坐标上报失败：{ex.Message}");
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // 换城镇（传送）
+        // ------------------------------------------------------------------
+
+        /// <summary>换城镇请求的超时。和另外几个门面取一样的值。</summary>
+        private const float RequestTimeoutSeconds = 10f;
+
+        private sealed class PendingSlot
+        {
+            public UniTaskCompletionSource<TownResult> Source;
+
+            public bool Busy => Source != null;
+
+            public void Complete(TownResult result) => Source?.TrySetResult(result);
+        }
+
+        private readonly PendingSlot changeTownPending = new PendingSlot();
+        private bool reducersHooked;
+
+        /// <summary>有换城镇请求正在等服务端回应。触发器判定据此挡住重复请求。</summary>
+        public bool IsChangingTown => changeTownPending.Busy;
+
+        /// <summary>
+        /// 传送到另一个城镇（客户端踩到传送触发器时调）。
+        ///
+        /// **成不成由服务端说**：客户端那些触发器是纯表现，能不能去哪个城镇是服务端
+        /// <c>ChangeTown</c> 校验的（现在是「都能去」，以后收紧也只改那一处）。
+        ///
+        /// 成功之后**不用自己改任何状态**：服务端会更新 <c>character_selection</c> 那一行，
+        /// 推回来时 <see cref="LocationChanged"/> 自然触发 ⇒ 界面重刷背景、重摆角色、
+        /// 换聊天订阅域。⚠️ **不要**在这里先把 <see cref="CurrentTownId"/> 改掉 ——
+        /// 那就成了本地乐观显示，被拒时还得回滚（和聊天那条「不做本地乐观显示」同一个道理）。
+        /// </summary>
+        public async UniTask<TownResult> ChangeTownAsync(uint townId)
+        {
+            if (townId == 0)
+            {
+                return TownResult.Fail("目标城镇不对");
+            }
+
+            if (conn == null || !conn.IsActive)
+            {
+                return TownResult.Fail("还没连上服务器，请稍后再试");
+            }
+
+            // 服务端的鉴权就是「本连接有没有选角行」，本地先照着判一次，少一次注定失败的往返
+            if (CurrentCharacterId == 0)
+            {
+                return TownResult.Fail("请先进入城镇");
+            }
+
+            if (townId == CurrentTownId)
+            {
+                // 服务端那边是幂等返回，这里直接省掉这次往返
+                return TownResult.Success();
+            }
+
+            if (changeTownPending.Busy)
+            {
+                return TownResult.Fail("正在传送中，请稍等");
+            }
+
+            changeTownPending.Source = new UniTaskCompletionSource<TownResult>();
+
+            try
+            {
+                conn.Reducers.ChangeTown(townId);
+            }
+            catch (Exception ex)
+            {
+                changeTownPending.Source = null;
+                Debug.LogError($"[Town] 调用 ChangeTown 失败：{ex}");
+                return TownResult.Fail("传送请求发送失败，请检查网络");
+            }
+
+            var (winner, answer, timeout) = await UniTask.WhenAny(
+                changeTownPending.Source.Task, ChangeTownTimeoutAsync());
+
+            changeTownPending.Source = null;
+
+            return winner == 0 ? answer : timeout;
+        }
+
+        private static async UniTask<TownResult> ChangeTownTimeoutAsync()
+        {
+            await UniTask.Delay(TimeSpan.FromSeconds(RequestTimeoutSeconds), DelayType.Realtime);
+            return TownResult.Fail("服务器没有响应，请检查网络后重试");
+        }
+
+        private void HookReducers()
+        {
+            if (reducersHooked)
+            {
+                return;
+            }
+            reducersHooked = true;
+
+            conn.Reducers.OnChangeTown += HandleChangeTownResult;
+        }
+
+        private void UnhookReducers()
+        {
+            if (!reducersHooked || conn == null)
+            {
+                reducersHooked = false;
+                return;
+            }
+            reducersHooked = false;
+
+            conn.Reducers.OnChangeTown -= HandleChangeTownResult;
+        }
+
+        /// <summary>
+        /// 把 Reducer 的执行状态兑给等待中的请求。
+        ///
+        /// 2.x 起没有全局 Reducer 回调，所以这里收到的只会是自己发起的调用，
+        /// 但还是核一下 CallerIdentity —— 和另外几个门面保持一致。
+        /// </summary>
+        private void HandleChangeTownResult(ReducerEventContext ctx, uint townId)
+        {
+            if (ctx.Event.CallerIdentity != SpacetimeConnection.LocalIdentity)
+            {
+                return;
+            }
+
+            switch (ctx.Event.Status)
+            {
+                case Status.Committed:
+                    changeTownPending.Complete(TownResult.Success());
+                    break;
+
+                case Status.Failed(var reason):
+                    // reason 是服务端 TownRules.Reject 抛的中文原文，可直接显示
+                    Debug.Log($"[Town] 传送被拒绝：{reason}");
+                    changeTownPending.Complete(TownResult.Fail(reason));
+                    break;
+
+                case Status.OutOfEnergy:
+                    Debug.LogError("[Town] 传送失败：服务端能量不足");
+                    changeTownPending.Complete(TownResult.Fail("服务器繁忙，请稍后再试"));
+                    break;
             }
         }
 

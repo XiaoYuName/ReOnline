@@ -54,7 +54,7 @@ Assets/Scripts/
 │       ├── Save/
 │       ├── System/            GameManager / GameDataManager / LubanManager
 │       ├── Tools/
-│       ├── Town/              城镇背景（世界空间）/ 出生点 + 边界 / 角色与 NPC 的两层控制器 + 取用回收
+│       ├── Town/              城镇背景（世界空间）/ 出生点 + 边界 / 触发器 / 角色与 NPC 的两层控制器 + 取用回收
 │       └── UGUI/
 └── Net/                无 asmdef → 进 Assembly-CSharp   ← 网络层，见第 5 节
     ├── SpacetimeConnection.cs  只管连接生命周期 + ServerLinkState，不建任何订阅
@@ -62,7 +62,7 @@ Assets/Scripts/
     ├── CharacterManager.cs     角色门面，同上。登录成功后才订角色数据
     ├── AuthValidation.cs       服务端 AuthRules 的客户端镜像
     ├── CharacterValidation.cs  服务端 CharacterRules 的客户端镜像（角色名格式）
-    ├── TownManager.cs          城镇门面：当前城镇 / 时段 / 同城镇玩家 / 坐标上报
+    ├── TownManager.cs          城镇门面：当前城镇 / 时段 / 同城镇玩家 / 坐标上报 / **换城镇**
     ├── ChatManager.cs          聊天门面：两个频道的消息列表 / 发言。附近订阅**跟着当前城镇换**
     ├── ChatValidation.cs       服务端 ChatRules 的客户端镜像（正文清洗 + 长度）
     └── ModuleBindings/         生成物，不要手改
@@ -71,11 +71,12 @@ Assets/Scripts/
 `UGUI/` 下已接好的界面：`CommonUI`（标题）、`LoginUI`、`PopDialogueUI`、`PopLoadingUI`、
 `SelectCharacterUI`（选人）、`CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字）、
 `MainCommonUI`（城镇主界面，含左下角**聊天框** + `MessageSlot/` 消息格子）、
-`PopMessageUI`（聊天弹窗：附近 / 世界两个页签 + `MessageUI/` 消息行）。
+`PopMessageUI`（聊天弹窗：附近 / 世界两个页签 + `MessageUI/` 消息行）、
+`PopDungeonUI`（副本界面 + `DungeonSlot/` 副本格子，**壳子已搭好、逻辑没接**）。
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
 `AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
-`ServerTools/`、`TownTools/`（NPC 摆位 + Excel 写回壳子）、`Tools/`、`UGUI/`、`UITools/`、
+`ServerTools/`、`TownTools/`（NPC 摆位 / 触发器摆位 + Excel 写回壳子）、`Tools/`、`UGUI/`、`UITools/`、
 `PathologicalGames/`（第三方）。
 
 > 注意 `Framework` 有 asmdef，`Game` 和 `Net` 没有。所以 `Game`/`Net` 可以引用
@@ -146,8 +147,8 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 > 2026-08-24 就是因为 `AddColumn` 写死了 1/2/3，给 `CharacterJob` 加
 > `StartStar` / `MaxStar` / `Subtitle` 时把中文注释写进了 `##group` 行。
 >
-> 现在**六张**数据表（`CharacterJob` / `CharacterForm` / `Town` / `TimeBand` / `LevelExp` /
-> `TownNpc`）都是 4 行表头，`read_schema_from_file` 全是 `True`。
+> 现在**七张**数据表（`CharacterJob` / `CharacterForm` / `Town` / `TimeBand` / `LevelExp` /
+> `TownNpc` / `TownTrigger`）都是 4 行表头，`read_schema_from_file` 全是 `True`。
 > `__tables__` / `__beans__` / `__enums__` 是 Luban 的**元表**，自己有 `group` **列**，
 > 不适用这一行，别给它们加。
 >
@@ -187,6 +188,7 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 | `TimeBand.xlsx` | `TbTimeBand` | 早 / 中 / 晚三段的边界（起始小时） |
 | `LevelExp.xlsx` | `TbLevelExp` | 升级所需经验 + 该等级体力上限。**数值是占位的** |
 | `TownNpc.xlsx` | `TbTownNpc` | 城镇 NPC：站在哪个城镇的哪个世界坐标。**纯客户端**（全 `c`） |
+| `TownTrigger.xlsx` | `TbTownTrigger` | 城镇触发器：矩形判定区，走进去传送 / 开副本界面。**纯客户端**（全 `c`） |
 
 ⚠️ **加了表要按顺序跑四步**：第 1 步导出 → **自动打包 Addressable**（打标）→
 第 2 步 AssetKeys → 第 3 步 LubanManager。少一步就编译不过，而且报错指向的地方很误导：
@@ -329,7 +331,7 @@ View 下发的 `FormId`，**客户端不要自己按星级算**；爆发线自�
 > （`[SpineAnimation] IdleName`，Inspector 里是下拉，选不出不存在的动画名）。
 > 视频列 2026-08-24 已删。
 
-#### NPC 摆位窗口：`Tools > XFramework > 配置 > NPC 摆位`
+#### 两个摆位窗口：`Tools > XFramework > 配置 > NPC 摆位` / `触发器摆位`
 
 实现在 `Assets/Editor/TownTools/TownNpcPlacementWindow.cs`（2026-08-26 加的）。
 解决的是「`TownNpc` 表里的 `PosX`/`PosY` 是世界坐标，在 Excel 里只能填数字、看不到背景」。
@@ -357,6 +359,26 @@ TownNpc.xlsx --(Luban 导出)--> tbtownnpc.json --(窗口读)--> 场景里的预
 
 ⚠️ 成功路径**不弹框**（每写一次点一下很烦，而且模态框会卡住无人值守的自动化 ——
 用 `unity command eval` 驱动窗口时实测卡死过）。只有失败才弹。
+
+**触发器摆位窗口**（`Assets/Editor/TownTools/TownTriggerPlacementWindow.cs`，2026-08-27 加的）
+和上面那个是同一套结构（同一份 `ExcelTableRunner`、同样的 `HideFlags.DontSave` 预览、
+同样的「先删后改再加」写回顺序），表换成 `TownTrigger.xlsx`。两点不一样：
+
+- **位置在场景里拖，宽高在窗口的表里填数字**（改完 Scene 视图里的框立刻跟着变）——
+  拖矩形的边要写自定义 `Handles`，而宽高本来就是「门口多宽」这种一眼能定的数；
+- 传送点下面还有一个**可拖的「出口点」子节点**（绿圈）—— 别人从对端传送过来时站那儿。
+  做成子节点是为了能用 Unity 自己的移动工具拖，写回时读它的 `localPosition` 当偏移，
+  所以**先拖中心再拖出口点**两个值都不用互相换算。运行时**不会**有这个节点（出口点只是两个数），
+  `TownTriggerController.OnDrawGizmos` 里那个「有子节点就以子节点为准」的分支就是为它留的；
+- 「对端」那一列的下拉只列**别的城镇的传送点**（同城镇互连运行时会被拒）。
+  ⚠️ 它列的是**上次导出**的表内容 —— 刚在窗口里新加、还没写回 Excel 的传送点不会出现，
+  先写一次再来连；
+- 预览对象上挂的是**运行时那个** `TownTriggerController`，所以框是同一份代码画的
+  （蓝框=传送、橙框=副本）—— 编辑器里所见即游戏里所得。
+
+写回前会校验一遍（id 重复、宽高 ≤0、没连对端 / 连的是自己 / 对端不存在 / 对端不是传送点 /
+对端在同一个城镇、**出口点还在传送阵正中心**），和运行时 `TownTriggers.InTown` 的校验
+是同一套口径，只是提前到写 Excel 之前。
 
 跑 Excel 那一步会后台起一个 EXCEL.EXE，**秒级**，比 Pipeline 的 5 秒超时还长 ——
 用 `eval` 驱动时会看到一条 `/api/exec ... timed out`，那是 Pipeline 自己的超时，
@@ -586,6 +608,7 @@ CreatButton     「创建」—— 没选角色时是灰的，点了打开 Revis
 | `CurrentBackgroundKey` | 「当前城镇 + 当前时段」该用哪个背景预制体，取不到是空串 |
 | `TownPlayers` / `TownPlayersChanged` | 同城镇的**其他**玩家（key 是 CharacterId，不含自己）。事件只在**有人进出**时触发，移动不触发 |
 | `ReportTransform(x, y, facing, moving)` | 上报自己的坐标。**调用方负责节流** |
+| `ChangeTownAsync(townId)` / `IsChangingTown` | 传送到另一个城镇（踩到传送触发器时调）。返回 `TownResult { Ok, Message }`，Message 是可直接显示的中文 |
 
 三条实现约束（改的时候别破坏）：
 
@@ -772,6 +795,107 @@ HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没
 
 **坐标别手填** —— 用 `Tools > XFramework > 配置 > NPC 摆位` 窗口在场景里对着背景拖，
 拖完一键写回 Excel，见第 4 节「NPC 摆位窗口」。
+
+#### 城镇触发器：传送点 / 副本入口（配置表 `TownTrigger`，2026-08-27）
+
+一行一个**矩形触发区**，玩家走进去就生效。手感是用户 2026-08-27 定的：
+**传送自动**（踩到就走，不弹确认框），**副本弹界面**。
+
+**传送阵是成对的**（用户 2026-08-27 定的）：A 连着 B，从 A 过去就出现在 **B 的出口点**旁边
+—— 不是新城镇的出生点。所以 `Kind=1` 的 `TargetId` 存的是**对端传送点的 TriggerId**，
+目标城镇由对端那一行的 `TownId` 推出来。
+
+```
+兰德索尔 #1 ──TargetId=3──▶ 测试镇 #3 ──▶ 落在 #3 的位置 + #3 的 ArriveOffset
+测试镇   #3 ──TargetId=1──▶ 兰德索尔 #1 ──▶ 落在 #1 的位置 + #1 的 ArriveOffset
+```
+
+**为什么目标城镇不单独存一列**：那样会出现「城镇写 B、对端传送阵却在 C」这种不一致，
+而且两处都要改。现在只有一个真相：对端是哪个传送点。
+（**不要求互指** —— 单向传送门是合法设计，校验只看对端存在 / 是传送点 / 在别的城镇。）
+
+| 列 | 说明 |
+|---|---|
+| `TriggerId` | 全局唯一 |
+| `TownId` | 在哪个城镇 |
+| `Kind` | `1` 传送 / `2` 打开副本界面 |
+| `TargetId` | Kind=1 → **对端传送点的 TriggerId**；Kind=2 → 副本组 id（副本还没设计，填 0） |
+| `PosX` / `PosY` | 矩形**中心**的世界坐标 |
+| `Width` / `Height` | 矩形大小（世界单位） |
+| `ArriveOffsetX/Y` | **出口点**：别人从对端传送过来时站在「本触发器中心 + 这个偏移」上。摆位窗口里拖那个绿圈 |
+| `Name` | 提示文字（中文原文）。现在只在摆位窗口和日志里用 |
+| `IconPrefab` | 地面标记预制体的 Addressable 完整路径，**可空**。配了就在触发器中心实例化一个 |
+
+| 文件 | 职责 |
+|---|---|
+| `Game/Scripts/Town/TownTriggers.cs` | **纯数据查询 + 几何判定**（静态，和 `TownGround` 一个路子）+ 配置校验 |
+| `Game/Scripts/Town/TownTriggerController.cs` | 场上那个节点：判定区的 Gizmo + 地面标记的挂载点 |
+| `Game/Scripts/UGUI/MainCommonUI/MainCommonUI.cs` | `RefreshTriggers` / `TickTriggers` / `Fire` / `TeleportAsync` |
+| `Net/TownManager.cs` | `ChangeTownAsync(townId)` —— 调服务端 `ChangeTown` |
+
+**坐标别手填** —— 用 `Tools > XFramework > 配置 > 触发器摆位` 窗口，见第 4 节。
+
+九条实现约束（改的时候别破坏）：
+
+1. **不开物理**。角色身上没有 `Rigidbody2D` / `Collider2D`（和可行走边界同一个理由），
+   一个城镇的触发器个位数，所以判定就是拿**脚下那一点**做矩形包含。
+   别改成 `OnTriggerEnter2D` —— 那要给角色加刚体，还会受 FixedUpdate 节奏影响。
+2. **`currentTriggerId` 是整套逻辑的关键**：只在它**从别的值变成某个触发器**的那一帧才触发一次。
+   不记状态的话站在门口会每帧发一次传送请求。
+3. **进城镇 / 传送落地时要按当前位置「初始化」它，而不是触发**（`SyncCurrentTrigger`）——
+   出生点正好压在触发器上（或者刚从这里传送过来）不该立刻被弹走。
+   所以 `RefreshTriggers` 必须排在**自己落位之后**，顺序反了会拿旧坐标去判。
+4. **传送成功后客户端什么都不用做**：服务端改完 `character_selection.TownId` 推回来 ⇒
+   `LocationChanged` ⇒ 背景、自己、别人、NPC、触发器、聊天订阅域全都自己重来。
+   ⚠️ **不要**在本地先把 `CurrentTownId` 改掉（那是本地乐观显示，被拒时还得回滚 ——
+   和聊天那条「不做本地乐观显示」同一个道理）。
+5. **「我是从哪个传送点过去的」必须在 `await` 之前记**（`pendingArriveTriggerId`）——
+   换城镇要绕服务端走一圈回来，而**表更新（于是 `LocationChanged` → 重新落位）通常比
+   Reducer 的状态回调先到**。等 `ChangeTownAsync` 返回再记就已经落到出生点上了。
+   兑掉它时会核对「那个传送点确实在我要落位的这个城镇里」，所以过期值无害。
+6. **出口点别指到可行走边界外面**：传送是直接写坐标、不走边界判定，落在墙外之后
+   移动的扫掠查询会从「已经嵌在碰撞体里」开始，可能一步都走不动。摆位窗口里对着背景拖。
+7. **传送失败不自动重试**：人还站在触发器里、`currentTriggerId` 已经记成它了，
+   所以得走出去再走进来。有意的 —— 失败原因通常是「去不了」，原地重试只会每帧刷一个弹窗。
+   （失败时要把 `pendingArriveTriggerId` 清掉，别留个垃圾值影响下一次进城镇。）
+8. **触发器挂在 `Games/Backgrounds` 根节点下，不是背景那张图的子节点** ——
+   触发器和时段无关（一个城镇一套，早/中/晚共用），塞进背景里换时段就会被一起拆掉。
+9. **配错的行跳过 + 报错**（`TownTriggers.InTown` 里），不是静默忽略：
+   静默的话表现成「这个传送点踩了没反应」，从现象根本看不出是配漏了。
+   传送点这边查的是：对端存在、对端是传送点、对端**在别的城镇**、那个城镇在 `Town` 表里。
+
+**落点有两种，传送优先**（都在 `PlaceSelfAtSpawn` 里）：
+
+| 情况 | 落在哪 |
+|---|---|
+| 从传送阵过来 | **对端那个传送点的出口点**（它的位置 + 它自己的 `ArriveOffset`） |
+| 其它（进游戏、换角色、对端配漏了） | 那张背景的 `StartPoints`（用户 2026-08-25 定的「不记住上次站的位置」） |
+
+⚠️ **换城镇是「形态不变、位置必须重来」的情况。** `RefreshSelfCharacter` 在形态没变时会
+提前返回（那是为了别把角色反复拉回原点），所以传送要靠 `selfTownId` 这个字段
++ `PlaceSelfAtSpawnIfTownChanged()` 才会重新落位。
+**漏了这一步的表现是「传送过去之后站在旧城镇的坐标上」**，可能直接在可行走边界外面。
+
+⚠️ 传送时服务端把坐标行**删掉**了（见服务端文档的 `ChangeTown`），所以落位之后
+**那一次 `ReportTransform` 不是可选的** —— 不发的话新城镇的人要等我走第一步才看得见我。
+
+⚠️ **服务端不认识触发器。** 「能不能去那个城镇」是服务端 `ChangeTown` 校验的
+（现在是「都能去」）。所以这张表改目标城镇**不等于**改了权限 ——
+改过的客户端可以直接对任意城镇调那个 Reducer。
+
+⚠️ **现在没有一个触发器配了 `IconPrefab`**，所以传送点和副本入口在游戏里**是看不见的**
+（Scene 视图里有 Gizmo 框：蓝=传送、橙=副本）。要让玩家看见得让美术出个地面标记，
+填进那一列即可，代码不用动。
+
+#### 副本界面（`PopDungeonUI`）—— 本轮只做到「打开」
+
+预制体和 AutoBind 是用户自己搭的（`UIMask/Background` 下 `CloseButton` / `Title/TitleTex`，
+外加 `UIMask/Contents` 和一个 `DungeonSlot` 行预制体：略缩图 + 名字 + 左右箭头 + 星级）。
+2026-08-27 只做了两件事：登记进 `UIPageConfiguration`（于是有了 `UIKeys.PopDungeonUI`）、
+踩到 `Kind=2` 的触发器时 `OpenUI` 它。
+
+**里面一行逻辑都没接** —— 副本配置表、进副本、难度切换、星级都还没设计。
+`Contents` 是空的，所以现在打开只看得到标题栏和返回按钮。**要动手前先问**副本的数据结构。
 
 #### 聊天框（左下角，2026-08-26）
 
