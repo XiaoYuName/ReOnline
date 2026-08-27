@@ -1002,6 +1002,42 @@ Spine 预制体路径在配置表 **`CharacterForm.SkeletonTown`** 列（**按�
    「SkeletonRenderer is unassigned」是**预期的**，不是配错了；预制体里也因此把
    `initializeOnAwake` 关了。
 
+#### 角色互相遮挡按 Y 排（2026-08-27）
+
+站得靠下的角色要盖住站得靠上的。所有城镇角色的 Spine 都在 **`Character:0`**（同层同 order），
+所以它们之间的先后完全靠**透明排序**决定 —— 默认是按 Z 距离排，而大家 z 都是 0，
+于是顺序基本随机。
+
+**设置在这里：`Edit > Project Settings > Graphics`（全局）**
+
+| 项 | 值 |
+|---|---|
+| Transparency Sort Mode | `Custom Axis` |
+| Transparency Sort Axis | `(0, 1, 0)` |
+
+⚠️ **别去 Renderer 资产里找这个字段。** 它在 `Renderer2D`（2D Renderer Data）的面板上有，
+但本工程 URP 的默认 renderer 是 **`CubismURPRenderer`**（Live2D 那个 UniversalRendererData，
+带 `CubismRenderPassFeature`，Cubism 遮罩靠它），而 **UniversalRendererData 没有这个字段** ——
+`Renderer2D.asset` 里其实早就填了 `CustomAxis (0,1,0)`，只是那个 renderer 不是默认的，压根没生效。
+
+这个字段本来就不是 renderer 的属性，是**相机 / 全局图形设置**的属性，2D Renderer 只是
+顺手在自己面板上代管了一份。2026-08-27 实测确认：**URP 的 Universal Renderer 照样认它**
+（把轴翻成 `(0,-1,0)`，前后关系整个反过来 —— 用真实 Spine 角色验的）。
+
+**为什么用全局而不是逐相机**：`Camera.transparencySortMode` **不是序列化字段**
+（运行时属性，默认继承全局），逐相机就必须写运行时代码、而且以后新加相机容易漏。
+全局那份存在 `ProjectSettings/GraphicsSettings.asset`，一次设好，一行代码都不用。
+
+不影响现有的层级关系：排序永远是 **Sorting Layer → Order in Layer → 透明排序**，
+所以背景（`Ground:-1`）、气泡框（`Character:99`）、名字（`Character:100`）都还在原位，
+Y 排序只在**同层同 order** 的那一堆角色之间打破平手。
+
+⚠️ **排序键是渲染器的包围盒中心，不是脚下坐标**（2026-08-27 实测：把一个角色放大 2.5 倍、
+脚下明显更低，它照样被排到后面去了，因为包围盒中心更高）。
+现在城镇角色都是同一套 Q 版比例，中心高度差不多，所以按中心排和按脚下排结果一致。
+**以后要是加了体型差很多的角色 / Boss NPC，这里会排错** —— 那时候的解法是不靠透明排序，
+改成按 Y 现算每个角色的 `sortingOrder`（`Renderer.sortingOrder = -(int)(y * 100)` 那一类）。
+
 #### 名字跟随头顶骨骼（BoneFollower 没有 offset 参数怎么办）
 
 用 Spine SDK 的 `BoneFollower` 跟骨骼很好用（Inspector 里能选骨骼），但它**没有偏移参数**。

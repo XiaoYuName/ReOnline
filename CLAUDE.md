@@ -239,6 +239,11 @@ SpacetimeDB 2.8 的写法约定（1.x 老写法会直接报错或静默失效）
   别再把背景塞回 Canvas，也**别做 cover / 按宽高比缩放美术**：那会让不同宽高比的玩家
   看到的范围和距离都不一样，联机里是硬伤（用户 2026-08-25 定的）。
   出生点和可行走边界都在**每张背景预制体**上（`StartPoints` / `GroundCollider`）
+- **角色按 Y 互相遮挡靠的是全局 `Transparency Sort Mode = Custom Axis (0,1,0)`**
+  （`Edit > Project Settings > Graphics`）。⚠️ **别去 Renderer 资产里找那个字段** ——
+  它只在 2D Renderer Data 上有，而本工程默认 renderer 是 Live2D 的 `CubismURPRenderer`
+  （UniversalRendererData，没有这个字段）。细节和「排序键是包围盒中心不是脚下」这个坑
+  见 [ReDiv_Online/CLAUDE.md](ReDiv_Online/CLAUDE.md) 第 5 节「角色互相遮挡按 Y 排」
 - **`[AutoInc]` 的自增 id 不能拿来排序**。官方规则明确写着它不保证连续也不保证单调
   （`ReDiv_Server/CLAUDE.md` 的 Critical Rules 第 4 条）。要时序就存 `Timestamp`，
   自增 id 只能当**平局裁判**（同一事务插多条时时间戳完全相同，得有个稳定顺序）。
