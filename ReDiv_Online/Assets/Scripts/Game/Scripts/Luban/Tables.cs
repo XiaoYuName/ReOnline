@@ -41,6 +41,14 @@ public partial class Tables
     /// 城镇触发器表。一行一个矩形触发区，玩家走进去就生效：Kind=1 传送到别的城镇（走服务端 ChangeTown），Kind=2 打开副本界面。纯客户端表现，服务端不认识触发器（能不能去哪个城镇由服务端自己校验）。结构看 TownTrigger.xlsx 表头（read_schema_from_file=True）
     /// </summary>
     public TbTownTrigger TbTownTrigger {get; }
+    /// <summary>
+    /// 副本区域表(像DNF的格兰之森)。一个区域下面挂多个小副本，区域自己带一张背景。城镇触发器Kind=2的TargetId指的就是AreaId。纯客户端表现，服务端不认识副本。结构看 DungeonArea.xlsx 表头
+    /// </summary>
+    public TbDungeonArea TbDungeonArea {get; }
+    /// <summary>
+    /// 小副本表。一行一个副本(界面上一个格子)，MaxStar是配置允许的最高挑战星级，实际能选到几星还要看通关进度。纯客户端，等做进副本/结算时再把要校验的列开给服务端。结构看 Dungeon.xlsx 表头
+    /// </summary>
+    public TbDungeon TbDungeon {get; }
 
 
       public Tables(System.Func<string, JArray> loader)
@@ -52,6 +60,8 @@ public partial class Tables
         TbLevelExp = new TbLevelExp(loader("tblevelexp"));
         TbTownNpc = new TbTownNpc(loader("tbtownnpc"));
         TbTownTrigger = new TbTownTrigger(loader("tbtowntrigger"));
+        TbDungeonArea = new TbDungeonArea(loader("tbdungeonarea"));
+        TbDungeon = new TbDungeon(loader("tbdungeon"));
         ResolveRef();
     }
     
@@ -64,6 +74,8 @@ public partial class Tables
         TbLevelExp.ResolveRef(this);
         TbTownNpc.ResolveRef(this);
         TbTownTrigger.ResolveRef(this);
+        TbDungeonArea.ResolveRef(this);
+        TbDungeon.ResolveRef(this);
     }
 }
 

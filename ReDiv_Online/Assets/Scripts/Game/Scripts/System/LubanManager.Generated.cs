@@ -34,6 +34,34 @@ namespace XFramework
             }
         }
 
+        private TbDungeon _tbDungeon;
+
+        public TbDungeon TbDungeon
+        {
+            get
+            {
+                return LoadTable(
+                    ref _tbDungeon,
+                    AssetKeys.TbdungeonPath,
+                    json => new TbDungeon(json)
+                );
+            }
+        }
+
+        private TbDungeonArea _tbDungeonArea;
+
+        public TbDungeonArea TbDungeonArea
+        {
+            get
+            {
+                return LoadTable(
+                    ref _tbDungeonArea,
+                    AssetKeys.TbdungeonareaPath,
+                    json => new TbDungeonArea(json)
+                );
+            }
+        }
+
         private TbLevelExp _tbLevelExp;
 
         public TbLevelExp TbLevelExp
@@ -110,6 +138,10 @@ namespace XFramework
             AssetsManager.Instance.FreeAsset(AssetKeys.TbcharacterformPath);
             _tbCharacterJob = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TbcharacterjobPath);
+            _tbDungeon = null;
+            AssetsManager.Instance.FreeAsset(AssetKeys.TbdungeonPath);
+            _tbDungeonArea = null;
+            AssetsManager.Instance.FreeAsset(AssetKeys.TbdungeonareaPath);
             _tbLevelExp = null;
             AssetsManager.Instance.FreeAsset(AssetKeys.TblevelexpPath);
             _tbTimeBand = null;

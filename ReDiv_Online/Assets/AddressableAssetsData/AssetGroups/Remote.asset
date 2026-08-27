@@ -1966,6 +1966,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6e0ddbe8eb780a246b52d0560510b0c1
+    m_Address: Assets/AddressableAssets/Remote/Configs/LubanJson/tbdungeonarea.json
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 6e4cf2387ddd43d4093b116e660b1e44
     m_Address: Assets/AddressableAssets/Remote/Texture2D/Common/common_shop_bg_jewelshop.png
     m_ReadOnly: 0
@@ -2291,6 +2296,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 7fff724b41738654b811e8426e1d23ff
     m_Address: Assets/AddressableAssets/Remote/Character/1/101/Texture2D/UnitPlate/unit_plate_106061.png
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8024791d8d908dc4fb34c8619fd6d845
+    m_Address: Assets/AddressableAssets/Remote/Configs/LubanJson/tbdungeon.json
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

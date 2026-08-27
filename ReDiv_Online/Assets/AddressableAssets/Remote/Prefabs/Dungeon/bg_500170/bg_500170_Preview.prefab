@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 6091915095254117712}
   - component: {fileID: 1210424160304704671}
   - component: {fileID: 6066309235157006179}
+  - component: {fileID: 624219003075747401}
   m_Layer: 0
   m_Name: bg_500170_Preview
   m_TagString: Untagged
@@ -87,3 +88,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.AspectRatioFitter
   m_AspectMode: 4
   m_AspectRatio: 1.7777789
+--- !u!114 &624219003075747401
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 324847982559599932}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0850ffb01ebbb38439049ff51fec1a62, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DungeonAreaBackground
+  uiPageData:
+    PageID: 
+    PagePath: 
+    UIParent: 0
+    IsTween: 0
+    IsMouseRightHide: 0
+    Description: 
+  TweenerRoot: {fileID: 0}

@@ -149,6 +149,8 @@ namespace XFramework
         public const string XMixerPath = "Assets/AddressableAssets/Remote/Configs/Audio/XMixer.mixer";
         public const string TbcharacterformPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbcharacterform.json";
         public const string TbcharacterjobPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbcharacterjob.json";
+        public const string TbdungeonPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbdungeon.json";
+        public const string TbdungeonareaPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbdungeonarea.json";
         public const string TblevelexpPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tblevelexp.json";
         public const string TbtimebandPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbtimeband.json";
         public const string TbtownPath = "Assets/AddressableAssets/Remote/Configs/LubanJson/tbtown.json";

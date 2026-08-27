@@ -46,6 +46,9 @@ namespace XFramework
         private const string TownTableJson =
             "Assets/AddressableAssets/Remote/Configs/LubanJson/tbtown.json";
 
+        private const string DungeonAreaTableJson =
+            "Assets/AddressableAssets/Remote/Configs/LubanJson/tbdungeonarea.json";
+
         private const string TriggerWorkbook = "ExcelTool/LubanTools/DataTables/Datas/TownTrigger.xlsx";
         private const string TriggerSheet = "TownTrigger";
 
@@ -293,20 +296,27 @@ namespace XFramework
         }
 
         /// <summary>
-        /// 「对端」那一列的下拉。
+        /// 「对端 / 目标」那一列的下拉。**按这一行的 `Kind` 给不同的候选** ——
+        /// 两种触发器的 `TargetId` 指的根本不是一类东西：
         ///
-        /// 传送点连的是**别的城镇的另一个传送点**（成对的传送阵），所以列表里只列
-        /// `Kind=1` 且**不在当前城镇**的行 —— 同城镇互连不是传送，是原地挪位置，
-        /// 运行时的校验也会拒。副本用不到这一列，所以第一项是 0。
+        /// <list type="bullet">
+        ///   <item><b>传送（Kind=1）</b>：**别的城镇的另一个传送点**（成对的传送阵）。
+        ///         只列 `Kind=1` 且**不在当前城镇**的行 —— 同城镇互连不是传送、是原地挪位置，
+        ///         运行时校验也会拒；</item>
+        ///   <item><b>副本（Kind=2）</b>：**副本区域 id**（配置表 `DungeonArea`）。</item>
+        /// </list>
+        ///
+        /// ⚠️ 2026-08-27 副本做完之前这一列对副本是「填 0」，那时下拉只有传送点 ——
+        /// 结果是**用窗口写回一次就会把副本触发器的区域 id 冲掉**。别再退回那个形状。
         ///
         /// ⚠️ 列的是**上次导出**的表内容。刚在这个窗口里新加、还没写回 Excel 的传送点
         /// 不会出现在这里 —— 先写一次再来连。
         /// </summary>
-        internal static IEnumerable<ValueDropdownItem<int>> TargetDropdown()
+        internal static IEnumerable<ValueDropdownItem<int>> TeleportTargetDropdown()
         {
-            yield return new ValueDropdownItem<int>("0（副本用不到）", 0);
-
             int currentTownId = instance != null ? instance.TownId : 0;
+
+            yield return new ValueDropdownItem<int>("0（还没连对端）", 0);
 
             foreach (JObject item in LoadArray(TriggerTableJson))
             {
@@ -327,6 +337,32 @@ namespace XFramework
 
                 yield return new ValueDropdownItem<int>(label, id);
             }
+        }
+
+        /// <summary>副本区域的下拉（`Kind=2` 用）。</summary>
+        internal static IEnumerable<ValueDropdownItem<int>> DungeonAreaDropdown()
+        {
+            yield return new ValueDropdownItem<int>("0（还没选区域）", 0);
+
+            foreach (JObject item in LoadArray(DungeonAreaTableJson))
+            {
+                int id = item.Value<int>("AreaId");
+                yield return new ValueDropdownItem<int>($"{id} {item.Value<string>("Name")}", id);
+            }
+        }
+
+        /// <summary>副本区域存不存在（写回前校验用）。</summary>
+        internal static bool DungeonAreaExists(int areaId)
+        {
+            foreach (JObject item in LoadArray(DungeonAreaTableJson))
+            {
+                if (item.Value<int>("AreaId") == areaId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>在**上次导出**的触发器表里按 id 找一行。找不到返回 null。</summary>
@@ -683,8 +719,20 @@ namespace XFramework
                            $"{row.Width}×{row.Height}，那样永远踩不到。";
                 }
 
-                if (row.Kind != KindChangeTown)
+                if (row.Kind == KindDungeon)
                 {
+                    // 副本入口的 TargetId 是**副本区域 id**（配置表 DungeonArea）
+                    if (row.TargetId <= 0)
+                    {
+                        return $"副本入口 {row.TriggerId}（{row.Name}）没选副本区域。";
+                    }
+
+                    if (!DungeonAreaExists(row.TargetId))
+                    {
+                        return $"副本入口 {row.TriggerId}（{row.Name}）的副本区域 {row.TargetId} " +
+                               $"不在 DungeonArea 表里。";
+                    }
+
                     continue;
                 }
 
@@ -753,13 +801,34 @@ namespace XFramework
             [TableColumnWidth(90)]
             [LabelText("类型")]
             [ValueDropdown(nameof(KindOptions))]
+            [OnValueChanged(nameof(HandleKindChanged))]
             public int Kind = KindChangeTown;
 
+            /// <summary>
+            /// 换了类型就把 <see cref="TargetId"/> 清掉：传送指的是「对端传送点」、
+            /// 副本指的是「副本区域」，**两种语义完全不通用**，留着上一种的值必然配错
+            /// （而且下拉里根本找不到那个值，看着像空的）。
+            /// </summary>
+            private void HandleKindChanged()
+            {
+                TargetId = 0;
+            }
+
             [TableColumnWidth(190)]
-            [LabelText("对端")]
-            [ValueDropdown("@XFramework.TownTriggerPlacementWindow.TargetDropdown()")]
-            [PropertyTooltip("传送=**别的城镇的那个传送点**（成对的传送阵，目标城镇由它推出来）；副本用不到")]
+            [LabelText("对端 / 区域")]
+            [ValueDropdown(nameof(TargetOptions))]
+            [PropertyTooltip("传送=**别的城镇的那个传送点**（成对的传送阵，目标城镇由它推出来）；" +
+                             "副本=**副本区域**（DungeonArea）")]
             public int TargetId;
+
+            /// <summary>
+            /// 「对端 / 区域」的候选。**按本行的 <see cref="Kind"/> 分流** ——
+            /// 传送连的是别的城镇的传送点，副本指的是副本区域，两者不是一类东西。
+            /// </summary>
+            private IEnumerable<ValueDropdownItem<int>> TargetOptions() =>
+                Kind == KindDungeon
+                    ? DungeonAreaDropdown()
+                    : TeleportTargetDropdown();
 
             [TableColumnWidth(120)]
             [LabelText("提示文字")]

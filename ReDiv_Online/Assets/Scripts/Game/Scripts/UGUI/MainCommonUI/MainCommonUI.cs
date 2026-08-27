@@ -904,8 +904,13 @@ public partial class MainCommonUI : UIBase
                 break;
 
             case TownTriggers.KindDungeon:
-                Debug.Log($"[MainCommonUI] 踩到副本入口 #{row.TriggerId}（{row.Name}），打开副本界面");
-                UISystem.Instance.OpenUI(UIKeys.PopDungeonUI);
+                // Kind=2 的 TargetId 就是**副本区域** id（配置表 DungeonArea）。
+                // 开完界面紧跟一次 Show(areaId) 把区域传进去 —— 和创角界面
+                // ReviseCharacterNameUI.SetJob 一个套路（OpenUI 里的 Open() 先执行，
+                // 参数只能紧接着给）
+                Debug.Log($"[MainCommonUI] 踩到副本入口 #{row.TriggerId}（{row.Name}），" +
+                          $"打开副本区域 {row.TargetId}");
+                UISystem.Instance.OpenUI<PopDungeonUI>(UIKeys.PopDungeonUI)?.Show(row.TargetId);
                 break;
 
             default:

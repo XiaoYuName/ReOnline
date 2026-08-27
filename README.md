@@ -34,7 +34,7 @@
 REDIV/                  ← 唯一的 git 仓库（分支 main）
 ├── ReDiv_Online/       客户端 —— Unity 6000.4.8f1 工程
 │   ├── Assets/Scripts/Net/          网络层：连接 / 门面（账号·角色·城镇）/ 生成的绑定
-│   ├── Assets/Scripts/Game/         游戏逻辑（含 UGUI 各界面、城镇背景）
+│   ├── Assets/Scripts/Game/         游戏逻辑（含 UGUI 各界面、城镇背景、触发器、副本）
 │   ├── Assets/Scripts/Framework/    自用框架 XFramework（UI 系统 / 资源加载）
 │   ├── Docs/                        长期交接文档
 │   └── ExcelTool/LubanTools/        配置表源头（Excel + Luban）
@@ -42,7 +42,7 @@ REDIV/                  ← 唯一的 git 仓库（分支 main）
 │   └── spacetimedb/
 │       ├── Auth/       账号系统
 │       ├── Character/  角色系统
-│       ├── Town/       城镇 / 世界时间 / 玩家状态（坐标·体力·钱包）
+│       ├── Town/       城镇 / 世界时间 / 玩家状态（坐标·体力·钱包）/ 城镇间传送
 │       ├── Chat/       聊天（附近 / 世界两个频道，一张表靠 TownId 分域）
 │       ├── Security/   口令哈希（自己写的，wasm 上 BCL crypto 不可用）
 │       ├── Luban/      配置表代码 + vendored 运行时

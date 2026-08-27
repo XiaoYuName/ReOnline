@@ -48,7 +48,9 @@ Assets/Scripts/
 │   └── Scripts/
 │       ├── AddressableKeys/   UIKeys.cs 等（生成物，见第 4 节）
 │       ├── Audio/             AudioManager
-│       ├── Backgrounds/
+│       ├── Backgrounds/       只有 FitBackgroundToCamera（**副本区域背景不在这儿**，
+│       │                      它跟着界面走：UGUI/PopDungeonUI/DungeonAreaBackground.cs）
+│       ├── Dungeon/           副本：通关进度（占位）/ 选择状态源（组队口子）。界面在 UGUI/ 下
 │       ├── Luban/             Tables.cs 等（生成物，见第 3 节）
 │       ├── Resolution/
 │       ├── Save/
@@ -72,7 +74,8 @@ Assets/Scripts/
 `SelectCharacterUI`（选人）、`CreatCharacterUI`（创角）、`ReviseCharacterNameUI`（起名字）、
 `MainCommonUI`（城镇主界面，含左下角**聊天框** + `MessageSlot/` 消息格子）、
 `PopMessageUI`（聊天弹窗：附近 / 世界两个页签 + `MessageUI/` 消息行）、
-`PopDungeonUI`（副本界面 + `DungeonSlot/` 副本格子，**壳子已搭好、逻辑没接**）。
+`PopDungeonUI`（副本界面 + `DungeonSlot/` 副本格子：区域背景 / 副本列表 / 星级切换已通，
+**进副本没做**）。
 
 `Assets/Editor/` 也在 Assembly-CSharp-Editor 里（无 asmdef），包含
 `AddressableTools/`、`AddressableKeyGeneratorWindow/`、`BuildTools/`、`Luban/`、
@@ -147,8 +150,9 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 > 2026-08-24 就是因为 `AddColumn` 写死了 1/2/3，给 `CharacterJob` 加
 > `StartStar` / `MaxStar` / `Subtitle` 时把中文注释写进了 `##group` 行。
 >
-> 现在**七张**数据表（`CharacterJob` / `CharacterForm` / `Town` / `TimeBand` / `LevelExp` /
-> `TownNpc` / `TownTrigger`）都是 4 行表头，`read_schema_from_file` 全是 `True`。
+> 现在**九张**数据表（`CharacterJob` / `CharacterForm` / `Town` / `TimeBand` / `LevelExp` /
+> `TownNpc` / `TownTrigger` / `DungeonArea` / `Dungeon`）都是 4 行表头，
+> `read_schema_from_file` 全是 `True`。
 > `__tables__` / `__beans__` / `__enums__` 是 Luban 的**元表**，自己有 `group` **列**，
 > 不适用这一行，别给它们加。
 >
@@ -189,6 +193,8 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 | `LevelExp.xlsx` | `TbLevelExp` | 升级所需经验 + 该等级体力上限。**数值是占位的** |
 | `TownNpc.xlsx` | `TbTownNpc` | 城镇 NPC：站在哪个城镇的哪个世界坐标。**纯客户端**（全 `c`） |
 | `TownTrigger.xlsx` | `TbTownTrigger` | 城镇触发器：矩形判定区，走进去传送 / 开副本界面。**纯客户端**（全 `c`） |
+| `DungeonArea.xlsx` | `TbDungeonArea` | 副本区域（像 DNF 的格兰之森）：名字 + 一张背景。**纯客户端**（全 `c`） |
+| `Dungeon.xlsx` | `TbDungeon` | 小副本：一行一个格子，`MaxStar` 是配置允许的最高挑战星级。**纯客户端**（全 `c`） |
 
 ⚠️ **加了表要按顺序跑四步**：第 1 步导出 → **自动打包 Addressable**（打标）→
 第 2 步 AssetKeys → 第 3 步 LubanManager。少一步就编译不过，而且报错指向的地方很误导：
@@ -370,15 +376,22 @@ TownNpc.xlsx --(Luban 导出)--> tbtownnpc.json --(窗口读)--> 场景里的预
   做成子节点是为了能用 Unity 自己的移动工具拖，写回时读它的 `localPosition` 当偏移，
   所以**先拖中心再拖出口点**两个值都不用互相换算。运行时**不会**有这个节点（出口点只是两个数），
   `TownTriggerController.OnDrawGizmos` 里那个「有子节点就以子节点为准」的分支就是为它留的；
-- 「对端」那一列的下拉只列**别的城镇的传送点**（同城镇互连运行时会被拒）。
+- 「对端 / 区域」那一列的下拉**按行的 `Kind` 分流**（两种触发器的 `TargetId` 不是一类东西）：
+  传送 → **别的城镇的传送点**（同城镇互连运行时会被拒）；副本 → **副本区域**（`DungeonArea`）。
+  改了 `Kind` 会把 `TargetId` **清成 0** —— 留着上一种语义的值必然配错。
+  ⚠️ 2026-08-27 副本做完之前这一列对副本是「填 0」，那时下拉只有传送点，
+  **用窗口写回一次就会把副本触发器的区域 id 冲掉**（补文档时发现的，当天修了）。别再退回那个形状；
   ⚠️ 它列的是**上次导出**的表内容 —— 刚在窗口里新加、还没写回 Excel 的传送点不会出现，
   先写一次再来连；
 - 预览对象上挂的是**运行时那个** `TownTriggerController`，所以框是同一份代码画的
   （蓝框=传送、橙框=副本）—— 编辑器里所见即游戏里所得。
 
-写回前会校验一遍（id 重复、宽高 ≤0、没连对端 / 连的是自己 / 对端不存在 / 对端不是传送点 /
-对端在同一个城镇、**出口点还在传送阵正中心**），和运行时 `TownTriggers.InTown` 的校验
-是同一套口径，只是提前到写 Excel 之前。
+写回前会校验一遍，和运行时 `TownTriggers.InTown` 的校验是同一套口径、只是提前到写 Excel 之前：
+
+| 两种都查 | id 重复、宽高 ≤ 0 |
+|---|---|
+| 传送（Kind=1） | 没连对端 / 连的是自己 / 对端不存在 / 对端不是传送点 / 对端在同一个城镇 / **出口点还在传送阵正中心** |
+| 副本（Kind=2） | 没选副本区域 / 那个区域不在 `DungeonArea` 表里 |
 
 跑 Excel 那一步会后台起一个 EXCEL.EXE，**秒级**，比 Pipeline 的 5 秒超时还长 ——
 用 `eval` 驱动时会看到一条 `/api/exec ... timed out`，那是 Pipeline 自己的超时，
@@ -389,7 +402,7 @@ TownNpc.xlsx --(Luban 导出)--> tbtownnpc.json --(窗口读)--> 场景里的预
 项目自己的编辑器工具**全部**挂在 `Tools > XFramework/` 下，分五个子菜单：
 `打包/`、`服务端/`、`配置/`、`UI/`、`实用工具/`。排序靠 `[MenuItem(path, false, priority)]`
 的 priority 显式指定（不要再用 "1." "2." 这种字符串前缀）：
-打包 100~121、服务端 150、配置 200~202、UI 300、实用工具 400~423。
+打包 100~121、服务端 150、配置 200~202（**已占满**：200 LuaConfig / 201 NPC 摆位 / 202 触发器摆位，下一个用 203）、UI 300、实用工具 400~423。
 相邻 priority 差 >10 时 Unity 会自动插分隔线。
 
 新加编辑器工具请遵守这个约定，不要再开新的顶层菜单。
@@ -627,6 +640,10 @@ CreatButton     「创建」—— 没选角色时是灰的，点了打开 Revis
 选人界面点「进入游戏」→ `SelectCharacter` 成功 → 关掉选人界面、打开
 **`MainCommonUI`**（城镇主界面）。
 
+这个界面管的事按小节往下排：**背景 + 出生点**（本小节）、**可行走边界**、
+**城镇 NPC**、**城镇触发器（传送 / 副本入口）**、**聊天框 + 说话气泡**、
+**右上角信息栏**、**城镇角色（自己 + 同城镇其他玩家）**。
+
 **背景是世界空间的 `SpriteRenderer`，不是 UI**（2026-08-25 改的，之前挂在
 `UIBackground` Canvas 下）。改的理由是硬的：那个 Canvas 是 ScreenSpaceCamera +
 CanvasScaler，背景的实际大小会随分辨率 / 宽高比变，而角色、出生点、坐标都是世界空间的。
@@ -742,7 +759,10 @@ TownManager.CurrentBandId ──┘         │
 > 「该显示哪张」全由 `MainCommonUI` 从 `TownManager` 算好再喂给它。
 
 > `UISystem` 的 `LoadUIBackground` / `HideUIBackground` / `UIBackground` 基类**还留着**，
-> 只是城镇背景不再走它了（现在没有调用方）。纯 UI 界面要垫背景仍然可以用。
+> 但**现在整个工程没有一个调用方**：城镇背景 2026-08-25 搬去世界空间了，
+> 副本区域背景 2026-08-27 试过走这一层、当天就改成挂进 `PopDungeonUI` 自己的层级
+> （理由见本节「副本界面」——背景层排在城镇角色下面，盖不住城镇）。
+> 要给纯 UI 界面垫背景时仍然可以用，但**先想清楚它会不会盖不住你想盖的东西**。
 
 ##### 还没做：相机适配（固定视野盒 + 黑边）
 
@@ -799,7 +819,7 @@ HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没
 #### 城镇触发器：传送点 / 副本入口（配置表 `TownTrigger`，2026-08-27）
 
 一行一个**矩形触发区**，玩家走进去就生效。手感是用户 2026-08-27 定的：
-**传送自动**（踩到就走，不弹确认框），**副本弹界面**。
+**传送自动**（踩到就走，不弹确认框），**副本弹界面**（开 `PopDungeonUI`，见本节「副本界面」）。
 
 **传送阵是成对的**（用户 2026-08-27 定的）：A 连着 B，从 A 过去就出现在 **B 的出口点**旁边
 —— 不是新城镇的出生点。所以 `Kind=1` 的 `TargetId` 存的是**对端传送点的 TriggerId**，
@@ -819,7 +839,7 @@ HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没
 | `TriggerId` | 全局唯一 |
 | `TownId` | 在哪个城镇 |
 | `Kind` | `1` 传送 / `2` 打开副本界面 |
-| `TargetId` | Kind=1 → **对端传送点的 TriggerId**；Kind=2 → 副本组 id（副本还没设计，填 0） |
+| `TargetId` | Kind=1 → **对端传送点的 TriggerId**；Kind=2 → **副本区域 id**（配置表 `DungeonArea.AreaId`，见本节「副本界面」） |
 | `PosX` / `PosY` | 矩形**中心**的世界坐标 |
 | `Width` / `Height` | 矩形大小（世界单位） |
 | `ArriveOffsetX/Y` | **出口点**：别人从对端传送过来时站在「本触发器中心 + 这个偏移」上。摆位窗口里拖那个绿圈 |
@@ -887,15 +907,142 @@ HUD（右上角信息栏 / 摇杆）要不要一起压进 16:9 盒子里**还没
 （Scene 视图里有 Gizmo 框：蓝=传送、橙=副本）。要让玩家看见得让美术出个地面标记，
 填进那一列即可，代码不用动。
 
-#### 副本界面（`PopDungeonUI`）—— 本轮只做到「打开」
+#### 副本界面（`PopDungeonUI`，2026-08-27）
 
-预制体和 AutoBind 是用户自己搭的（`UIMask/Background` 下 `CloseButton` / `Title/TitleTex`，
-外加 `UIMask/Contents` 和一个 `DungeonSlot` 行预制体：略缩图 + 名字 + 左右箭头 + 星级）。
-2026-08-27 只做了两件事：登记进 `UIPageConfiguration`（于是有了 `UIKeys.PopDungeonUI`）、
-踩到 `Kind=2` 的触发器时 `OpenUI` 它。
+结构像 DNF（用户 2026-08-27 定的）：**一个副本区域里有多个小副本**，每个小副本能选 1~6 星难度。
 
-**里面一行逻辑都没接** —— 副本配置表、进副本、难度切换、星级都还没设计。
-`Contents` 是空的，所以现在打开只看得到标题栏和返回按钮。**要动手前先问**副本的数据结构。
+```
+DungeonArea（区域，例：幽暗密林）   ← 自带一张背景，标题栏显示它的名字
+  └── Dungeon（小副本）× N          ← 界面上一个 DungeonSlot 格子，各自能选星级
+```
+
+**入口**：城镇里踩到 `Kind=2` 的触发器，那一行的 `TargetId` 就是**副本区域 id**。
+打开方式是「开完界面紧跟一次 `Show(areaId)`」（和创角界面 `SetJob` 一个套路 ——
+`OpenUI` 里的 `Open()` 先执行，参数只能紧接着给）：
+
+```csharp
+UISystem.Instance.OpenUI<PopDungeonUI>(UIKeys.PopDungeonUI)?.Show(areaId);
+```
+
+| 文件 | 职责 |
+|---|---|
+| `UGUI/PopDungeonUI/PopDungeonUI.cs` | 区域背景 + 标题 + 副本格子列表 |
+| `UGUI/PopDungeonUI/DungeonSlot/DungeonSlot.cs` | 一个格子：略缩图 / 名字 / 星级 / 左右箭头 |
+| `Dungeon/DungeonSelection.cs` | **「选了哪个副本 / 几星」的状态源 —— 组队的口子在这** |
+| `Dungeon/DungeonProgress.cs` | 通关进度（星级解锁靠它）。**本地占位，权威以后在服务端** |
+| `UGUI/PopDungeonUI/DungeonAreaBackground.cs` | 区域背景的标记组件（普通 `MonoBehaviour`），挂在区域背景预制体上 |
+
+##### 区域背景挂在本界面自己的层级里，**不走** `UIBackground` 层
+
+```
+PopDungeonUI/UIMask
+├── (区域背景)     ← 运行时塞进来，永远 SetAsFirstSibling（压在最底下）
+├── Background     ← alpha 0 的容器（**不是**区域背景！美术起的名字），里面是标题和关闭按钮
+└── Contents       ← 副本格子
+```
+
+⚠️⚠️ **这里 2026-08-27 反复过一次，别改回去**：一开始走的是框架的
+`UISystem.LoadUIBackground<T>()` 背景层，结果**副本界面开着时城镇整个露在外面** ——
+背景层的 Canvas 排在城镇角色下面，只盖住了城镇背景。用户当天订正成「直接挂进
+`PopDungeonUI` 层级」，这样整个副本界面（含背景）自然盖住城镇的角色、NPC、
+摇杆、聊天框、右上角信息栏。**所以框架那三个 `LoadUIBackground` /
+`HideUIBackground` / `ReleaseUIBackground` 又回到了没有调用方的状态**。
+
+- 背景预制体走 `LoadAsset<GameObject>`（key 由 `UIBase` 托管，关闭时自动还 AA 引用）
+  + `Instantiate` + `SetAsFirstSibling`，收的时候直接 `Destroy`
+  （**先 `SetActive(false)` 再销毁**，见坑 3）；
+- **换区域是幂等的**：key 没变什么都不做 —— 重开界面 / 同一个区域重复 `Show` 都不该
+  重新实例化一张 1024 的大图；
+- ⚠️ **必须拉满整屏**（代码里 `Stretch`：anchors 0~1、offset 全 0）。
+  贴图是**压扁的方图**（1024×1024，和城镇背景一个套路），按原尺寸摆会又方又小；
+- ⚠️⚠️ **区域背景材质的 `renderQueue` 必须是 3000。** 国服还原出来的 VariantCard 材质
+  是 **2000**（原包 bin 里的原值），而 UI 默认 3000 —— queue 小的先画 ⇒
+  **2000 的背景会被所有 UI 盖住**，包括城镇的摇杆 / 聊天框 / 右上角信息栏。
+  症状极具误导性：**副本界面明明开着、城镇的界面元素还在上面**，看着像层级或兄弟序不对。
+  2026-08-27 实测踩过，查错了两轮（先怀疑兄弟序、又怀疑截图是过期帧）。
+  `bg_500170_mat.mat` 已经改成 3000 了；`PopDungeonUI.CheckRenderQueue` 会在挂背景时
+  **报错但不自动改**（偷偷改美术资产不该由运行时代码做）。
+  新做区域背景记得在那个 `.mat` 上把 Render Queue 填 3000。
+  ⚠️ 这条和素材文档「材质参数要和原始 bin 字段级一致」有冲突 —— 那条是**还原验证**的要求，
+  而这张材质现在的用途是 UI 背景，用途决定它必须 3000。
+  ⚠️ **只对 UGUI 成立。** 城镇背景那张 `bg_500020_mat` 也是 2000，但它是**世界空间
+  `SpriteRenderer`** —— 2000 恰好让它比角色（Sprite 默认 3000）先画、排在角色后面，
+  正是想要的效果，**别去把它也改成 3000**。
+- ⚠️ 区域背景预制体上要挂 `DungeonAreaBackground` 组件 —— 它只是个**标记组件**
+  （普通 `MonoBehaviour`，不是 `UIBackground` 派生类了），作用是让本界面能存一个
+  有类型的引用（`PopDungeonUI.AreaBackground`，用户明确要求的）。没挂只会报一条错，
+  图照样显示。`bg_500170_Preview.prefab` 已经挂上了。
+  它是 **UI 的 `RawImage`**，**不是**世界空间的 —— 和城镇背景正好相反，别搞混。
+
+##### 星级：可选上限 = 已通关 + 1
+
+用户 2026-08-27 定的（像 DNF 的难度递进）：**打过 N 星才能选 N+1 星**。
+
+```
+可选上限 = clamp(已通关最高星 + 1, 1, Dungeon.MaxStar)
+默认停在可选上限   ← 玩家每次都想打能打的最高难度，停在 1 星等于每次都要点一堆箭头
+```
+
+⚠️⚠️ **`DungeonProgress` 是本地占位实现（PlayerPrefs），权威以后在服务端。**
+本轮副本是纯客户端的：没有战斗、没有结算，也就没有「谁来写通关记录」。
+改过存档的玩家能把星级全解开 —— **不是漏洞，是本轮就没有服务端那一半**。
+接结算时把那个类的内部换成服务端表的 View，`MaxClearedStar` / `MaxSelectableStar`
+两个签名不用动，界面一行都不用改；那时 `Dungeon.MaxStar` 这一列要开给服务端
+（现在整表 `group=c`）。
+
+本轮想试星级解锁只能用调试入口：
+
+```bash
+unity command eval --code 'DungeonProgress.DebugSetCleared(31006, 4); return "ok";'
+```
+
+##### ⚠️ 组队的口子：选择状态一律走 `DungeonSelection`
+
+用户 2026-08-27 提前交代的：**以后组队时队长在这个界面上的操作要同步给队员**。
+所以「选了哪个副本 / 几星」**不能是界面自己的字段**，一律走 `DungeonSelection`：
+
+| 现在（单人） | 以后（组队） |
+|---|---|
+| 状态在本地内存，`CanEdit` 恒 true | `Select` / `SetStar` 改成调 Reducer + 订阅队伍那张表，队员 `CanEdit` 返回 false |
+
+界面只做三件事：读属性、听 `Changed`、点之前问一句 `CanEdit` ——
+**所以接队伍那天界面代码一行都不用改**。别在界面里再存一份「当前几星」。
+
+`DungeonSelection.Reset()` 要在**换角色 / 关界面**时调：星级的默认值和上限都跟着
+角色的通关进度走，留着上一个角色的选择会显示成「他解到 5 星」。
+
+##### 四处**代码补的**组件（美术搭的时候没有，别以为是配漏了）
+
+| 补的 | 为什么 |
+|---|---|
+| `Contents` 上的 `HorizontalLayoutGroup` | 那节点上**没有任何布局组件**，不补的话 4 个格子会叠在同一个位置 |
+| `CloseButton` 上的 `Button` | 预制体里只有 `Image`（和 `PopMessageUI` 那两个页签同一个情况） |
+| `DungeonSlot` 根节点上的 `Button` | 同上 —— 整块格子要可点 |
+| 两个箭头**按位置认左右** | 见下 |
+
+⚠️⚠️ **`DungeonSlot` 那两个箭头的名字和位置是反的**：
+`LastArrowButton` 在 **x=+144（右边）**、`NextArrowButton` 在 **x=-129（左边）**。
+所以代码**按 `anchoredPosition.x` 判断左右**再绑（左=减星、右=加星），不按名字 ——
+按名字接一定接反，表现是「点加星变成减星」。这和创角界面那两个形态卡箭头是同一类坑（见坑 6）。
+
+⚠️ 星星那一排是 6 个 `StarBackground`（灭底）各带一个子 `Star`（亮图），**同名**，
+所以只能**按子节点顺序**认，不能按名字找。点亮/熄灭切的是 `Star` 的 `SetActive` ——
+第 6 颗的亮图是特殊的 `common_icon_star_6_on`，所以只切显隐、**不换 sprite**。
+
+⚠️ `Contents` 现在**没有 ScrollRect**，副本多到超过一屏（1920 大概放 5 个）就得让美术
+在预制体里加滚动，或者改成 `GridLayoutGroup` 分两行。
+
+⚠️ 预制体里 `UIMask` 的子节点顺序是 `Background`（标题 + 关闭按钮）→ `Contents`（格子），
+也就是**格子渲染在标题栏之上**。现在位置不重叠所以没事，但格子铺满之后会挡住
+右上角的关闭按钮。要调就在预制体里把 `Contents` 挪到 `Background` 前面。
+（区域背景由代码保证永远是第 0 个，不受这个顺序影响。）
+
+##### 本轮没做（副本本身）
+
+点格子只会打一条日志 —— **副本一张玩法表都还没有**（关卡内容、战斗、结算、
+体力消耗、掉落、需求等级）。服务端也不认识副本，没有「进副本」的 Reducer。
+接战斗时把 `HandleSlotClicked` 那一处换成「调服务端进副本」即可，
+选中的副本和星级都能从 `DungeonSelection` 拿到。**要动手前先问**副本的数据结构。
 
 #### 聊天框（左下角，2026-08-26）
 
@@ -1300,9 +1447,14 @@ UIAutoBindGenerator 没有业务组件」就手动补一下（挂到预制体上
 
 由此有两条直接影响调试的后果：
 
-- **算点击坐标必须传 canvas 的相机**：`RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, rt.position)`。
+- **算点击坐标必须传 canvas 的相机**：`RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, ...)`。
   传 `null`（Overlay 的写法）拿到的是世界坐标，`RaycastAll` **一个都打不中**，
   表现成「点击派发了但界面毫无反应」，很容易误判成事件被谁吃了。
+  ⚠️ **而且第二个参数别用 `rt.position`** —— 那是 **pivot** 的世界坐标，pivot 不一定在中心
+  （`PopDungeonUI` 的 `CloseButton` pivot 就在右上角，算出来的点正好压在矩形边界上，
+  `RaycastAll` 命中的是它**父节点**那张铺满屏的透明图，看着就像「关闭按钮被谁挡住了」）。
+  用四角平均值当中心：`GetWorldCorners(c); center = (c[0] + c[2]) * 0.5f;`
+  —— 2026-08-27 验副本界面时踩的，排查方向差点跑偏。
 - **`capture_game_view` 默认拍不到 UI，但原因不是 Overlay**：它默认 `source=camera`，
   渲的是 `MainCamera`，而 UI 挂在 `UICamera` 上 ⇒ **UI 一个都没有**。
   （2026-08-25 起 `MainCamera` 上有世界空间的城镇背景和角色了，所以 `camera` 源现在能拍到
