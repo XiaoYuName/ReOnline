@@ -798,10 +798,18 @@ InvariantGlobalization 下拿不到。上限本来就是排版保护，宁可紧
 | 世界消息**不进附近页签**、附近消息**不进世界页签** | ✅ 按 `Channel` 筛对了 |
 | `SenderJobId` / `SenderFormId` 快照 → 客户端查 `CharacterForm.IconKey` | ✅ 取到 `icon_unit_106011_0` |
 | 未选角就调 `send_world_message`（CLI） | ✅ 回「请先进入城镇再发言」 |
+| **别的连接**发消息（探针 Reducer）→ 那个人头上冒气泡 | ✅ 2026-08-27 修完 bug 后验的，见下 |
+
+⚠️ **气泡有过一个只在联机下才暴露的 bug**（2026-08-27 用户报的）：客户端判断
+「这条是不是刚发生的」写成了「`ctx.Event` 是不是 `Reducer`」，而**别人发的消息
+拿到的是 `Transaction`** ⇒ 只有自己头上冒泡。单客户端怎么测都是绿的。
+验的办法很便宜：加个临时探针 Reducer 用 `spacetime call` 插一条消息 ——
+从 Unity 客户端看，那就是**另一条连接**发起的事务，和真的第二个客户端等价。
+细节见「API 约定」里那条全局 Reducer 回调。
 
 **还没验过的**：两个客户端分别在**不同城镇**，确认世界消息互相收到、附近消息互相收不到。
-现在只有一个城镇（兰德索尔），而且始终只跑了一个客户端 —— 附近的隔离性是靠
-探针往 town 99 插消息验的，世界的跨城镇可见性只能等第二个城镇或双客户端。
+现在只有一个城镇（兰德索尔），所以附近的隔离性只能靠探针往 town 99 插消息验，
+跨城镇的世界可见性得等第二个城镇。
 
 ### CLI 测试速查
 
@@ -1052,7 +1060,11 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 - 客户端连接用 `WithDatabaseName`（不是 `WithModuleName`）；`light_mode`、`CallReducerFlags` 已删
 - **全局 reducer 回调没了**。别的客户端调 Reducer 你收不到参数。要广播「发生了什么」用
   **事件表** `[Table(Public = true, Event = true)]`：插入的行事务提交时推给订阅者然后立即删除，
-  客户端只有 `OnInsert`。事件表的 `Event` 标记**发布后不可更改**，改了迁移会失败
+  客户端只有 `OnInsert`。事件表的 `Event` 标记**发布后不可更改**，改了迁移会失败。
+  ⚠️ 这条有个**客户端侧的直接后果**：表回调里的 `ctx.Event`，自己调的那次是
+  `Reducer`，**别人改的行是 `Transaction`**。所以客户端判断「这行是不是刚发生的」
+  只能写成「排除 `SubscribeApplied`」，写成「是不是 `Reducer`」在单客户端下完全正常、
+  一联机就只剩自己有反应（说话气泡踩过，见客户端文档第 5 节）
 - Reducer 里禁止 `DateTime.Now` / `new Random()` / 网络 IO / 可变 static，
   时间和随机只能取 `ctx.Timestamp` 和 `ctx.Rng`（事务可能被重放，必须确定性）
 - 定时 Reducer 默认私有，不用再自己校验 sender

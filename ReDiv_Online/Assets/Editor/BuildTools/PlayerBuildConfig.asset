@@ -21,13 +21,13 @@ MonoBehaviour:
     PrefabModificationsReferencedUnityObjects: []
     PrefabModifications: []
     SerializationNodes: []
-  Platform: 1
+  Platform: 0
   ProductName: ReDiv
   CompanyName: LuminoInc
   BundleIdentifier: com.LuminoInc.ReDiv
   Channel: 0
   Version: 0.0.1
-  VersionCode: 2
+  VersionCode: 5
   AutoIncreaseVersionCode: 1
   UseEditorBuildSettingsScenes: 1
   Scenes: []
@@ -51,7 +51,7 @@ MonoBehaviour:
   Architectures: 2
   BuildApkPerCpuArchitecture: 0
   SplitApplicationBinary: 0
-  MinSdkVersion: 25
+  MinSdkVersion: 28
   TargetSdkVersion: 0
   Orientation: 3
   ForceInternetPermission: 1

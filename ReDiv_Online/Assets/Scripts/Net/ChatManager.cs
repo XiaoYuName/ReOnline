@@ -120,9 +120,10 @@ namespace ReDiv.Net
         /// 「列表变了，重画吧」，聊天框重画一遍就完事；气泡必须知道**是谁刚说的**，
         /// 光看列表变化推不出来。
         ///
-        /// ⚠️ **订阅刚生效时补下来的历史不算新消息，不会触发这个事件。**
-        /// 那 50 条历史也是走 `OnInsert` 下来的，不挡住的话一进城镇每个人头上
-        /// 会同时炸出一串气泡。判断方式见 <see cref="HandleMessageInsert"/>。
+        /// ⚠️ **订阅刚生效时补下来的历史不算新消息，不会触发这个事件**（那 50 条历史
+        /// 也是走 `OnInsert` 下来的，不挡住的话一进城镇满屏气泡）。
+        /// 怎么区分见 <see cref="HandleMessageInsert"/> —— 那里有个**联机下才会暴露**
+        /// 的坑，改之前一定要看。
         /// </summary>
         public event Action<ChatMessage> MessageArrived;
 
@@ -330,12 +331,26 @@ namespace ReDiv.Net
         /// <summary>
         /// 新增一行。除了刷列表，还要判断这算不算「刚刚有人说话」（触发气泡）。
         ///
-        /// ⚠️ **订阅刚生效时，那一批历史消息也是走这个回调下来的。**
-        /// 区分办法是看事件来源：<c>Event.Reducer</c> 表示这一行是某次真实的
-        /// Reducer 调用产生的（有人真的按了发送），<c>Event.SubscribeApplied</c>
-        /// 才是订阅回填。不判这一下的话，一进城镇满屏气泡。
+        /// ⚠️ **订阅刚生效时，那一批历史消息也是走这个回调下来的**，不挡住的话
+        /// 一进城镇每个人头上会同时炸出一串气泡。所以这里要挡的**只有订阅回填**。
         ///
-        /// 不用「拿消息时间和本地时钟比」那种办法：`SentAt` 是**服务端**时间，
+        /// ⚠️⚠️ **判据必须写成「不是订阅事件」，不能写成「是 Event.Reducer」。**
+        /// 2026-08-27 实测过 <c>ctx.Event</c> 的取值：
+        ///
+        /// | 这一行怎么来的 | ctx.Event |
+        /// |---|---|
+        /// | **自己**发的 | <c>Reducer</c> |
+        /// | **别人**发的 | <c>Transaction</c> |
+        /// | 进城镇拉历史 | <c>SubscribeApplied</c> |
+        ///
+        /// 别人发的拿不到 <c>Reducer</c> 变体，因为 **2.x 起没有全局 Reducer 回调**
+        /// （见服务端 README「API 约定」）—— 别的客户端调 Reducer，你收不到参数，
+        /// 只知道「有个事务改了你订阅的行」。
+        /// 一开始这里写的是「只放行 <c>Event.Reducer</c>」，症状是**联机下只有自己
+        /// 头上冒泡、别人的永远不冒，而聊天记录一切正常**（记录是在这道门之前刷的）。
+        /// 单客户端测不出来，必须两个客户端 / 或者拿另一条连接插消息才会暴露。
+        ///
+        /// 不用「拿消息时间和本地时钟比」那种办法：<c>SentAt</c> 是**服务端**时间，
         /// 和玩家本地时钟差多少不知道，那个判断本身就不可靠。
         /// </summary>
         private void HandleMessageInsert(EventContext ctx, ChatMessage row)
@@ -343,7 +358,7 @@ namespace ReDiv.Net
             // 先刷列表再发气泡事件：这样界面重画和气泡看到的是同一份数据
             RefreshMessages();
 
-            if (ctx.Event is not Event<Reducer>.Reducer)
+            if (IsSubscriptionBackfill(ctx.Event))
             {
                 return;
             }
@@ -355,6 +370,18 @@ namespace ReDiv.Net
 
             MessageArrived?.Invoke(row);
         }
+
+        /// <summary>
+        /// 这一行是不是订阅生效时补下来的历史（而不是刚刚发生的事）。
+        ///
+        /// 写成**排除订阅生命周期事件**而不是「只认某几个实时变体」：
+        /// 要挡的东西就是回填这一件，说清楚它比枚举「什么算实时」更贴合意图 ——
+        /// 而且以后 SDK 加了新的实时事件变体，气泡不会莫名其妙不响。
+        /// </summary>
+        private static bool IsSubscriptionBackfill(Event<Reducer> ev) =>
+            ev is Event<Reducer>.SubscribeApplied
+                or Event<Reducer>.UnsubscribeApplied
+                or Event<Reducer>.SubscribeError;
 
         private void HandleMessageUpdate(EventContext ctx, ChatMessage oldRow, ChatMessage newRow) =>
             RefreshMessages();
