@@ -19,7 +19,7 @@ using XFramework;
 /// PopDungeonUI
 /// └── UIMask
 ///     ├── (区域背景)          ← **运行时塞进来的**，永远是第一个子节点（压在最底下）
-///     ├── Contents            ← 副本格子摆这里（HorizontalLayoutGroup 是**代码补的**，见下）
+///     ├── Contents            ← 副本格子摆这里（**按配置坐标摆，不能有布局组件**，见下）
 ///     └── Background          ← alpha 0 的容器（**不是**区域背景！美术起的名字）
 ///         ├── Title/TitleTex  ← 区域名
 ///         └── CloseButton     ← 关闭（Button 也是**代码补的**，预制体上只有 Image）
@@ -43,9 +43,6 @@ using XFramework;
 /// </summary>
 public partial class PopDungeonUI : UIBase
 {
-    /// <summary>格子之间的间距（代码补的布局用，见 <see cref="EnsureContentsLayout"/>）。</summary>
-    private const float SlotSpacing = 24f;
-
     /// <summary>
     /// 当前显示的副本区域 id。0 = 还没指定过（<see cref="Show"/> 没被调过）。
     ///
@@ -87,7 +84,7 @@ public partial class PopDungeonUI : UIBase
         InitAutoBind();
 
         BindCloseButton();
-        EnsureContentsLayout();
+        CheckContentsLayout();
     }
 
     public override void Open()
@@ -394,6 +391,9 @@ public partial class PopDungeonUI : UIBase
         for (int i = 0; i < dungeons.Count; i++)
         {
             slots[i].SetDungeon(dungeons[i]);
+
+            // 位置来自配置（Dungeon.PosX/PosY），不是平铺 —— 见 ApplySlotPosition
+            ApplySlotPosition(slots[i], dungeons[i]);
         }
     }
 
@@ -532,30 +532,51 @@ public partial class PopDungeonUI : UIBase
     }
 
     /// <summary>
-    /// <c>Contents</c> 上**没有任何布局组件**（美术只摆了一个铺满屏的空节点），
-    /// 不补的话所有格子会叠在同一个位置。所以这里补一个横向布局：
-    /// 居中、固定间距、**不拉伸格子**（格子是 360×200 的定尺寸美术）。
+    /// 格子的位置**来自配置表**（`Dungeon.PosX` / `PosY`，用户 2026-08-27 定的：
+    /// 不要平铺，按配好的位置摆），所以 <c>Contents</c> 上**不能有布局组件** ——
+    /// `LayoutGroup` 会在下一次布局阶段把 `anchoredPosition` 全部覆盖掉，
+    /// 表现是「坐标配了但格子还是排成一行」，而且从现象完全看不出是布局组件干的。
     ///
-    /// ⚠️ 现在没有 ScrollRect —— 副本多到超过一屏（1920 大概放 5 个）就得让美术
-    /// 在预制体里加滚动，或者改成 GridLayoutGroup 分两行。
+    /// ⚠️ 2026-08-27 之前这里是**主动加**一个 `HorizontalLayoutGroup`（那时是平铺的），
+    /// 所以这个检查也顺带兜住「美术照着旧行为在预制体里加了布局组」这种情况。
     /// </summary>
-    private void EnsureContentsLayout()
+    private void CheckContentsLayout()
     {
         if (contents == null)
         {
             return;
         }
 
-        if (!contents.TryGetComponent(out HorizontalLayoutGroup layout))
+        if (contents.TryGetComponent(out LayoutGroup layout))
         {
-            layout = contents.gameObject.AddComponent<HorizontalLayoutGroup>();
+            Debug.LogError($"[PopDungeonUI] Contents 上有 {layout.GetType().Name}，" +
+                           $"它会覆盖掉按配置摆的格子坐标（Dungeon.PosX/PosY）——" +
+                           $"把那个组件从预制体上删掉。已在运行时禁用它。");
+
+            layout.enabled = false;
+        }
+    }
+
+    /// <summary>
+    /// 把格子摆到配置里那个位置上。
+    ///
+    /// 坐标是 **UI 坐标**（`anchoredPosition`，相对 <c>Contents</c> 中心）——
+    /// 格子预制体根节点的 anchor 和 pivot 都是 (0.5, 0.5)，所以配的就是「相对屏幕中心的偏移」。
+    /// 别拿它当世界坐标（城镇那些 NPC / 触发器才是世界坐标，两套别混）。
+    ///
+    /// **别在这里改 anchor / pivot / sizeDelta** —— 格子是 360×200 的定尺寸美术，
+    /// 尺寸和锚点都由预制体说话，代码只管往哪儿摆。
+    /// </summary>
+    private static void ApplySlotPosition(DungeonSlot slot, Dungeon config)
+    {
+        if (slot == null || config == null)
+        {
+            return;
         }
 
-        layout.spacing = SlotSpacing;
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlWidth = false;
-        layout.childControlHeight = false;
-        layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = false;
+        if (slot.transform is RectTransform rect)
+        {
+            rect.anchoredPosition = new Vector2(config.PosX, config.PosY);
+        }
     }
 }

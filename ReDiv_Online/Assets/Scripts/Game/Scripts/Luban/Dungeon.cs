@@ -26,6 +26,8 @@ public sealed partial class Dungeon : Luban.BeanBase
         ThumbnailKey = (string)_obj.GetValue("ThumbnailKey");
         MaxStar = (int)_obj.GetValue("MaxStar");
         SortOrder = (int)_obj.GetValue("SortOrder");
+        PosX = (float)_obj.GetValue("PosX");
+        PosY = (float)_obj.GetValue("PosY");
     }
 
     public static Dungeon DeserializeDungeon(JToken _buf)
@@ -57,6 +59,14 @@ public sealed partial class Dungeon : Luban.BeanBase
     /// 同一区域内的排序
     /// </summary>
     public readonly int SortOrder;
+    /// <summary>
+    /// 格子在副本界面里的位置X-UI坐标-相对Contents中心-用副本摆位窗口拖
+    /// </summary>
+    public readonly float PosX;
+    /// <summary>
+    /// 格子在副本界面里的位置Y-UI坐标-同上
+    /// </summary>
+    public readonly float PosY;
 
 
     public const int __ID__ = -619892070;
@@ -75,6 +85,8 @@ public sealed partial class Dungeon : Luban.BeanBase
         + "ThumbnailKey:" + ThumbnailKey + ","
         + "MaxStar:" + MaxStar + ","
         + "SortOrder:" + SortOrder + ","
+        + "PosX:" + PosX + ","
+        + "PosY:" + PosY + ","
         + "}";
     }
 }

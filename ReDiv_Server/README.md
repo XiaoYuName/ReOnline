@@ -1082,7 +1082,7 @@ review 时一眼看得到「谁改了某列的 type」，现在只能靠 `ExcelT
 | `TownNpc.xlsx` | 城镇 NPC 站在哪个城镇的哪个世界坐标。**服务端看不到**（整表 `group=c`） | c |
 | `TownTrigger.xlsx` | 城镇触发器（矩形判定区）：走进去传送 / 开副本界面。**传送是成对的**（`TargetId` 指对端传送点），落点是对端的「出口点」。**服务端看不到**（整表 `group=c`） | c |
 | `DungeonArea.xlsx` | 副本区域（像 DNF 的格兰之森）：名字 + 一张背景。**服务端看不到**（整表 `group=c`） | c |
-| `Dungeon.xlsx` | 小副本：一行一个界面格子，`MaxStar` 是配置允许的最高挑战星级。**服务端看不到**（整表 `group=c`） | c |
+| `Dungeon.xlsx` | 小副本：一行一个界面格子，含 `MaxStar` 和**格子在界面里的 UI 坐标**（按配置摆，不是平铺）。**服务端看不到**（整表 `group=c`） | c |
 
 美术资源都填好了（在 `Assets/AddressableAssets/Remote/Character/<JobId>/` 下，
 `0Common` 给基础形态、另两个子目录给觉醒线和爆发线）。

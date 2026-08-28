@@ -5,7 +5,9 @@
     "Name": "密林入口",
     "ThumbnailKey": "Assets/AddressableAssets/Remote/Texture2D/Dungeon/dungeon_thumbnail_31005.png",
     "MaxStar": 3,
-    "SortOrder": 1
+    "SortOrder": 1,
+    "PosX": -576,
+    "PosY": 0
   },
   {
     "DungeonId": 31006,
@@ -13,7 +15,9 @@
     "Name": "迷雾小径",
     "ThumbnailKey": "Assets/AddressableAssets/Remote/Texture2D/Dungeon/dungeon_thumbnail_31006.png",
     "MaxStar": 6,
-    "SortOrder": 2
+    "SortOrder": 2,
+    "PosX": -192,
+    "PosY": 0
   },
   {
     "DungeonId": 31007,
@@ -21,7 +25,9 @@
     "Name": "古树之下",
     "ThumbnailKey": "Assets/AddressableAssets/Remote/Texture2D/Dungeon/dungeon_thumbnail_31007.png",
     "MaxStar": 6,
-    "SortOrder": 3
+    "SortOrder": 3,
+    "PosX": 192,
+    "PosY": 0
   },
   {
     "DungeonId": 31008,
@@ -29,6 +35,8 @@
     "Name": "密林深处",
     "ThumbnailKey": "Assets/AddressableAssets/Remote/Texture2D/Dungeon/dungeon_thumbnail_31008.png",
     "MaxStar": 1,
-    "SortOrder": 4
+    "SortOrder": 4,
+    "PosX": 576,
+    "PosY": 0
   }
 ]

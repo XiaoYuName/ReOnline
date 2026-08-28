@@ -194,7 +194,7 @@ Action 一共 11 个：`Dump` / `AddRows` / `UpdateRows` / `AddColumn` / `AddShe
 | `TownNpc.xlsx` | `TbTownNpc` | 城镇 NPC：站在哪个城镇的哪个世界坐标。**纯客户端**（全 `c`） |
 | `TownTrigger.xlsx` | `TbTownTrigger` | 城镇触发器：矩形判定区，走进去传送 / 开副本界面。**纯客户端**（全 `c`） |
 | `DungeonArea.xlsx` | `TbDungeonArea` | 副本区域（像 DNF 的格兰之森）：名字 + 一张背景。**纯客户端**（全 `c`） |
-| `Dungeon.xlsx` | `TbDungeon` | 小副本：一行一个格子，`MaxStar` 是配置允许的最高挑战星级。**纯客户端**（全 `c`） |
+| `Dungeon.xlsx` | `TbDungeon` | 小副本：一行一个格子，含 `MaxStar` 和**格子在界面里的 UI 坐标**。**纯客户端**（全 `c`） |
 
 ⚠️ **加了表要按顺序跑四步**：第 1 步导出 → **自动打包 Addressable**（打标）→
 第 2 步 AssetKeys → 第 3 步 LubanManager。少一步就编译不过，而且报错指向的地方很误导：
@@ -337,7 +337,7 @@ View 下发的 `FormId`，**客户端不要自己按星级算**；爆发线自�
 > （`[SpineAnimation] IdleName`，Inspector 里是下拉，选不出不存在的动画名）。
 > 视频列 2026-08-24 已删。
 
-#### 两个摆位窗口：`Tools > XFramework > 配置 > NPC 摆位` / `触发器摆位`
+#### 三个摆位窗口：`Tools > XFramework > 配置 >` `NPC 摆位` / `触发器摆位` / `副本摆位`
 
 实现在 `Assets/Editor/TownTools/TownNpcPlacementWindow.cs`（2026-08-26 加的）。
 解决的是「`TownNpc` 表里的 `PosX`/`PosY` 是世界坐标，在 Excel 里只能填数字、看不到背景」。
@@ -393,6 +393,29 @@ TownNpc.xlsx --(Luban 导出)--> tbtownnpc.json --(窗口读)--> 场景里的预
 | 传送（Kind=1） | 没连对端 / 连的是自己 / 对端不存在 / 对端不是传送点 / 对端在同一个城镇 / **出口点还在传送阵正中心** |
 | 副本（Kind=2） | 没选副本区域 / 那个区域不在 `DungeonArea` 表里 |
 
+#### 副本摆位窗口（`Assets/Editor/DungeonTools/DungeonSlotPlacementWindow.cs`，2026-08-27）
+
+摆的是**副本界面里那些格子的位置**（`Dungeon.xlsx` 的 `PosX` / `PosY`）。
+流程和上面两个一样（选目标 → 打开预览 → Scene 视图里拖 → 写回 Excel），
+但有一条**本质区别**：
+
+⚠️⚠️ **这里拖的是 UI 坐标，不是世界坐标。** 所以预览**必须挂在真实的 Canvas 下**
+（`GameManager/UISystem/UILayout/UIPanel` —— 编辑器下场景里就有那几个节点），
+而不是像 NPC / 触发器那样丢在世界原点：UI 坐标要经过 `CanvasScaler` 才有意义，
+挂错地方拖出来的数字是废的。写回读的是格子根节点的 `anchoredPosition`。
+
+预览里摆的是**真东西**：`PopDungeonUI` 预制体 + 区域背景（拉满，和运行时同一个挂法）
++ 每个副本一个真实的 `DungeonSlot` 预制体（略缩图和名字都填上），
+所以 Scene 视图里看到的就是游戏里的样子。
+
+⚠️ 预览里那些 `DungeonSlot` 的 `Init` **不会跑**（`UIBase` 没有 `[ExecuteAlways]`），
+所以略缩图和名字是窗口**手动**塞进组件的；星星停在预制体的默认状态，不代表运行时的星级。
+
+顺手带了一个「按当前顺序横排一次」按钮 —— 只是给个起点（按 `SortOrder` 均匀横排在屏幕中间），
+摆成什么样还是要自己拖。
+
+⚠️ 坐标写回时**取整**（UI 像素，小数没意义）；另外两个窗口是世界坐标、留三位小数。
+
 跑 Excel 那一步会后台起一个 EXCEL.EXE，**秒级**，比 Pipeline 的 5 秒超时还长 ——
 用 `eval` 驱动时会看到一条 `/api/exec ... timed out`，那是 Pipeline 自己的超时，
 写入其实成功了，别当成失败。
@@ -402,7 +425,7 @@ TownNpc.xlsx --(Luban 导出)--> tbtownnpc.json --(窗口读)--> 场景里的预
 项目自己的编辑器工具**全部**挂在 `Tools > XFramework/` 下，分五个子菜单：
 `打包/`、`服务端/`、`配置/`、`UI/`、`实用工具/`。排序靠 `[MenuItem(path, false, priority)]`
 的 priority 显式指定（不要再用 "1." "2." 这种字符串前缀）：
-打包 100~121、服务端 150、配置 200~202（**已占满**：200 LuaConfig / 201 NPC 摆位 / 202 触发器摆位，下一个用 203）、UI 300、实用工具 400~423。
+打包 100~121、服务端 150、配置 200~203（200 LuaConfig / 201 NPC 摆位 / 202 触发器摆位 / 203 副本摆位，下一个用 204）、UI 300、实用工具 400~423。
 相邻 priority 差 >10 时 Unity 会自动插分隔线。
 
 新加编辑器工具请遵守这个约定，不要再开新的顶层菜单。
@@ -974,6 +997,31 @@ PopDungeonUI/UIMask
   图照样显示。`bg_500170_Preview.prefab` 已经挂上了。
   它是 **UI 的 `RawImage`**，**不是**世界空间的 —— 和城镇背景正好相反，别搞混。
 
+##### 格子位置来自配置，**不是平铺**
+
+用户 2026-08-27 定的：格子按配好的位置摆（`Dungeon.PosX` / `PosY`），
+不要 `LayoutGroup` 那种自动排列 —— 副本界面的格子摆法是**美术设计的一部分**
+（错落、分组、跟着背景里的地形走），平铺表达不了。
+
+| 列 | 说明 |
+|---|---|
+| `PosX` / `PosY` | 格子的 **UI 坐标**（`anchoredPosition`，相对 `Contents` 中心 = 屏幕中心） |
+
+格子预制体根节点的 anchor 和 pivot 都是 `(0.5, 0.5)`，所以配的就是「相对屏幕中心的偏移」，
+和分辨率无关（canvas 参考分辨率 1920×1080）。
+
+⚠️⚠️ **`Contents` 上不能有任何 `LayoutGroup`。** 布局组件会在下一次布局阶段把
+`anchoredPosition` 全部覆盖掉，表现是「坐标配了但格子还是排成一行」——
+从现象完全看不出是布局组件干的。`PopDungeonUI.CheckContentsLayout()` 会在
+`Init` 时**报错并把它禁用**（2026-08-27 之前这里是主动加一个 `HorizontalLayoutGroup`
+做平铺的，那个检查也顺带兜住「照着旧行为在预制体里加了布局组」这种情况）。
+
+⚠️ **UI 坐标和世界坐标是两套，别混**：城镇 NPC / 触发器配的是**世界坐标**，
+这里配的是 **UI 坐标**。两边的摆位窗口也因此不一样（见第 4 节）。
+
+⚠️ 现在也**没有 ScrollRect** —— 副本多到摆不下就得让美术在预制体里加滚动，
+或者分区域拆开。配置坐标这套本身不管溢出。
+
 ##### 星级：可选上限 = 已通关 + 1
 
 用户 2026-08-27 定的（像 DNF 的难度递进）：**打过 N 星才能选 N+1 星**。
@@ -1011,11 +1059,10 @@ unity command eval --code 'DungeonProgress.DebugSetCleared(31006, 4); return "ok
 `DungeonSelection.Reset()` 要在**换角色 / 关界面**时调：星级的默认值和上限都跟着
 角色的通关进度走，留着上一个角色的选择会显示成「他解到 5 星」。
 
-##### 四处**代码补的**组件（美术搭的时候没有，别以为是配漏了）
+##### 三处**代码补的**组件（美术搭的时候没有，别以为是配漏了）
 
 | 补的 | 为什么 |
 |---|---|
-| `Contents` 上的 `HorizontalLayoutGroup` | 那节点上**没有任何布局组件**，不补的话 4 个格子会叠在同一个位置 |
 | `CloseButton` 上的 `Button` | 预制体里只有 `Image`（和 `PopMessageUI` 那两个页签同一个情况） |
 | `DungeonSlot` 根节点上的 `Button` | 同上 —— 整块格子要可点 |
 | 两个箭头**按位置认左右** | 见下 |
@@ -1028,9 +1075,6 @@ unity command eval --code 'DungeonProgress.DebugSetCleared(31006, 4); return "ok
 ⚠️ 星星那一排是 6 个 `StarBackground`（灭底）各带一个子 `Star`（亮图），**同名**，
 所以只能**按子节点顺序**认，不能按名字找。点亮/熄灭切的是 `Star` 的 `SetActive` ——
 第 6 颗的亮图是特殊的 `common_icon_star_6_on`，所以只切显隐、**不换 sprite**。
-
-⚠️ `Contents` 现在**没有 ScrollRect**，副本多到超过一屏（1920 大概放 5 个）就得让美术
-在预制体里加滚动，或者改成 `GridLayoutGroup` 分两行。
 
 ⚠️ 预制体里 `UIMask` 的子节点顺序是 `Background`（标题 + 关闭按钮）→ `Contents`（格子），
 也就是**格子渲染在标题栏之上**。现在位置不重叠所以没事，但格子铺满之后会挡住
