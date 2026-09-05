@@ -62,6 +62,9 @@ public sealed class BattleBackgroundVariantSet : MonoBehaviour
         }
 
         activeVariantIndex = index;
+        BattleBackgroundScreenFitter fitter = GetComponent<BattleBackgroundScreenFitter>();
+        if (fitter != null)
+            fitter.Invalidate();
         return true;
     }
 

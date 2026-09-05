@@ -26,6 +26,7 @@ public sealed class BattleBackgroundScreenFitter : MonoBehaviour
     private int lastPixelHeight = -1;
     private int lastVariantIndex = int.MinValue;
     private float lastOrthographicSize = float.NaN;
+    private float lastAspect = float.NaN;
     private Vector2 lastCameraPosition = new(float.NaN, float.NaN);
     private bool fitPending = true;
 
@@ -143,6 +144,7 @@ public sealed class BattleBackgroundScreenFitter : MonoBehaviour
             || camera.pixelHeight != lastPixelHeight
             || variantIndex != lastVariantIndex
             || !Mathf.Approximately(camera.orthographicSize, lastOrthographicSize)
+            || !Mathf.Approximately(camera.aspect, lastAspect)
             || cameraPosition != lastCameraPosition;
     }
 
@@ -154,6 +156,7 @@ public sealed class BattleBackgroundScreenFitter : MonoBehaviour
         lastPixelHeight = camera.pixelHeight;
         lastVariantIndex = variantSet != null ? variantSet.ActiveVariantIndex : 0;
         lastOrthographicSize = camera.orthographicSize;
+        lastAspect = camera.aspect;
         lastCameraPosition = camera.transform.position;
     }
 
