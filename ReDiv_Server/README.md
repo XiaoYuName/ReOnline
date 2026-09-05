@@ -38,16 +38,23 @@ wasi-wasm 环境的地雷，两者都能让「编译通过的代码」在运行�
 
 | 项目 | 值 |
 |---|---|
-| SpacetimeDB 服务端 | 2.8.2，Docker 容器 `spacetimedb`（`clockworklabs/spacetime:latest`） |
+| SpacetimeDB 服务端 | 2.8.2，Docker 容器 `spacetimedb`（固定 `clockworklabs/spacetime:v2.8.2`） |
 | CLI | 2.8.2，`%LOCALAPPDATA%\SpacetimeDB\spacetime.exe` |
 | 访问地址 | `http://127.0.0.1:2383`（已绑 `0.0.0.0`，局域网走 `http://192.168.10.226:2383`） |
 | 数据库名 | `rediv` |
-| 数据库 identity | `c20016162580a8a82675c8d5434f5a248cfaa144c6522d1a6faf7325aa9e34c7` |
+| 数据库 identity | `c2004222c13850b34c5dd5ceb57c54a1063a04575ecec3b43d34ff5c7165a932`（2026-09-05 重建） |
 | 宿主机 .NET | 10.0.400 |
 | 客户端 | `../ReDiv_Online`（Unity 6000.4.8f1，SDK 2.8.2 内嵌在 `Packages/` 下） |
 
 CLI、服务端、Unity SDK 三者版本严格对齐在 2.8.2 —— 协议是 v2，跨版本容易出问题，
 升级时三个一起升。
+
+2026-09-05 原服务器删除后重新发布了 `rediv`，旧账号和角色数据未恢复，需要重新注册。
+新容器使用命名卷 `rediv-spacetime-282-data` 挂载
+`/home/spacetime/.local/share/spacetime/data`，重启策略为 `unless-stopped`。
+旧 2.9.0 容器 `dazzling_benz` 已停止并保留。CLI 已更新本机身份及服务器指纹；
+当前 Unity 编辑器已清除旧服务器签发的失效 AuthToken，并实测重新连接成功。
+其它已有客户端若仍缓存旧令牌，也需要清除对应的 SpacetimeDB AuthToken 后重连。
 
 ---
 

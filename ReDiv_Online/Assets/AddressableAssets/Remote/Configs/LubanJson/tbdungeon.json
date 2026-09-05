@@ -6,8 +6,8 @@
     "ThumbnailKey": "Assets/AddressableAssets/Remote/Texture2D/Dungeon/dungeon_thumbnail_31005.png",
     "MaxStar": 3,
     "SortOrder": 1,
-    "PosX": -576,
-    "PosY": 0
+    "PosX": -687,
+    "PosY": -214
   },
   {
     "DungeonId": 31006,
@@ -16,8 +16,8 @@
     "ThumbnailKey": "Assets/AddressableAssets/Remote/Texture2D/Dungeon/dungeon_thumbnail_31006.png",
     "MaxStar": 6,
     "SortOrder": 2,
-    "PosX": -192,
-    "PosY": 0
+    "PosX": 684,
+    "PosY": 60
   },
   {
     "DungeonId": 31007,
@@ -26,8 +26,8 @@
     "ThumbnailKey": "Assets/AddressableAssets/Remote/Texture2D/Dungeon/dungeon_thumbnail_31007.png",
     "MaxStar": 6,
     "SortOrder": 3,
-    "PosX": 192,
-    "PosY": 0
+    "PosX": 691,
+    "PosY": 315
   },
   {
     "DungeonId": 31008,
@@ -36,7 +36,7 @@
     "ThumbnailKey": "Assets/AddressableAssets/Remote/Texture2D/Dungeon/dungeon_thumbnail_31008.png",
     "MaxStar": 1,
     "SortOrder": 4,
-    "PosX": 576,
-    "PosY": 0
+    "PosX": -271,
+    "PosY": -206
   }
 ]
