@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
@@ -25,8 +26,7 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
     [SerializeField] private bool createPreviewPrefab = true;
 
     private Vector2 scrollPosition;
-    private MaterialSnapshot analyzedMaterial;
-    private List<TextureResolution> analyzedTextures = new();
+    private List<MaterialAnalysis> analyzedMaterials = new();
     private string analysisMessage = string.Empty;
     private MessageType analysisMessageType = MessageType.Info;
 
@@ -52,7 +52,7 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 
         EditorGUILayout.HelpBox(
-            "拖入 still_unit_xxxxxx 或 bg_xxxxxx 文件夹即可。工具会识别原版 VariantCard 材质，解析 *_mat.bin，并恢复纹理槽、Scale/Offset、Float、Color、Keyword 和 RenderQueue；源文件不会被修改。",
+            "本窗口用于 still_unit_xxxxxx 或单个 bg_xxxxxx 的 VariantCard 材质还原。bg_10001 这类多背景战斗场景组请使用 Tools/ReDiv/战斗背景/还原 SpriteRenderer 场景。源文件不会被修改。",
             MessageType.Info);
 
         EditorGUILayout.Space(4f);
@@ -94,11 +94,37 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
 
     private void DrawAnalysis()
     {
-        if (analyzedMaterial == null)
+        if (analyzedMaterials.Count == 0)
             return;
 
         EditorGUILayout.Space(8f);
         EditorGUILayout.LabelField("解析结果", EditorStyles.boldLabel);
+        if (analyzedMaterials.Count > 1)
+        {
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUILayout.IntField("Material 数", analyzedMaterials.Count);
+                EditorGUILayout.IntField("纹理槽总数", analyzedMaterials.Sum(item => item.Textures.Count));
+                EditorGUILayout.IntField("未匹配纹理槽", analyzedMaterials.Sum(item => item.Textures.Count(texture => !texture.IsResolved)));
+                EditorGUILayout.IntField("找到 Front", analyzedMaterials.Count(item => !string.IsNullOrEmpty(item.ForegroundPath)));
+            }
+
+            foreach (MaterialAnalysis analysis in analyzedMaterials)
+            {
+                int missing = analysis.Textures.Count(texture => !texture.IsResolved);
+                string front = string.IsNullOrEmpty(analysis.ForegroundPath)
+                    ? "无 Front（可选）"
+                    : Path.GetFileName(analysis.ForegroundPath);
+                string detail = missing == 0
+                    ? $"{analysis.Snapshot.Name}  |  纹理 {analysis.Textures.Count}/{analysis.Textures.Count}  |  {front}"
+                    : $"{analysis.Snapshot.Name}  |  缺少 {missing}/{analysis.Textures.Count} 个纹理  |  {front}";
+                EditorGUILayout.HelpBox(detail, missing == 0 ? MessageType.Info : MessageType.Error);
+            }
+            return;
+        }
+
+        MaterialAnalysis single = analyzedMaterials[0];
+        MaterialSnapshot analyzedMaterial = single.Snapshot;
         using (new EditorGUI.DisabledScope(true))
         {
             EditorGUILayout.TextField("Material", analyzedMaterial.Name);
@@ -110,7 +136,7 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
             EditorGUILayout.LongField("原 Shader PathID", analyzedMaterial.ShaderPathId);
         }
 
-        foreach (TextureResolution texture in analyzedTextures)
+        foreach (TextureResolution texture in single.Textures)
         {
             MessageType type = texture.IsResolved ? MessageType.Info : MessageType.Error;
             string detail = texture.IsResolved
@@ -118,26 +144,41 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
                 : $"{texture.PropertyName}  →  未找到（PathID {texture.PathId}）";
             EditorGUILayout.HelpBox(detail, type);
         }
+
+        if (!string.IsNullOrEmpty(single.ForegroundPath))
+            EditorGUILayout.HelpBox($"Front 叠加层  →  {Path.GetFileName(single.ForegroundPath)}", MessageType.Info);
     }
 
     private void Analyze()
     {
-        analyzedMaterial = null;
-        analyzedTextures.Clear();
+        analyzedMaterials.Clear();
 
         try
         {
             ValidateSourceDirectory();
             AutoDetectSharedData(overwriteExisting: false);
 
-            string materialBinary = FindVariantCardMaterialBinary(sourceDirectory);
-            analyzedMaterial = MaterialBinaryReader.Read(materialBinary);
             Dictionary<long, string> textureMap = LoadTextureMap(animationTextureMapPath);
-            analyzedTextures = ResolveTextures(analyzedMaterial, sourceDirectory, animationTextureDirectory, textureMap);
+            foreach (string materialBinary in FindVariantCardMaterialBinaries(sourceDirectory))
+            {
+                MaterialSnapshot snapshot = MaterialBinaryReader.Read(materialBinary);
+                analyzedMaterials.Add(new MaterialAnalysis(
+                    materialBinary,
+                    snapshot,
+                    ResolveTextures(snapshot, sourceDirectory, animationTextureDirectory, textureMap),
+                    ResolveForegroundTexture(snapshot.Name, sourceDirectory)));
+            }
+            analyzedMaterials = analyzedMaterials
+                .OrderBy(item => item.AssetId, StringComparer.Ordinal)
+                .ThenBy(item => item.Snapshot.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            int missing = analyzedTextures.Count(item => !item.IsResolved);
+            int missing = analyzedMaterials.Sum(item => item.Textures.Count(texture => !texture.IsResolved));
+            int textureCount = analyzedMaterials.Sum(item => item.Textures.Count);
             analysisMessage = missing == 0
-                ? $"解析成功：{analyzedMaterial.Name}，全部 {analyzedTextures.Count} 个纹理槽均已精确匹配。"
+                ? analyzedMaterials.Count == 1
+                    ? $"解析成功：{analyzedMaterials[0].Snapshot.Name}，全部 {textureCount} 个纹理槽均已精确匹配。"
+                    : $"场景组解析成功：{analyzedMaterials.Count} 个 VariantCard 材质，全部 {textureCount} 个纹理槽均已精确匹配。"
                 : $"参数解析成功，但有 {missing} 个纹理槽未匹配。请检查通用纹理目录和 PathID 映射 JSON。";
             analysisMessageType = missing == 0 ? MessageType.Info : MessageType.Warning;
         }
@@ -154,8 +195,16 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
     private void Restore()
     {
         Analyze();
-        if (analyzedMaterial == null || analyzedTextures.Any(item => !item.IsResolved))
+        if (analyzedMaterials.Count == 0
+            || analyzedMaterials.Any(item => item.Textures.Any(texture => !texture.IsResolved)))
             return;
+        if (analyzedMaterials.Count > 1)
+        {
+            analysisMessage =
+                $"检测到 {analyzedMaterials.Count} 个战斗背景材质。请改用 Tools/ReDiv/战斗背景/还原 SpriteRenderer 场景。";
+            analysisMessageType = MessageType.Warning;
+            return;
+        }
 
         try
         {
@@ -165,41 +214,14 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
 
             string sourceName = new DirectoryInfo(sourceDirectory).Name;
             string assetRoot = CombineAssetPath(outputAssetDirectory, SanitizeFileName(sourceName));
-            string textureAssetRoot = CombineAssetPath(assetRoot, "Textures");
-            EnsureAssetFolder(textureAssetRoot);
-
-            var importedTextures = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
-            foreach (TextureResolution resolution in analyzedTextures)
-            {
-                if (string.IsNullOrEmpty(resolution.SourcePath))
-                    continue;
-
-                string fileName = Path.GetFileName(resolution.SourcePath);
-                string targetAssetPath = CombineAssetPath(textureAssetRoot, fileName);
-                CopyExternalFileToAsset(resolution.SourcePath, targetAssetPath);
-                ConfigureTextureImporter(targetAssetPath, resolution.PropertyName);
-
-                Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(targetAssetPath);
-                if (texture == null)
-                    throw new InvalidOperationException($"纹理导入失败：{targetAssetPath}");
-                importedTextures[resolution.PropertyName] = texture;
-            }
-
-            string materialAssetPath = CombineAssetPath(assetRoot, analyzedMaterial.Name + ".mat");
-            Material material = CreateOrLoadMaterial(materialAssetPath, variantCardShader);
-            ApplySnapshot(material, analyzedMaterial, importedTextures);
-
-            string prefabAssetPath = string.Empty;
-            if (createPreviewPrefab)
-                prefabAssetPath = CreatePreviewPrefab(assetRoot, material, importedTextures["_MainTex"]);
+            RestoredEntry restored = RestoreSingleMaterial(assetRoot, analyzedMaterials[0]);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Selection.activeObject = material;
-
+            Selection.activeObject = restored.Material;
             analysisMessage = createPreviewPrefab
-                ? $"还原完成：{materialAssetPath}\n预览：{prefabAssetPath}"
-                : $"还原完成：{materialAssetPath}";
+                ? $"还原完成：{restored.MaterialAssetPath}\n预览：{restored.PrefabAssetPath}"
+                : $"还原完成：{restored.MaterialAssetPath}";
             analysisMessageType = MessageType.Info;
             Debug.Log($"[ReDiv VariantCard] {analysisMessage}");
         }
@@ -209,6 +231,267 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
             analysisMessageType = MessageType.Error;
             Debug.LogException(exception);
         }
+    }
+
+    private RestoredEntry RestoreSingleMaterial(string assetRoot, MaterialAnalysis analysis)
+    {
+        string textureAssetRoot = CombineAssetPath(assetRoot, "Textures");
+        EnsureAssetFolder(textureAssetRoot);
+
+        var cache = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, Texture2D> importedTextures = ImportMaterialTextures(
+            analysis,
+            textureAssetRoot,
+            textureAssetRoot,
+            cache);
+        Texture2D foreground = ImportExternalTexture(
+            analysis.ForegroundPath,
+            textureAssetRoot,
+            "_FrontOverlay",
+            cache);
+
+        string materialAssetPath = CombineAssetPath(assetRoot, analysis.Snapshot.Name + ".mat");
+        Material material = CreateOrLoadMaterial(materialAssetPath, variantCardShader);
+        ApplySnapshot(material, analysis.Snapshot, importedTextures);
+
+        string prefabAssetPath = string.Empty;
+        if (createPreviewPrefab)
+        {
+            string identifier = analysis.Identifier;
+            prefabAssetPath = CombineAssetPath(assetRoot, identifier + "_Preview.prefab");
+            CreatePreviewPrefab(
+                prefabAssetPath,
+                identifier,
+                material,
+                importedTextures["_MainTex"],
+                foreground,
+                ReadOffsetY(sourceDirectory));
+        }
+
+        return new RestoredEntry(
+            analysis,
+            material,
+            importedTextures["_MainTex"],
+            foreground,
+            materialAssetPath,
+            prefabAssetPath);
+    }
+
+    internal static BattleSpriteRestoreResult RestoreBattleSpriteAssets(
+        string sourceDirectory,
+        string animationTextureDirectory,
+        string animationTextureMapPath,
+        string outputAssetDirectory,
+        Shader shader,
+        float pixelsPerUnit)
+    {
+        if (string.IsNullOrWhiteSpace(sourceDirectory) || !Directory.Exists(sourceDirectory))
+            throw new DirectoryNotFoundException($"战斗背景场景组目录不存在：{sourceDirectory}");
+        if (string.IsNullOrWhiteSpace(animationTextureDirectory) || !Directory.Exists(animationTextureDirectory))
+            throw new DirectoryNotFoundException($"通用效果纹理目录不存在：{animationTextureDirectory}");
+        if (shader == null)
+            throw new InvalidOperationException($"未指定 VariantCard Shader。默认位置：{ShaderAssetPath}");
+        if (pixelsPerUnit <= 0f)
+            throw new ArgumentOutOfRangeException(nameof(pixelsPerUnit), "Pixels Per Unit 必须大于 0。");
+
+        outputAssetDirectory = NormalizeAssetPath(outputAssetDirectory);
+        if (outputAssetDirectory != "Assets"
+            && !outputAssetDirectory.StartsWith("Assets/", StringComparison.Ordinal))
+            throw new InvalidOperationException("输出目录必须位于当前 Unity 工程的 Assets 下。");
+
+        Dictionary<long, string> textureMap = LoadTextureMap(animationTextureMapPath);
+        List<MaterialAnalysis> analyses = FindVariantCardMaterialBinaries(sourceDirectory)
+            .Select(path =>
+            {
+                MaterialSnapshot snapshot = MaterialBinaryReader.Read(path);
+                return new MaterialAnalysis(
+                    path,
+                    snapshot,
+                    ResolveTextures(snapshot, sourceDirectory, animationTextureDirectory, textureMap),
+                    ResolveForegroundTexture(snapshot.Name, sourceDirectory));
+            })
+            .OrderBy(item => item.AssetId, StringComparer.Ordinal)
+            .ThenBy(item => item.Snapshot.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        List<string> missing = analyses
+            .SelectMany(analysis => analysis.Textures
+                .Where(texture => !texture.IsResolved)
+                .Select(texture => $"{analysis.Identifier}:{texture.PropertyName} (PathID {texture.PathId})"))
+            .ToList();
+        if (missing.Count > 0)
+            throw new InvalidOperationException(
+                $"有 {missing.Count} 个纹理槽未匹配，不能生成场景：\n{string.Join("\n", missing)}");
+
+        string groupName = new DirectoryInfo(sourceDirectory).Name;
+        string assetRoot = CombineAssetPath(outputAssetDirectory, SanitizeFileName(groupName));
+        string materialRoot = CombineAssetPath(assetRoot, "Materials");
+        string commonTextureRoot = CombineAssetPath(assetRoot, "Textures", "Common");
+        string sceneTextureRoot = CombineAssetPath(assetRoot, "Textures", "Scenes");
+        EnsureAssetFolder(materialRoot);
+        EnsureAssetFolder(commonTextureRoot);
+        EnsureAssetFolder(sceneTextureRoot);
+
+        var cache = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+        var assets = new List<BattleSpriteAsset>();
+        foreach (MaterialAnalysis analysis in analyses)
+        {
+            var importedTextures = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
+            foreach (TextureResolution resolution in analysis.Textures)
+            {
+                if (string.IsNullOrEmpty(resolution.SourcePath))
+                    continue;
+
+                bool isCommon = IsSameOrChildPath(resolution.SourcePath, animationTextureDirectory);
+                bool isMainSprite = resolution.PropertyName == "_MainTex" && !isCommon;
+                importedTextures[resolution.PropertyName] = ImportExternalTexture(
+                    resolution.SourcePath,
+                    isCommon ? commonTextureRoot : sceneTextureRoot,
+                    resolution.PropertyName,
+                    cache,
+                    isMainSprite,
+                    pixelsPerUnit);
+            }
+
+            Texture2D foregroundTexture = ImportExternalTexture(
+                analysis.ForegroundPath,
+                sceneTextureRoot,
+                "_FrontOverlay",
+                cache,
+                importAsSprite: true,
+                pixelsPerUnit);
+
+            string materialAssetPath = CombineAssetPath(materialRoot, analysis.Snapshot.Name + ".mat");
+            Material material = CreateOrLoadMaterial(materialAssetPath, shader);
+            ApplySnapshot(material, analysis.Snapshot, importedTextures);
+
+            if (!importedTextures.TryGetValue("_MainTex", out Texture2D mainTexture))
+                throw new InvalidOperationException($"{analysis.Identifier} 没有可用的 _MainTex。");
+
+            string mainTextureAssetPath = AssetDatabase.GetAssetPath(mainTexture);
+            Sprite mainSprite = AssetDatabase.LoadAssetAtPath<Sprite>(mainTextureAssetPath);
+            if (mainSprite == null)
+                throw new InvalidOperationException($"主背景没有按 Sprite 导入：{mainTextureAssetPath}");
+
+            Sprite foregroundSprite = foregroundTexture == null
+                ? null
+                : AssetDatabase.LoadAssetAtPath<Sprite>(AssetDatabase.GetAssetPath(foregroundTexture));
+            assets.Add(new BattleSpriteAsset(
+                analysis.AssetId,
+                analysis.Identifier,
+                material,
+                mainSprite,
+                foregroundSprite));
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        return new BattleSpriteRestoreResult(assetRoot, assets);
+    }
+
+    private List<RestoredEntry> RestoreMaterialGroup(string assetRoot)
+    {
+        string materialRoot = CombineAssetPath(assetRoot, "Materials");
+        string prefabRoot = CombineAssetPath(assetRoot, "Prefabs");
+        string commonTextureRoot = CombineAssetPath(assetRoot, "Textures", "Common");
+        string sceneTextureRoot = CombineAssetPath(assetRoot, "Textures", "Scenes");
+        EnsureAssetFolder(materialRoot);
+        EnsureAssetFolder(commonTextureRoot);
+        EnsureAssetFolder(sceneTextureRoot);
+        if (createPreviewPrefab)
+            EnsureAssetFolder(prefabRoot);
+
+        var cache = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+        var restored = new List<RestoredEntry>();
+        foreach (MaterialAnalysis analysis in analyzedMaterials)
+        {
+            Dictionary<string, Texture2D> importedTextures = ImportMaterialTextures(
+                analysis,
+                sceneTextureRoot,
+                commonTextureRoot,
+                cache);
+            Texture2D foreground = ImportExternalTexture(
+                analysis.ForegroundPath,
+                sceneTextureRoot,
+                "_FrontOverlay",
+                cache);
+
+            string materialAssetPath = CombineAssetPath(materialRoot, analysis.Snapshot.Name + ".mat");
+            Material material = CreateOrLoadMaterial(materialAssetPath, variantCardShader);
+            ApplySnapshot(material, analysis.Snapshot, importedTextures);
+
+            string prefabAssetPath = string.Empty;
+            if (createPreviewPrefab)
+            {
+                prefabAssetPath = CombineAssetPath(prefabRoot, analysis.Identifier + "_Preview.prefab");
+                CreatePreviewPrefab(
+                    prefabAssetPath,
+                    analysis.Identifier,
+                    material,
+                    importedTextures["_MainTex"],
+                    foreground,
+                    ReadOffsetY(sourceDirectory));
+            }
+
+            restored.Add(new RestoredEntry(
+                analysis,
+                material,
+                importedTextures["_MainTex"],
+                foreground,
+                materialAssetPath,
+                prefabAssetPath));
+        }
+        return restored;
+    }
+
+    private Dictionary<string, Texture2D> ImportMaterialTextures(
+        MaterialAnalysis analysis,
+        string localTextureRoot,
+        string commonTextureRoot,
+        IDictionary<string, Texture2D> cache)
+    {
+        var imported = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
+        foreach (TextureResolution resolution in analysis.Textures)
+        {
+            if (string.IsNullOrEmpty(resolution.SourcePath))
+                continue;
+
+            bool isCommon = IsSameOrChildPath(resolution.SourcePath, animationTextureDirectory);
+            Texture2D texture = ImportExternalTexture(
+                resolution.SourcePath,
+                isCommon ? commonTextureRoot : localTextureRoot,
+                resolution.PropertyName,
+                cache);
+            imported[resolution.PropertyName] = texture;
+        }
+        return imported;
+    }
+
+    private static Texture2D ImportExternalTexture(
+        string sourcePath,
+        string targetAssetRoot,
+        string propertyName,
+        IDictionary<string, Texture2D> cache,
+        bool importAsSprite = false,
+        float pixelsPerUnit = 100f)
+    {
+        if (string.IsNullOrEmpty(sourcePath))
+            return null;
+
+        string sourceKey = Path.GetFullPath(sourcePath);
+        if (cache.TryGetValue(sourceKey, out Texture2D cached))
+            return cached;
+
+        string targetAssetPath = CombineAssetPath(targetAssetRoot, Path.GetFileName(sourcePath));
+        EnsureAssetFolder(targetAssetRoot);
+        CopyExternalFileToAsset(sourcePath, targetAssetPath);
+        ConfigureTextureImporter(targetAssetPath, propertyName, importAsSprite, pixelsPerUnit);
+
+        Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(targetAssetPath);
+        if (texture == null)
+            throw new InvalidOperationException($"纹理导入失败：{targetAssetPath}");
+        cache[sourceKey] = texture;
+        return texture;
     }
 
     private void AutoDetectSharedData(bool overwriteExisting)
@@ -248,14 +531,14 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
                 continue;
             }
 
-            if (source.FileId == 0)
-            {
+            if (source.PropertyName is "_MainTex" or "_MaskTex")
                 path = ResolveLocalTexture(snapshot.Name, source.PropertyName, localDirectory);
-            }
-            else if (textureMap.TryGetValue(source.PathId, out string textureName))
-            {
+
+            if (string.IsNullOrEmpty(path) && source.FileId == 0)
+                path = ResolveLocalTexture(snapshot.Name, source.PropertyName, localDirectory);
+
+            if (string.IsNullOrEmpty(path) && textureMap.TryGetValue(source.PathId, out string textureName))
                 path = FindFileIgnoringCase(commonDirectory, textureName + ".png");
-            }
 
             result.Add(new TextureResolution(source, path));
         }
@@ -390,10 +673,14 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         EditorUtility.SetDirty(material);
     }
 
-    private string CreatePreviewPrefab(string assetRoot, Material material, Texture2D mainTexture)
+    private static void CreatePreviewPrefab(
+        string prefabPath,
+        string identifier,
+        Material material,
+        Texture2D mainTexture,
+        Texture2D foregroundTexture,
+        float offsetY)
     {
-        string identifier = analyzedMaterial.Name.Replace("_mat", string.Empty);
-        string prefabPath = CombineAssetPath(assetRoot, identifier + "_Preview.prefab");
         var root = new GameObject(
             identifier + "_Preview",
             typeof(RectTransform),
@@ -403,7 +690,6 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
 
         try
         {
-            float offsetY = ReadOffsetY(sourceDirectory);
             RectTransform rect = root.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(mainTexture.width, mainTexture.height);
             rect.anchoredPosition = new Vector2(0f, offsetY);
@@ -418,6 +704,54 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
             fitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             fitter.aspectRatio = mainTexture.width / (float)mainTexture.height;
 
+            AddForegroundOverlay(root.transform, foregroundTexture);
+            PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+        }
+        finally
+        {
+            DestroyImmediate(root);
+        }
+    }
+
+    private static string CreateGroupPreviewPrefab(
+        string assetRoot,
+        string sourceName,
+        IReadOnlyList<RestoredEntry> restored)
+    {
+        string prefabPath = CombineAssetPath(assetRoot, SanitizeFileName(sourceName) + "_GroupPreview.prefab");
+        float totalWidth = restored.Sum(item => item.MainTexture.width);
+        float maxHeight = restored.Max(item => item.MainTexture.height);
+        var root = new GameObject(SanitizeFileName(sourceName) + "_GroupPreview", typeof(RectTransform));
+
+        try
+        {
+            RectTransform rootRect = root.GetComponent<RectTransform>();
+            rootRect.sizeDelta = new Vector2(totalWidth, maxHeight);
+
+            float cursor = -totalWidth * 0.5f;
+            foreach (RestoredEntry entry in restored)
+            {
+                var panel = new GameObject(
+                    entry.Analysis.Identifier,
+                    typeof(RectTransform),
+                    typeof(CanvasRenderer),
+                    typeof(RawImage));
+                RectTransform panelRect = panel.GetComponent<RectTransform>();
+                panelRect.SetParent(rootRect, false);
+                panelRect.anchorMin = panelRect.anchorMax = panelRect.pivot = new Vector2(0.5f, 0.5f);
+                panelRect.sizeDelta = new Vector2(entry.MainTexture.width, entry.MainTexture.height);
+                panelRect.anchoredPosition = new Vector2(cursor + entry.MainTexture.width * 0.5f, 0f);
+
+                RawImage image = panel.GetComponent<RawImage>();
+                image.texture = entry.MainTexture;
+                image.material = entry.Material;
+                image.color = Color.white;
+                image.raycastTarget = false;
+                AddForegroundOverlay(panel.transform, entry.ForegroundTexture);
+
+                cursor += entry.MainTexture.width;
+            }
+
             PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             return prefabPath;
         }
@@ -425,6 +759,29 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         {
             DestroyImmediate(root);
         }
+    }
+
+    private static void AddForegroundOverlay(Transform parent, Texture2D foregroundTexture)
+    {
+        if (foregroundTexture == null)
+            return;
+
+        var overlay = new GameObject(
+            "Front",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(RawImage));
+        RectTransform rect = overlay.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        RawImage image = overlay.GetComponent<RawImage>();
+        image.texture = foregroundTexture;
+        image.color = Color.white;
+        image.raycastTarget = false;
     }
 
     private static float ReadOffsetY(string directory)
@@ -437,14 +794,28 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         return data?.OffsetY ?? 0f;
     }
 
-    private static void ConfigureTextureImporter(string assetPath, string propertyName)
+    private static void ConfigureTextureImporter(
+        string assetPath,
+        string propertyName,
+        bool importAsSprite = false,
+        float pixelsPerUnit = 100f)
     {
         AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceSynchronousImport);
         if (AssetImporter.GetAtPath(assetPath) is not TextureImporter importer)
             throw new InvalidOperationException($"无法取得 TextureImporter：{assetPath}");
 
-        bool isStillTexture = propertyName is "_MainTex" or "_MaskTex";
-        importer.textureType = TextureImporterType.Default;
+        bool isStillTexture = propertyName is "_MainTex" or "_MaskTex" or "_FrontOverlay";
+        importer.textureType = importAsSprite ? TextureImporterType.Sprite : TextureImporterType.Default;
+        if (importAsSprite)
+        {
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = pixelsPerUnit;
+            importer.spritePivot = new Vector2(0.5f, 0.5f);
+            var textureSettings = new TextureImporterSettings();
+            importer.ReadTextureSettings(textureSettings);
+            textureSettings.spriteMeshType = SpriteMeshType.FullRect;
+            importer.SetTextureSettings(textureSettings);
+        }
         importer.sRGBTexture = true;
         importer.alphaSource = TextureImporterAlphaSource.FromInput;
         importer.mipmapEnabled = false;
@@ -462,7 +833,7 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         File.Copy(sourcePath, targetAbsolutePath, overwrite: true);
     }
 
-    private static string FindVariantCardMaterialBinary(string directory)
+    private static List<string> FindVariantCardMaterialBinaries(string directory)
     {
         string[] matches = Directory.GetFiles(directory, "*_mat.bin", SearchOption.TopDirectoryOnly);
         if (matches.Length == 0)
@@ -485,14 +856,56 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
             }
         }
 
-        if (variantCardMatches.Count == 1)
-            return variantCardMatches[0];
-        if (variantCardMatches.Count > 1)
-            throw new InvalidOperationException(
-                $"目录内找到 {variantCardMatches.Count} 个 VariantCard 材质，无法自动决定主材质：\n{string.Join("\n", variantCardMatches.Select(Path.GetFileName))}");
+        if (variantCardMatches.Count > 0)
+            return variantCardMatches.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
 
         throw new InvalidOperationException(
             $"目录内没有找到原版 VariantCardShader（PathID {OriginalVariantCardShaderPathId}）。这个背景可能使用其他 Shader。\n{string.Join("\n", detectedShaders)}");
+    }
+
+    private static string ResolveForegroundTexture(string materialName, string directory)
+    {
+        string identifier = GetMaterialIdentifier(materialName);
+        var candidates = new List<string> { identifier + "_front.png" };
+        if (identifier.StartsWith("bg_bg_", StringComparison.OrdinalIgnoreCase))
+            identifier = "bg_" + identifier.Substring("bg_bg_".Length);
+        if (identifier.StartsWith("bg_", StringComparison.OrdinalIgnoreCase))
+        {
+            candidates.Add(identifier + "_front.png");
+            candidates.Add("bg_front_" + identifier.Substring("bg_".Length) + ".png");
+        }
+
+        foreach (string candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            string match = FindFileIgnoringCase(directory, candidate);
+            if (!string.IsNullOrEmpty(match))
+                return match;
+        }
+        return null;
+    }
+
+    private static string GetMaterialIdentifier(string materialName)
+    {
+        return materialName.EndsWith("_mat", StringComparison.OrdinalIgnoreCase)
+            ? materialName.Substring(0, materialName.Length - "_mat".Length)
+            : materialName;
+    }
+
+    private static string ExtractAssetId(string materialName)
+    {
+        MatchCollection matches = Regex.Matches(materialName ?? string.Empty, @"\d+");
+        return matches.Count == 0 ? materialName ?? string.Empty : matches[^1].Value;
+    }
+
+    private static bool IsSameOrChildPath(string path, string directory)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(directory))
+            return false;
+
+        string fullPath = Path.GetFullPath(path);
+        string fullDirectory = Path.GetFullPath(directory)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return fullPath.StartsWith(fullDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string FindFileIgnoringCase(string directory, string fileName)
@@ -641,6 +1054,41 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         current.Use();
     }
 
+    internal sealed class BattleSpriteRestoreResult
+    {
+        public BattleSpriteRestoreResult(string assetRoot, IReadOnlyList<BattleSpriteAsset> assets)
+        {
+            AssetRoot = assetRoot;
+            Assets = assets;
+        }
+
+        public string AssetRoot { get; }
+        public IReadOnlyList<BattleSpriteAsset> Assets { get; }
+    }
+
+    internal sealed class BattleSpriteAsset
+    {
+        public BattleSpriteAsset(
+            string backgroundId,
+            string identifier,
+            Material material,
+            Sprite mainSprite,
+            Sprite foregroundSprite)
+        {
+            BackgroundId = backgroundId;
+            Identifier = identifier;
+            Material = material;
+            MainSprite = mainSprite;
+            ForegroundSprite = foregroundSprite;
+        }
+
+        public string BackgroundId { get; }
+        public string Identifier { get; }
+        public Material Material { get; }
+        public Sprite MainSprite { get; }
+        public Sprite ForegroundSprite { get; }
+    }
+
     [Serializable]
     private sealed class AnimationTextureAssetMap
     {
@@ -677,6 +1125,56 @@ public sealed class ReDivVariantCardMaterialRestorerWindow : EditorWindow
         public Vector2 Offset { get; }
         public string SourcePath { get; }
         public bool IsResolved => PathId == 0 || !string.IsNullOrEmpty(SourcePath);
+    }
+
+    private sealed class MaterialAnalysis
+    {
+        public MaterialAnalysis(
+            string binaryPath,
+            MaterialSnapshot snapshot,
+            List<TextureResolution> textures,
+            string foregroundPath)
+        {
+            BinaryPath = binaryPath;
+            Snapshot = snapshot;
+            Textures = textures;
+            ForegroundPath = foregroundPath;
+            Identifier = GetMaterialIdentifier(snapshot.Name);
+            AssetId = ExtractAssetId(snapshot.Name);
+        }
+
+        public string BinaryPath { get; }
+        public MaterialSnapshot Snapshot { get; }
+        public List<TextureResolution> Textures { get; }
+        public string ForegroundPath { get; }
+        public string Identifier { get; }
+        public string AssetId { get; }
+    }
+
+    private sealed class RestoredEntry
+    {
+        public RestoredEntry(
+            MaterialAnalysis analysis,
+            Material material,
+            Texture2D mainTexture,
+            Texture2D foregroundTexture,
+            string materialAssetPath,
+            string prefabAssetPath)
+        {
+            Analysis = analysis;
+            Material = material;
+            MainTexture = mainTexture;
+            ForegroundTexture = foregroundTexture;
+            MaterialAssetPath = materialAssetPath;
+            PrefabAssetPath = prefabAssetPath;
+        }
+
+        public MaterialAnalysis Analysis { get; }
+        public Material Material { get; }
+        public Texture2D MainTexture { get; }
+        public Texture2D ForegroundTexture { get; }
+        public string MaterialAssetPath { get; }
+        public string PrefabAssetPath { get; }
     }
 
     private sealed class MaterialSnapshot

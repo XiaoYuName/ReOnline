@@ -21,7 +21,7 @@
 7. NGUI 上次批量生成的独立 `*_切割PNG` 已按要求删除；原始图集 PNG 和 `atlas_manifest.json` 保留。不要把批量切图重新塞回整理目录。
 8. Spine 角色已经按正确基准重新完成 730 个 `sdnormal` 外观的 3.6 → 3.8.99 → 4.3.23 批处理。**骨架 Scale 必须在 3.8 导入阶段设为 `0.5`，且只应用一次；创建 3.8 和升级 4.3 时必须暂时隐藏图片，之后才恢复完整画布并导出。**
 9. 怪物已经组装为 Spine 3.6 的“一怪物一文件夹”，但**尚未批量升级到 4.3**。当前 4.3 脚本只识别角色目录布局，不能直接声称也支持怪物。
-10. `VariantCard.shader` 和通用材质一键还原工具已在 Unity 中工作；`still_unit_105831` 与背景 `bg_500020` 是已验证样例。工具会按原 Shader PathID 识别 VariantCard 主材质，不能假定所有背景都使用同一个 Shader。完整视觉还依赖正确的通用纹理、PathID 映射、导入设置及原始参数。
+10. `VariantCard.shader`、单素材材质还原工具和独立的战斗背景 SpriteRenderer 场景还原工具已在 Unity 中工作；`still_unit_105831`、背景 `bg_500020` 与战斗背景组 `bg_10001` 是已验证样例。战斗背景组按完整 ID 建成同原点、按波次切换的 Back/Front 变体，不再横向平铺；工具会按原 Shader PathID 识别 VariantCard 材质，不能假定所有背景都使用同一个 Shader。完整视觉还依赖正确的通用纹理、PathID 映射、导入设置及原始参数。
 11. **还原出来的材质拿去做 UGUI 背景时，`renderQueue` 必须从原值 2000 改成 3000。** 2000 是原包 bin 里的值（还原验证要保留），但 UGUI 默认 3000、queue 小的先画 ⇒ 那张背景会**被所有 UI 元素盖住**，症状是「界面明明开着，别的界面元素还浮在上面」，看着像层级错了。2026-08-27 副本区域背景 `bg_500170_mat.mat` 踩过（已改成 3000），详见 9.3.1。工程里现在用着的三张（2026-08-27 逐个核对过）：立绘 `still_unit_105831` = **2000**（还原样例，没用在 UI 上，保持原值）；城镇背景 `bg_500020` = **2000**（**世界空间 `SpriteRenderer`**，2000 恰好让它比角色（Sprite 默认 3000）先画、也就是排在角色后面，正是想要的效果，所以别动它）；副本背景 `bg_500170` = **3000**（UI，2026-08-27 从 2000 改的）。
     换句话说这条只对**「把还原材质挂到 UGUI 上」**成立；世界空间那边 2000 反而是对的。
 
@@ -299,7 +299,7 @@ D:\GitLab\REDIV\ReDiv_Online\Assets\Editor\UITools\NGUIAtlasSpriteImporterWindow
 菜单：
 
 ```text
-Tools > Rediv > NGUI 图集切割与 Sprite 导入
+Tools > ReDiv > NGUI 图集切割与 Sprite 导入
 ```
 
 当前工具支持：
@@ -482,28 +482,38 @@ D:\AssetsStudio\Rediv\CN_分类完成\Spine导出完成_4.3\_批处理进度.jso
 D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\VariantCard.shader
 D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\Editor\ReDivVariantCardShaderGUI.cs
 D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\Editor\ReDivVariantCardMaterialRestorerWindow.cs
+D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\Editor\ReDivBattleBackgroundSceneRestorerWindow.cs
+D:\GitLab\REDIV\ReDiv_Online\Assets\Scripts\Game\Scripts\Backgrounds\BattleBackgroundVariantSet.cs
+D:\GitLab\REDIV\ReDiv_Online\Assets\Scripts\Game\Scripts\Backgrounds\BattleBackgroundScreenFitter.cs
 ```
 
 Shader 名：`Cygames/VariantCardShader`。当前实现是面向 URP 的还原版本。
 
-通用一键工具菜单：
+单素材 VariantCard 工具菜单：
 
 ```text
 Tools > ReDiv > VariantCard > 一键还原材质
 ```
 
-工具流程：
+这个窗口只负责一个 `still_unit_xxxxxx_mat.bin` 或 `bg_xxxxxx_mat.bin` 的材质和
+`RawImage` 预览。若检测到同目录多个战斗背景材质，会提示改用独立战斗背景工具，不再生成
+缺乏依据的横向 UI 平铺。单素材工具流程：
 
 1. 拖入整理目录外部的 `still_unit_xxxxxx` 或 `bg_xxxxxx` 文件夹。
 2. 点击自动定位通用纹理与 `animationtexture_asset_map.json`，必要时手动选择。
 3. 选择 Unity 工程 `Assets` 下输出目录。
-4. “解析并检查”会按原 Shader PathID `8273635072764025099` 选择 VariantCard 主材质，并确认所有 Texture PathID 已匹配；同目录有其他 Shader 的材质不会被误选。
-5. “一键还原”生成纹理副本、Material 和预览 Prefab；源目录不修改。
+4. “解析并检查”会按原 Shader PathID `8273635072764025099` 选择 VariantCard 材质，并确认 Texture PathID/本地纹理是否匹配；同目录有其他 Shader 的材质不会被误选。
+5. “一键还原”生成纹理副本、Material 和可选 `RawImage` 预览 Prefab；源目录不修改。
 
 本地纹理名同时兼容立绘的 `still_unit_xxxxxx_mask.png`、常规背景的
 `bg_xxxxxx_mask.png`、另一批背景的 `bg_mask_xxxxxx.png`，并以目录名和唯一语义匹配
 处理 `bg_bg_xxxxxx_mat`、目录 ID 与材质名不一致等已发现变体。若材质的原 Shader
 PathID 不同，工具会明确报告它不是当前 VariantCard，而不是强行套用。
+
+战斗背景独立工具兼容同完整 ID 的 `bg_<完整ID>_front.png` 前景层。部分战斗背景
+Material 的 `_MainTex` / `_MaskTex` 虽然是同目录本地资源，
+PPtr 的 FileID 仍不为 0；此时必须先按完整 ID 精确匹配本地 PNG，再回退到通用纹理
+PathID 映射，否则会把每个材质的主图和 Mask 错报为缺失。
 
 解析保留 Unity 6000 Material 的 Shader PPtr、keywords、LightmapFlags、instancing、double-sided GI、render queue、tag map、disabled passes、TexEnv/PPtr/scale/offset、ints、floats、colors 等。工具的二进制布局已针对当前国服 `202608171854` / 原包回退 `6000.0.58f2` 验证，不能未经验证就宣称适用于所有 Unity 版本。
 
@@ -580,6 +590,67 @@ D:\GitLab\REDIV\ReDiv_Online\Assets\Shader\ReDiv\Restored\bg_500020\Textures\
 `bg_500170_mat.mat` 已经改成 3000（它现在的用途就是副本区域背景）。
 客户端那边 `PopDungeonUI.CheckRenderQueue` 会在挂背景时报错提醒，但不会自动改资产。
 细节见 [../CLAUDE.md](../CLAUDE.md) 第 5 节「副本界面 → 区域背景」。
+
+### 9.3.2 战斗背景场景组批量还原
+
+已验证输入：
+
+```text
+D:\AssetsStudio\Rediv\CN_分类完成\场景与背景\背景\bg\battle\background\bg_10001
+```
+
+该目录包含 `bg_100011` ～ `bg_100019` 共 9 个完整资源 ID。进一步检查原始图片 bundle
+确认其中只有 Texture/Material，没有 Transform 或地图块坐标；检查国服 MasterData 中
+副本 `11005004` 的记录，则可观察到 `100011`、`100012`、`100013` 分别出现在三波背景
+字段。结论是：这些完整 ID 是**按副本波次切换的整张背景变体**，不是需要同时横向拼接的
+地图块。
+
+独立战斗背景工具菜单：
+
+```text
+Tools > ReDiv > 战斗背景 > 还原 SpriteRenderer 场景
+```
+
+工具会为每个完整 ID 还原自己的 VariantCard Material、主背景 Sprite 和透明 Front
+Sprite；所有变体保持同一世界原点，默认只激活一个。每个变体的层级是：
+
+```text
+bg_10001_BattleBackground [BattleBackgroundVariantSet]
+├─ bg_100011
+│  ├─ Back  [SpriteRenderer + VariantCard Material]
+│  └─ Front [SpriteRenderer]
+├─ bg_100012
+│  ├─ Back
+│  └─ Front
+└─ ...
+```
+
+`BattleBackgroundVariantSet.ShowById("100012")` 或 `ShowByIndex(...)` 可在运行时切换当前
+波次背景；它会保证一次只有一个完整背景变体处于激活状态。工具输出：
+
+```text
+<输出目录>\bg_10001\
+├─ Materials\                  # 9 份还原材质
+├─ Textures\Common\           # 按源文件去重后的通用效果纹理
+├─ Textures\Scenes\           # 各完整 ID 的主图、Mask、Front
+├─ bg_10001_BattleBackground.prefab
+└─ bg_10001_BattleScene.unity  # 可选；含正交相机
+```
+
+主图和 Front 以中心 Pivot、Full Rect、相同 Pixels Per Unit 导入并放在 `(0,0,0)`，不
+改变各层的相对布局；默认 Sorting Order 为 Back `-100`、Front `-90`。Prefab 根节点会自动
+挂载 `BattleBackgroundScreenFitter`，默认使用 `Cover` 模式对当前激活变体的 Back + Front
+整体做等比缩放和居中：横竖比不同时裁掉超出画面的部分，保证不出现黑边；切换波次、Game
+View 分辨率或正交相机尺寸后会自动重新计算。若希望完整显示图片并接受留边，可把组件的
+Mode 改成 `Contain`。可选正交相机位于 `(0,0,-10)`，Orthographic Size 按主图世界高度的
+一半设置，并由组件完成最终铺满。Scene 的相机只是方便直接预览，不代表原游戏 UI 或战斗
+单位坐标已经复原。
+
+2026-09-05 在 Unity 6000.4.8f1 对 `bg_10001` 做过端到端临时输出验证：9 个 Material
+全部使用 `Cygames/VariantCardShader`；Prefab 有 9 个同原点变体、默认激活 1 个、共
+18 个 SpriteRenderer；9 张主图和 9 张 Front 均以 PPU 100 导入，排序分别为 -100/-90；
+生成的 `.unity` 场景含 Orthographic Size 5.12 的正交相机。运行时切换到 `100019` 后仍
+只有一个变体激活。测试后 Unity 临时资产已清理。
 
 ### 9.4 Mask 和“完全一致”的边界
 

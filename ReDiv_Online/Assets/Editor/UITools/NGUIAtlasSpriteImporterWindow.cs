@@ -245,7 +245,7 @@ public sealed class NGUIAtlasSpriteImporterWindow : OdinEditorWindow
 
     private AtlasManifestData manifest;
 
-    [MenuItem("Tools/Rediv/NGUI 图集切割与 Sprite 导入")]
+    [MenuItem("Tools/ReDiv/NGUI 图集切割与 Sprite 导入")]
     private static void Open()
     {
         NGUIAtlasSpriteImporterWindow window = GetWindow<NGUIAtlasSpriteImporterWindow>();
